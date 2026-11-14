@@ -62,6 +62,7 @@ def validar_decision(
     if decision in (
         "seleccionar_destino",
         "seleccionar_financiacion",
+        "negociar_presupuesto",
         "instalar_componente",
         "remover_componente",
         "contratar_tripulante",
@@ -87,7 +88,7 @@ def validar_decision(
             allowed=True, status="allowed", message="Destino actualizado."
         )
 
-    # Etapa 2: Elegir acuerdo de financiación
+    # Etapa 2: Elegir acuerdo de financiación o negociar presupuesto en novela visual
     if decision == "seleccionar_financiacion":
         acuerdo_id = params.get("acuerdo_id")
         acuerdos = {a["id"]: a for a in ACUERDOS_FINANCIACION}
@@ -99,6 +100,20 @@ def validar_decision(
             )
         return ResultadoValidacion(
             allowed=True, status="allowed", message="Presupuesto global fijado."
+        )
+
+    if decision == "negociar_presupuesto":
+        bono = float(params.get("bono_usd", 0.0))
+        if bono < -50000.0 or bono > 90000.0:
+            return ResultadoValidacion(
+                allowed=False,
+                status="fail",
+                message="Ajuste de negociación fuera de rango permitido.",
+            )
+        return ResultadoValidacion(
+            allowed=True,
+            status="allowed",
+            message="Argumento de negociación procesado por el comité.",
         )
 
     # Etapa 3: Instalar componente del catálogo

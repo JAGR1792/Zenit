@@ -293,3 +293,33 @@ def test_modo_facil_otorga_margen_presupuesto_e_instrumento_inicial() -> None:
     assert "solo" in informe_solitario.dialogo_jefe_apertura.lower() or "solitario" in informe_solitario.dialogo_jefe_apertura.lower()
 
 
+def test_negociacion_presupuesto_novela_visual_incrementa_fondos() -> None:
+    """Verifica que las rondas de negociación estilo novela visual en Etapa 2 incrementen el presupuesto."""
+    mision = crear_nueva_mision(
+        CrearMisionRequest(
+            nombre_mision="Zenit Negociación",
+            destino=DestinoId.OTB,
+            dificultad=DificultadId.NORMAL,
+            acuerdo_financiacion_id="estandar",
+        )
+    )
+    presupuesto_base = mision.presupuesto_restante_usd
+    procesar_avance_etapa(mision.id)  # Avanza a Etapa 2
+
+    res_neg = procesar_decision_mision(
+        mision.id,
+        DecisionRequest(
+            stage=2,
+            decision="negociar_presupuesto",
+            params={
+                "bono_usd": 18000,
+                "argumento": "Convencer al Gato Jefe con telemetría en vivo",
+            },
+        ),
+    )
+    assert res_neg is not None
+    assert res_neg.allowed is True
+    assert res_neg.mission_state.presupuesto_restante_usd == presupuesto_base + 18000
+
+
+

@@ -4,6 +4,7 @@ import BossReportScene from '../components/BossReportScene.vue'
 import DestinationRooms2D from '../components/DestinationRooms2D.vue'
 import PixelSprite, { obtenerSpriteTripulante } from '../components/PixelSprite.vue'
 import ShipSchematic from '../components/ShipSchematic.vue'
+import VisualNovelNegotiation from '../components/VisualNovelNegotiation.vue'
 import {
   zenitApi,
   type CatalogoCompleto,
@@ -71,8 +72,8 @@ const difficultyOptions: Array<{
 ]
 
 // Modos del visor izquierdo y sub-pestañas de la Etapa 3
-// En Etapas 1 a 5 (Tierra/Hangar) inicia en 'schematic'; la cubierta 2D operativa se desbloquea al despegar (Etapa 6+)
-const activeViewportTab = ref<'rooms2d' | 'schematic' | 'telemetry'>('schematic')
+// En Etapas 1 y 2 inicia en 'office_vn' (Oficina de Planificación con los 3 gatos); en 3-5 pasa a 'schematic' (Hangar); en 6+ a 'rooms2d'
+const activeViewportTab = ref<'office_vn' | 'rooms2d' | 'schematic' | 'telemetry'>('office_vn')
 const stage3SubTab = ref<'hardware' | 'crew'>('hardware')
 const activeCategory = ref<string>('instrumento')
 
@@ -132,7 +133,8 @@ const currentStoryBeat = computed(() => {
   if (st === 1) {
     return {
       chapter: 'CAPÍTULO I · EL APAGÓN HELIOS-9',
-      speaker: 'COMISIONADO FÉLIX VANCE (EL GATO JEFE)',
+      speaker: 'GATO JEFE · COMISIONADO FÉLIX VANCE',
+      speakerIcon: '/sprites/iconos/icono_gato_jefe.png',
       quote: isLuna
         ? '«Tras la tormenta solar Helios-9 perdimos contacto con todas las sondas automáticas del polo sur lunar. Has elegido la Operación Cráter Shackleton: bajo ese hielo perpetuo hay una firma isotópica que ningún robot pudo descifrar. Necesito que vayas allá arriba y traigas la verdad.»'
         : '«La tormenta solar Helios-9 dejó ciega nuestra red de satélites automáticos y abrió una brecha en la magnetosfera superior. Con la Operación Escudo Ionosférico en OTB (400 km), tu misión es medir la anomalía desde primera línea antes de la siguiente llamarada.»',
@@ -140,20 +142,18 @@ const currentStoryBeat = computed(() => {
   }
   if (st === 2) {
     return {
-      chapter: 'CAPÍTULO II · EL PACTO EN EL DESPACHO',
-      speaker: 'COMISIONADO FÉLIX VANCE (EL GATO JEFE)',
+      chapter: 'CAPÍTULO II · AUDIENCIA ANTE EL COMITÉ DE LOS 3 GATOS',
+      speaker: 'GATO JEFE + 2 AYUDANTES (FINANZAS Y RIESGO)',
+      speakerIcon: '/sprites/iconos/icono_gato_asistente_blanco.png',
       quote:
-        mission.value.acuerdo_financiacion_id === 'ambicioso'
-          ? '«El Consorcio Aeroespacial ha puesto toda la carne en el asador. Tienes el presupuesto máximo, Director, pero a cambio esperan al menos 85 puntos de ciencia transmitidos sin excusas.»'
-          : mission.value.acuerdo_financiacion_id === 'austero'
-            ? '«El Fondo Académico tiene recursos muy limitados. Cada dólar cuenta y no habrá margen para derroches, pero si logras traer 45 puntos de ciencia habrás salvado el programa.»'
-            : '«El Programa Estatal Zenit te respalda con un presupuesto equilibrado. Administra bien cada compra en el hangar y deja un colchón financiero para imprevistos en vuelo.»',
+        '«En la Oficina de Planificación (visor izquierdo), el Gato Jefe y sus dos ayudantes evalúan tus argumentos. Convéncelos en las 3 rondas de diálogo para subir el presupuesto antes de pasar al hangar.»',
     }
   }
   if (st === 3) {
     return {
       chapter: 'CAPÍTULO III · ENSAMBLAJE EN EL HANGAR 04',
-      speaker: solo ? 'ALERTA DE DOTACIÓN (HANGAR)' : `EQUIPO A BORDO (${crewNames})`,
+      speaker: solo ? 'CAPITÁN PERRO (EN SOLITARIO)' : `DOTACIÓN CANINA (${crewNames})`,
+      speakerIcon: '/sprites/iconos/icono_perro_director.png',
       quote: solo
         ? 'Actualmente estás tú solo en el manifiesto de vuelo (1/4). Puedes despegar en solitario para ahorrar sueldos y masa, pero sufrirás fatiga psicológica por aislamiento y menor velocidad en el Laboratorio. ¡Revisa la pestaña "🐶 2. Tripulación" si deseas contratar especialistas!'
         : `Tu dotación canina (${crewNames}) ya revisa los planos en el hangar. Con ${mission.value.tripulacion.length} tripulantes a bordo, la nave registra ${mission.value.masa_total_kg} kg frente al límite estructural de ${mission.value.masa_lanzamiento_max_kg} kg.`,
@@ -162,7 +162,8 @@ const currentStoryBeat = computed(() => {
   if (st === 4) {
     return {
       chapter: 'CAPÍTULO IV · VENTANA DE TRANSFERENCIA',
-      speaker: 'COMPUTADORA DE NAVEGACIÓN ASTRODINÁMICA',
+      speaker: 'ASESOR NEGRO (RIESGO Y ASTRODINÁMICA)',
+      speakerIcon: '/sprites/iconos/icono_gato_asistente_negro.png',
       quote: isLuna
         ? `La Luna se alinea sobre el plano orbital. La inyección translunar exige al menos ${mission.value.delta_v_requerido_total_ms} m/s totales; tu propulsor cuenta con ${mission.value.delta_v_disponible_ms} m/s.`
         : `Ventana de inserción hacia la termosfera (400 km) calculada. Se requieren ${mission.value.delta_v_requerido_total_ms} m/s para completar ascenso, órbita y reentrada.`,
@@ -171,7 +172,8 @@ const currentStoryBeat = computed(() => {
   if (st === 5) {
     return {
       chapter: 'CAPÍTULO V · CUENTA REGRESIVA EN RAMPA',
-      speaker: 'CONTROL DE TIERRA ZENIT',
+      speaker: 'AUDITORA BLANCA (CONTROL DE TIERRA)',
+      speakerIcon: '/sprites/iconos/icono_gato_asistente_blanco.png',
       quote: solo
         ? '«Torre de lanzamiento despejada. El Director despega en misión en solitario. Presurización de cabina nominal; motores listos para ignición.»'
         : `«Torre de lanzamiento despejada. Dotación completa (${crewNames}) asegurada en cabina. Todos los sistemas listos para ignición.»`,
@@ -180,7 +182,8 @@ const currentStoryBeat = computed(() => {
   if (st === 6) {
     return {
       chapter: 'CAPÍTULO VI · EL SILENCIO DEL CRUCERO',
-      speaker: solo ? 'BITÁCORA DEL DIRECTOR (EN SOLITARIO)' : 'COMUNICACIÓN INTERNA DE CABINA',
+      speaker: solo ? 'CAPITÁN PERRO (EN SOLITARIO)' : 'CAPITÁN PERRO Y TRIPULACIÓN',
+      speakerIcon: '/sprites/iconos/icono_captain_dog_casco.png',
       quote: solo
         ? `Viajas completamente solo a través del vacío rumbo a ${mission.value.destino}. El zumbido del soporte vital es tu única compañía mientras vigilas las alertas de los subsistemas.`
         : `La Tierra se empequeñece tras la ventanilla mientras ${crewNames} supervisan la presión de los conductos y la carga de baterías rumbo a ${mission.value.destino}.`,
@@ -189,7 +192,8 @@ const currentStoryBeat = computed(() => {
   if (st === 7) {
     return {
       chapter: 'CAPÍTULO VII · EL HALLAZGO EN ÓRBITA',
-      speaker: 'LABORATORIO CIENTÍFICO DE LA NAVE',
+      speaker: 'CAPITÁN PERRO · LABORATORIO DE LA NAVE',
+      speakerIcon: '/sprites/iconos/icono_captain_dog_casco.png',
       quote:
         mission.value.datos_generados_gb > 0
           ? `¡Los sensores han capturado la firma del fenómeno Helios-9 (${mission.value.datos_generados_gb} GB en memoria y ${mission.value.puntos_ciencia_generados} pts de ciencia)! El siguiente paso crítico es enviarlos por antena a Tierra.`
@@ -202,6 +206,7 @@ const currentStoryBeat = computed(() => {
     return {
       chapter: 'CAPÍTULO VIII · DESGASTE EN EL ESPACIO PROFUNDO',
       speaker: solo ? 'MONITOR BIOMÉDICO (SOLITARIO)' : 'MÓDULO DE VIDA Y OPERACIONES',
+      speakerIcon: '/sprites/iconos/icono_perro_director.png',
       quote: solo
         ? 'El aislamiento de operar toda la nave sin ayuda empieza a pesar en tus reflejos. Mantén el ánimo en Sol y asegúrate de no dejar datos sin transmitir.'
         : `Tras intensas jornadas en órbita, el equipo (${crewNames}) ajusta el reciclaje de oxígeno y calibra las válvulas antes de la última ventana de enlace con Tierra.`,
@@ -209,7 +214,8 @@ const currentStoryBeat = computed(() => {
   }
   return {
     chapter: 'CAPÍTULO IX · ÚLTIMO ENLACE ANTES DE REENTRADA',
-    speaker: 'COMISIONADO FÉLIX VANCE (ENLACE DE RADIO)',
+    speaker: 'GATO JEFE · COMISIONADO FÉLIX VANCE',
+    speakerIcon: '/sprites/iconos/icono_gato_jefe.png',
     quote:
       mission.value.datos_transmitidos_gb > 0 && pendingDataToTransmitGb.value <= 0
         ? `«Aquí el Comisionado Vance desde Tierra: hemos recibido los ${mission.value.datos_transmitidos_gb} GB íntegros en nuestros servidores centrales. Enciendan motores de retorno y vuelvan a casa.»`
@@ -231,8 +237,8 @@ const currentStageGuide = computed(() => {
   }
   if (st === 2) {
     return {
-      objective: 'Negocia tu presupuesto con el Gato Jefe de la Agencia.',
-      tip: 'El presupuesto es un límite duro: de aquí saldrán tanto las compras en diseño como los gastos en vuelo.',
+      objective: 'Convence al Gato Jefe y a sus 2 Ayudantes (Novela Visual a la izquierda) para subir tu presupuesto.',
+      tip: 'Elige tus argumentos en las 3 rondas de diálogo de la Oficina de Planificación para sumar hasta +$50.000 USD extra.',
     }
   }
   if (st === 3) {
@@ -265,14 +271,17 @@ const currentStageGuide = computed(() => {
   }
 })
 
-// Cambiar automáticamente al visor correspondiente según si la nave sigue en Tierra (1-5) o ya despegó (6+)
+// Cambiar automáticamente al visor correspondiente según la etapa:
+// Etapas 1-2: Oficina de Planificación (Novela Visual con los 3 gatos)
+// Etapas 3-5: Hangar en Tierra (Esquemático de Nave y Perros)
+// Etapas 6+: Cubierta 2D en Vuelo
 watch(
   () => mission.value?.etapa_actual,
   (etapa) => {
-    if (etapa && etapa <= 5) {
-      if (activeViewportTab.value === 'rooms2d') {
-        activeViewportTab.value = 'schematic'
-      }
+    if (etapa && etapa <= 2) {
+      activeViewportTab.value = 'office_vn'
+    } else if (etapa && etapa <= 5) {
+      activeViewportTab.value = 'schematic'
     } else if (etapa && etapa >= 6) {
       activeViewportTab.value = 'rooms2d'
     }
@@ -303,7 +312,7 @@ async function startNewMission(fromMenu = false): Promise<void> {
       acuerdo_financiacion_id: 'estandar',
       especialidad_director: 'comando',
     })
-    activeViewportTab.value = 'schematic'
+    activeViewportTab.value = 'office_vn'
     if (fromMenu) {
       showMainMenu.value = false
     }
@@ -451,13 +460,35 @@ onMounted(async () => {
             <div class="cast-divider"></div>
 
             <div class="cast-group boss-cast">
-              <span class="cast-group-label" style="color: var(--amber)">EL JEFE (PATROCINADOR)</span>
-              <PixelSprite
-                animacion="gato_hablar"
-                :width="72"
-                :height="76"
-                etiqueta="GATO JEFE"
-              />
+              <span class="cast-group-label" style="color: var(--amber)">
+                COMITÉ DE LA AGENCIA (GATO JEFE + 2 AYUDANTES)
+              </span>
+              <div class="cast-row">
+                <div class="cat-icon-showcase">
+                  <img
+                    src="/sprites/iconos/icono_gato_jefe.png"
+                    alt="Gato Jefe"
+                    class="menu-cat-icon"
+                  />
+                  <span>GATO JEFE</span>
+                </div>
+                <div class="cat-icon-showcase">
+                  <img
+                    src="/sprites/iconos/icono_gato_asistente_blanco.png"
+                    alt="Ayudante Finanzas"
+                    class="menu-cat-icon"
+                  />
+                  <span>FINANZAS</span>
+                </div>
+                <div class="cat-icon-showcase">
+                  <img
+                    src="/sprites/iconos/icono_gato_asistente_negro.png"
+                    alt="Ayudante Riesgo"
+                    class="menu-cat-icon"
+                  />
+                  <span>RIESGO</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -684,10 +715,17 @@ onMounted(async () => {
         <div class="viewport-switcher">
           <button
             class="vtab-btn"
+            :class="{ active: activeViewportTab === 'office_vn' }"
+            @click="activeViewportTab = 'office_vn'"
+          >
+            🏢 Oficina Planificación (Gato Jefe y 2 Ayudantes)
+          </button>
+          <button
+            class="vtab-btn"
             :class="{ active: activeViewportTab === 'schematic' }"
             @click="activeViewportTab = 'schematic'"
           >
-            🚀 {{ mission.etapa_actual <= 5 ? 'Hangar en Tierra: Nave y Perros' : 'Esquemático de Nave y Perros' }}
+            🚀 {{ mission.etapa_actual <= 5 ? 'Hangar: Nave y Perros' : 'Esquemático de Nave y Perros' }}
           </button>
           <button
             class="vtab-btn"
@@ -702,8 +740,8 @@ onMounted(async () => {
           >
             {{
               mission.etapa_actual < 6
-                ? '🔒 Cubierta 2D (Se activa al Despegar · Etapa 6)'
-                : '🎮 Cubierta 2D en Vuelo [Tecla E]'
+                ? '🔒 Cubierta 2D (Etapa 6+)'
+                : '🎮 Cubierta 2D en Vuelo [E]'
             }}
           </button>
           <button
@@ -711,14 +749,21 @@ onMounted(async () => {
             :class="{ active: activeViewportTab === 'telemetry' }"
             @click="activeViewportTab = 'telemetry'"
           >
-            📊 Tabla Completa de Variables
+            📊 Variables
           </button>
         </div>
 
         <!-- Contenido del Visor Activo -->
         <div class="viewport-stage-body">
+          <VisualNovelNegotiation
+            v-if="activeViewportTab === 'office_vn'"
+            :mission="mission"
+            @negotiate="(payload) => executeDecision('negociar_presupuesto', payload)"
+            @advance="advanceStage"
+          />
+
           <DestinationRooms2D
-            v-if="activeViewportTab === 'rooms2d'"
+            v-else-if="activeViewportTab === 'rooms2d'"
             :mission="mission"
             @move-room="(roomId) => executeDecision('mover_habitacion', { habitacion_id: roomId })"
             @run-science="executeDecision('operacion_cientifica', {})"
@@ -838,13 +883,20 @@ onMounted(async () => {
       <!-- PANEL DERECHO (42%): CONSOLA DE DECISIONES DE ETAPA + PIE DE AVANCE FIJO -->
       <aside class="right-command-column">
         <div class="command-scroll-area">
-          <!-- CRÓNICA NARRATIVA DE LA TRAMA (EXPEDIENTE HELIOS-9) -->
+          <!-- CRÓNICA NARRATIVA DE LA TRAMA (EXPEDIENTE HELIOS-9) CON ICONO DEL ORADOR -->
           <div v-if="currentStoryBeat" class="story-chapter-box">
             <div class="story-head">
               <span class="story-chapter-tag">{{ currentStoryBeat.chapter }}</span>
               <span class="story-speaker">{{ currentStoryBeat.speaker }}</span>
             </div>
-            <p class="serif-narrative story-quote">{{ currentStoryBeat.quote }}</p>
+            <div class="story-bubble-row">
+              <img
+                :src="currentStoryBeat.speakerIcon"
+                :alt="currentStoryBeat.speaker"
+                class="story-speaker-icon"
+              />
+              <p class="serif-narrative story-quote">{{ currentStoryBeat.quote }}</p>
+            </div>
           </div>
 
           <!-- GUÍA CONTEXTUAL PASO A PASO DE LA ETAPA ACTUAL -->
@@ -857,7 +909,7 @@ onMounted(async () => {
             <p class="guide-tip">{{ currentStageGuide.tip }}</p>
           </div>
 
-          <!-- ALERTAS Y EVENTOS ACTIVOS (PRIORIDAD ALTA CUANDO OCURREN) -->
+          <!-- ALERTAS Y EVENTOS ACTIVOS CON ICONO DE QUIÉN TOMA LA DECISIÓN (CAPTAIN DOG) -->
           <div v-if="mission.eventos_activos.length > 0" class="events-drawer">
             <div class="event-drawer-header blink-warning">
               ▲ ALERTA DE SUBSISTEMA SIN CUANTIFICAR ({{ mission.eventos_activos.length }})
@@ -873,23 +925,34 @@ onMounted(async () => {
               <div v-if="ev.diagnosticado_por_tierra" class="earth-diag-box">
                 <strong>DIAGNÓSTICO DE TIERRA:</strong> {{ ev.diagnostico_detallado }}
               </div>
-              <div class="event-btn-stack">
-                <button
-                  v-for="opt in ev.opciones"
-                  :key="opt.id"
-                  class="event-opt-button"
-                  @click="handleResolveEvent(ev.id, opt.id)"
-                >
-                  <span>{{ opt.texto }}</span>
-                  <span class="opt-cost-pills">
-                    <em v-if="opt.costo_presupuesto_usd > 0">
-                      -${{ opt.costo_presupuesto_usd.toLocaleString() }}
-                    </em>
-                    <em v-if="opt.costo_energia_wh > 0">-{{ opt.costo_energia_wh }} Wh</em>
-                    <em v-if="opt.costo_delta_v_ms > 0">-{{ opt.costo_delta_v_ms }} m/s</em>
-                    <em v-if="opt.consume_ventana_comm">-1 Ventana</em>
-                  </span>
-                </button>
+              <div class="event-decision-layout">
+                <div class="event-btn-stack" style="flex: 1">
+                  <div class="event-decision-tag">CAPITÁN PERRO · ELIGE ACCIÓN DE MANDO:</div>
+                  <button
+                    v-for="opt in ev.opciones"
+                    :key="opt.id"
+                    class="event-opt-button"
+                    @click="handleResolveEvent(ev.id, opt.id)"
+                  >
+                    <span>&gt; {{ opt.texto }}</span>
+                    <span class="opt-cost-pills">
+                      <em v-if="opt.costo_presupuesto_usd > 0">
+                        -${{ opt.costo_presupuesto_usd.toLocaleString() }}
+                      </em>
+                      <em v-if="opt.costo_energia_wh > 0">-{{ opt.costo_energia_wh }} Wh</em>
+                      <em v-if="opt.costo_delta_v_ms > 0">-{{ opt.costo_delta_v_ms }} m/s</em>
+                      <em v-if="opt.consume_ventana_comm">-1 Ventana</em>
+                    </span>
+                  </button>
+                </div>
+                <div class="event-player-badge">
+                  <img
+                    src="/sprites/iconos/icono_captain_dog_casco.png"
+                    alt="Captain Dog"
+                    class="event-player-icon"
+                  />
+                  <span>CAPTAIN DOG</span>
+                </div>
               </div>
             </div>
           </div>
@@ -897,16 +960,13 @@ onMounted(async () => {
           <!-- ETAPA 1: DEFINICIÓN DE LA MISIÓN -->
           <div v-if="mission.etapa_actual === 1" class="stage-card">
             <div class="stage-hero-row">
-              <PixelSprite
-                animacion="perro_idle"
-                :width="72"
-                :height="92"
-                :animar="false"
-                animo="sol"
-                etiqueta="DIRECTOR"
+              <img
+                src="/sprites/iconos/icono_perro_director.png"
+                alt="Capitán Perro"
+                class="stage-framed-icon"
               />
               <div>
-                <div class="stage-eyebrow">ETAPA 01 DE 10 · PLANIFICACIÓN</div>
+                <div class="stage-eyebrow">ETAPA 01 DE 10 · OFICINA DE PLANIFICACIÓN</div>
                 <h2 class="stage-title">Definición de la Misión</h2>
                 <p class="serif-narrative stage-prose">
                   Selecciona el destino de referencia para la expedición científica. La masa máxima
@@ -938,45 +998,57 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- ETAPA 2: NEGOCIACIÓN Y FINANCIACIÓN (CON EL GATO JEFE) -->
+          <!-- ETAPA 2: NEGOCIACIÓN TIPO NOVELA VISUAL (CON EL GATO JEFE Y SUS 2 AYUDANTES) -->
           <div v-if="mission.etapa_actual === 2" class="stage-card">
             <div class="stage-hero-row">
-              <PixelSprite
-                animacion="gato_hablar"
-                :width="82"
-                :height="86"
-                :fps="6"
-                etiqueta="GATO JEFE"
-              />
+              <div class="cat-trio-icons">
+                <img
+                  src="/sprites/iconos/icono_gato_jefe.png"
+                  alt="Gato Jefe"
+                  class="stage-framed-icon"
+                />
+                <img
+                  src="/sprites/iconos/icono_gato_asistente_blanco.png"
+                  alt="Auditora Blanca"
+                  class="stage-framed-icon"
+                />
+                <img
+                  src="/sprites/iconos/icono_gato_asistente_negro.png"
+                  alt="Asesor Negro"
+                  class="stage-framed-icon"
+                />
+              </div>
               <div>
-                <div class="stage-eyebrow">ETAPA 02 DE 10 · DESPACHO DEL JEFE</div>
-                <h2 class="stage-title">Negociación y Financiación</h2>
+                <div class="stage-eyebrow">ETAPA 02 DE 10 · NOVELA VISUAL DE NEGOCIACIÓN</div>
+                <h2 class="stage-title">Audiencia con el Gato Jefe y sus 2 Ayudantes</h2>
                 <p class="serif-narrative stage-prose">
-                  El Gato Jefe presenta los fondos disponibles. El presupuesto actúa como límite
-                  duro tanto en el diseño como en los costes de ejecución en tiempo real.
+                  En la <strong>Oficina de Planificación (visor izquierdo)</strong>, argumenta ante el
+                  <strong>Gato Jefe</strong>, la <strong>Auditora Blanca</strong> y el
+                  <strong>Asesor Negro</strong> para convencerlos de subir tu presupuesto antes de
+                  pasar al diseño de la nave.
                 </p>
               </div>
             </div>
 
-            <div class="option-list">
-              <div
-                v-for="acuerdo in catalog.acuerdos_financiacion"
-                :key="acuerdo.id"
-                class="option-tile"
-                :class="{ selected: mission.acuerdo_financiacion_id === acuerdo.id }"
-                @click="executeDecision('seleccionar_financiacion', { acuerdo_id: acuerdo.id })"
-              >
-                <div class="option-tile-head">
-                  <span class="option-name">{{ acuerdo.nombre }}</span>
-                  <span class="badge" style="color: var(--amber)">
-                    Base: ${{ acuerdo.presupuesto_usd.toLocaleString() }} USD
-                  </span>
-                </div>
-                <p class="serif-narrative option-prose">{{ acuerdo.descripcion }}</p>
-                <div class="spec-chips">
-                  <span>Exigencia científica: {{ acuerdo.exigencia_ciencia }} pts</span>
-                </div>
+            <div class="vn-stage2-summary-card">
+              <div class="vn-sum-row">
+                <span>FONDOS NEGOCIADOS ACTUALES:</span>
+                <strong style="color: var(--gold); font-size: 16px">
+                  ${{ mission.presupuesto_restante_usd.toLocaleString() }} USD
+                </strong>
               </div>
+              <p class="vn-sum-hint">
+                👈 Usa las opciones de diálogo <code>&gt; ...</code> en la escena de la
+                <strong>Oficina de Planificación</strong> a la izquierda para persuadir a los 3
+                gatos y sumar fondos adicionales.
+              </p>
+              <button
+                v-if="activeViewportTab !== 'office_vn'"
+                class="btn-primary btn-sm"
+                @click="activeViewportTab = 'office_vn'"
+              >
+                🏢 Abrir Escena de Oficina de Planificación
+              </button>
             </div>
           </div>
 
@@ -2466,5 +2538,124 @@ onMounted(async () => {
 .advance-cta-btn {
   padding: 10px 16px;
   font-size: 12px;
+}
+
+/* ICONOS ENMARCADOS DE PERSONAJES Y NOVELA VISUAL */
+.cat-icon-showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.menu-cat-icon {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: 4px;
+}
+
+.story-bubble-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.story-speaker-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.event-decision-layout {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.event-decision-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.event-player-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(8, 11, 20, 0.94);
+  border: 2px solid #d6c59a;
+  border-radius: 5px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.event-player-icon {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border-radius: 3px;
+}
+
+.event-player-badge span {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--bone);
+  margin-top: 3px;
+}
+
+.stage-framed-icon {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.cat-trio-icons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cat-trio-icons .stage-framed-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.vn-stage2-summary-card {
+  background: rgba(20, 27, 45, 0.9);
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vn-sum-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--mist);
+}
+
+.vn-sum-hint {
+  font-size: 12px;
+  color: var(--bone);
+  line-height: 1.45;
 }
 </style>

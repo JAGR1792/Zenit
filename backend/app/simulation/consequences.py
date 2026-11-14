@@ -174,6 +174,33 @@ def aplicar_decision(
         resumen = f"Acuerdo '{acuerdo['nombre']}' firmado. Presupuesto global ajustado: {nuevo_inicial:,.0f} USD."
         estado.bitacora_decisiones.append(resumen)
 
+    elif decision == "negociar_presupuesto":
+        bono_usd = float(params.get("bono_usd", 0.0))
+        argumento = str(params.get("argumento", "Argumento ante el comité"))
+        acuerdo_id = str(params.get("acuerdo_id", estado.acuerdo_financiacion_id))
+        if acuerdo_id in {a["id"] for a in ACUERDOS_FINANCIACION}:
+            estado.acuerdo_financiacion_id = acuerdo_id
+
+        factor_dif = (
+            1.20
+            if estado.dificultad == DificultadId.FACIL
+            else (0.90 if estado.dificultad == DificultadId.DIFICIL else 1.0)
+        )
+        incremento_real = round(bono_usd * factor_dif, 0)
+        estado.presupuesto_inicial_usd = round(
+            max(75000.0, estado.presupuesto_inicial_usd + incremento_real), 0
+        )
+        estado.presupuesto_restante_usd = round(
+            max(0.0, estado.presupuesto_restante_usd + incremento_real), 2
+        )
+        recalcular_subsistemas_mision(estado)
+        signo = "+" if incremento_real >= 0 else ""
+        resumen = (
+            f"Negociación con el Gato Jefe ({argumento}): {signo}{incremento_real:,.0f} USD "
+            f"(Presupuesto total aprobado: {estado.presupuesto_inicial_usd:,.0f} USD)."
+        )
+        estado.bitacora_decisiones.append(resumen)
+
     elif decision == "instalar_componente":
         comp_id = params["componente_id"]
         comp = catalogo[comp_id]
