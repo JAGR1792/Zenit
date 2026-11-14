@@ -21,8 +21,8 @@ const props = withDefaults(
   }>(),
   {
     flipX: false,
-    width: 96,
-    height: 96,
+    width: 84,
+    height: 106,
     fps: 8,
     animo: null,
     etiqueta: '',
@@ -33,104 +33,146 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 let timerId: number | null = null
 let frameIndex = 0
 
-// Caché global del spritesheet procesado sin fondo blanco
-let processedSheet: HTMLCanvasElement | null = null
-let loadingPromise: Promise<HTMLCanvasElement | null> | null = null
+// Caché de los 8 frames individuales del perro extraídos de PERRO1.zip
+const RUTAS_PERRO_DER = [
+  '/sprites/perro/PerroDer1.png',
+  '/sprites/perro/PerroDer2.png',
+  '/sprites/perro/PerroDer3.png',
+  '/sprites/perro/PerroDer4.png',
+]
+const RUTAS_PERRO_IZQ = [
+  '/sprites/perro/PerroIzq1.png',
+  '/sprites/perro/PerroIzq2.png',
+  '/sprites/perro/PerroIzq3.png',
+  '/sprites/perro/PerroIzq4.png',
+]
+
+let framesPerroDer: HTMLCanvasElement[] = []
+let framesPerroIzq: HTMLCanvasElement[] = []
+let processedCatSheet: HTMLCanvasElement | null = null
+let assetsPromise: Promise<void> | null = null
 
 const COLS = 6
 const ROWS = 4
 
-function cargarYProcesarSpritesheet(): Promise<HTMLCanvasElement | null> {
-  if (processedSheet) return Promise.resolve(processedSheet)
-  if (loadingPromise) return loadingPromise
+function limpiarFondoBlancoCanvas(img: HTMLImageElement): HTMLCanvasElement {
+  const off = document.createElement('canvas')
+  off.width = img.width
+  off.height = img.height
+  const ctx = off.getContext('2d')
+  if (!ctx) return off
 
-  loadingPromise = new Promise((resolve) => {
+  ctx.drawImage(img, 0, 0)
+  try {
+    const imgData = ctx.getImageData(0, 0, off.width, off.height)
+    const data = imgData.data
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      const a = data[i + 3]
+      if (a > 0 && r > 240 && g > 240 && b > 236) {
+        data[i + 3] = 0
+      } else if (a > 0 && r > 228 && g > 228 && b > 224) {
+        data[i + 3] = 55
+      }
+    }
+    ctx.putImageData(imgData, 0, 0)
+  } catch {
+    // En entorno de pruebas jsdom sin soporte de getImageData se mantiene la imagen base
+  }
+  return off
+}
+
+function cargarImagen(src: string): Promise<HTMLCanvasElement | null> {
+  return new Promise((resolve) => {
     if (typeof Image === 'undefined') {
       resolve(null)
       return
     }
     const img = new Image()
     img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const off = document.createElement('canvas')
-      off.width = img.width
-      off.height = img.height
-      const ctx = off.getContext('2d')
-      if (!ctx) {
-        resolve(null)
-        return
-      }
-      ctx.drawImage(img, 0, 0)
-      try {
-        const imgData = ctx.getImageData(0, 0, off.width, off.height)
-        const data = imgData.data
-        // Eliminar el fondo blanco/casi blanco del JPEG manteniendo los bordes oscuros del pixel art
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i]
-          const g = data[i + 1]
-          const b = data[i + 2]
-          if (r > 238 && g > 238 && b > 234) {
-            data[i + 3] = 0
-          } else if (r > 224 && g > 224 && b > 220) {
-            // Suavizar halo de compresión JPEG alrededor del contorno negro
-            data[i + 3] = 60
-          }
-        }
-        ctx.putImageData(imgData, 0, 0)
-      } catch {
-        // Si el entorno de test (jsdom) no soporta getImageData, continúa con la imagen base
-      }
-      processedSheet = off
-      resolve(off)
-    }
+    img.onload = () => resolve(limpiarFondoBlancoCanvas(img))
     img.onerror = () => resolve(null)
-    img.src = '/sprites/Sprites1.jpg'
+    img.src = src
   })
-
-  return loadingPromise
 }
 
-function obtenerFilaYFrames(anim: AnimacionSprite): { row: number; frames: number[] } {
-  switch (anim) {
-    case 'perro_caminar':
-      return { row: 0, frames: [0, 1, 2, 3, 4, 5] }
-    case 'perro_interactuar':
-      return { row: 1, frames: [1, 2, 3, 4, 5] }
-    case 'perro_idle':
-      return { row: 1, frames: [5, 4] }
-    case 'gato_caminar':
-      return { row: 2, frames: [0, 1, 2, 3, 4, 5] }
-    case 'gato_hablar':
-      return { row: 3, frames: [1, 2, 3, 4, 5] }
-    case 'gato_idle':
-    default:
-      return { row: 3, frames: [0, 1] }
-  }
+function inicializarAssetsSprites(): Promise<void> {
+  if (assetsPromise) return assetsPromise
+  assetsPromise = (async () => {
+    const [der, izq, catSheet] = await Promise.all([
+      Promise.all(RUTAS_PERRO_DER.map(cargarImagen)),
+      Promise.all(RUTAS_PERRO_IZQ.map(cargarImagen)),
+      cargarImagen('/sprites/Sprites1.jpg'),
+    ])
+    framesPerroDer = der.filter((c): c is HTMLCanvasElement => c !== null)
+    framesPerroIzq = izq.filter((c): c is HTMLCanvasElement => c !== null)
+    processedCatSheet = catSheet
+  })()
+  return assetsPromise
+}
+
+function esAnimacionPerro(anim: AnimacionSprite): boolean {
+  return anim === 'perro_idle' || anim === 'perro_caminar' || anim === 'perro_interactuar'
 }
 
 function dibujarFrame(): void {
   const canvas = canvasRef.value
-  if (!canvas || !processedSheet) return
+  if (!canvas) return
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const { row, frames } = obtenerFilaYFrames(props.animacion)
-  const col = frames[frameIndex % frames.length]
-
-  const cellW = processedSheet.width / COLS
-  const cellH = processedSheet.height / ROWS
-  const sx = col * cellW
-  const sy = row * cellH
-
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.imageSmoothingEnabled = false
+
+  // 1. Renderizar Perro Astronauta usando los PNG dedicados de PERRO1.zip (PerroDer1..4 y PerroIzq1..4)
+  if (esAnimacionPerro(props.animacion)) {
+    const banco = props.flipX ? framesPerroIzq : framesPerroDer
+    if (banco.length > 0) {
+      let idx = 0
+      if (props.animacion === 'perro_caminar') {
+        idx = frameIndex % banco.length
+      } else if (props.animacion === 'perro_interactuar') {
+        const secuencia = [1, 2, 3, 2]
+        idx = secuencia[frameIndex % secuencia.length] % banco.length
+      } else {
+        idx = 0
+      }
+      const frameCanvas = banco[idx]
+      // Conservar proporción original (~130x166) centrada en el canvas
+      const scale = Math.min(canvas.width / frameCanvas.width, canvas.height / frameCanvas.height)
+      const dw = Math.round(frameCanvas.width * scale)
+      const dh = Math.round(frameCanvas.height * scale)
+      const dx = Math.round((canvas.width - dw) / 2)
+      const dy = Math.round(canvas.height - dh)
+      ctx.drawImage(frameCanvas, 0, 0, frameCanvas.width, frameCanvas.height, dx, dy, dw, dh)
+      return
+    }
+  }
+
+  // 2. Renderizar Gato Especialista / Jefe desde Sprites1.jpg
+  if (!processedCatSheet) return
+  const row = props.animacion === 'gato_caminar' ? 2 : 3
+  const frames =
+    props.animacion === 'gato_caminar'
+      ? [0, 1, 2, 3, 4, 5]
+      : props.animacion === 'gato_hablar'
+        ? [1, 2, 3, 4, 5]
+        : [0, 1]
+  const col = frames[frameIndex % frames.length]
+
+  const cellW = processedCatSheet.width / COLS
+  const cellH = processedCatSheet.height / ROWS
+  const sx = col * cellW
+  const sy = row * cellH
 
   ctx.save()
   if (props.flipX) {
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
   }
-  ctx.drawImage(processedSheet, sx, sy, cellW, cellH, 0, 0, canvas.width, canvas.height)
+  ctx.drawImage(processedCatSheet, sx, sy, cellW, cellH, 0, 0, canvas.width, canvas.height)
   ctx.restore()
 }
 
@@ -152,7 +194,7 @@ watch(
 )
 
 onMounted(async () => {
-  await cargarYProcesarSpritesheet()
+  await inicializarAssetsSprites()
   dibujarFrame()
   iniciarBucleAnimacion()
 })
@@ -225,7 +267,7 @@ onUnmounted(() => {
 }
 
 .sprite-nameplate {
-  margin-top: -4px;
+  margin-top: -2px;
   padding: 1px 6px;
   background: rgba(11, 14, 26, 0.88);
   border: 1px solid var(--steel);
