@@ -1,0 +1,19 @@
+openapi: 3.0.0
+info:
+  title: Space Mission Design Game API
+  version: 0.1.0
+paths:
+  /api/v1/scenarios:
+    get: { summary: List scenarios }
+  /api/v1/components:
+    get: { summary: List components }
+  /api/v1/launch-vehicles:
+    get: { summary: List launch vehicles }
+  /api/v1/missions:
+    post: { summary: Create mission }
+  /api/v1/missions/validate:
+    post: { summary: Validate mission constraints }
+  /api/v1/simulations:
+    post: { summary: Run simulation }
+  /api/v1/simulations/{id}:
+    get: { summary: Get simulation result }
