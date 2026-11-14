@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 from app.main import app
-from app.schemas.mission import CrearMisionRequest, DecisionRequest, DestinoId, EstadoAnimo
+from app.schemas.mission import (
+    CrearMisionRequest,
+    DecisionRequest,
+    DestinoId,
+    EstadoAnimo,
+)
 from app.services.mission_service import (
     crear_nueva_mision,
     obtener_informe_mision,
@@ -28,7 +33,11 @@ def test_ecuacion_tsiolkovsky_interdependencia_masa_deltav() -> None:
     )
     _, _, masa_con_inst, _, dv_con_inst = calcular_masa_y_propulsion(
         masa_estructura_base_kg=420.0,
-        componentes_ids=["motor_biprop_estandar", "energia_solar_estandar", "inst_espectrometro"],
+        componentes_ids=[
+            "motor_biprop_estandar",
+            "energia_solar_estandar",
+            "inst_espectrometro",
+        ],
         num_tripulantes=2,
     )
     assert masa_con_inst == masa_base + 50.0
@@ -47,19 +56,33 @@ def test_presupuesto_global_es_limite_duro() -> None:
     # Gastamos presupuesto contratando tripulantes y cambiando a componentes caros
     procesar_decision_mision(
         mision.id,
-        DecisionRequest(stage=3, decision="instalar_componente", params={"componente_id": "motor_crio_avanzado"}),
+        DecisionRequest(
+            stage=3,
+            decision="instalar_componente",
+            params={"componente_id": "motor_crio_avanzado"},
+        ),
     )
     procesar_decision_mision(
         mision.id,
-        DecisionRequest(stage=3, decision="instalar_componente", params={"componente_id": "energia_hibrida_rtg"}),
+        DecisionRequest(
+            stage=3,
+            decision="instalar_componente",
+            params={"componente_id": "energia_hibrida_rtg"},
+        ),
     )
     procesar_decision_mision(
         mision.id,
-        DecisionRequest(stage=3, decision="instalar_componente", params={"componente_id": "antena_laser_ka"}),
+        DecisionRequest(
+            stage=3,
+            decision="instalar_componente",
+            params={"componente_id": "antena_laser_ka"},
+        ),
     )
     resp = procesar_decision_mision(
         mision.id,
-        DecisionRequest(stage=3, decision="contratar_tripulante", params={"crew_id": "crew_marco"}),
+        DecisionRequest(
+            stage=3, decision="contratar_tripulante", params={"crew_id": "crew_marco"}
+        ),
     )
     assert resp is not None
     assert resp.allowed is False
@@ -85,13 +108,17 @@ def test_sobrepeso_permitido_en_diseno_pero_fallo_inmediato_en_lanzamiento() -> 
     ]:
         r = procesar_decision_mision(
             mision.id,
-            DecisionRequest(stage=3, decision="instalar_componente", params={"componente_id": cid}),
+            DecisionRequest(
+                stage=3, decision="instalar_componente", params={"componente_id": cid}
+            ),
         )
         assert r is not None and r.allowed is True
 
     r_crew = procesar_decision_mision(
         mision.id,
-        DecisionRequest(stage=3, decision="contratar_tripulante", params={"crew_id": "crew_elena"}),
+        DecisionRequest(
+            stage=3, decision="contratar_tripulante", params={"crew_id": "crew_elena"}
+        ),
     )
     assert r_crew is not None and r_crew.allowed is True
 
@@ -157,7 +184,11 @@ def test_flujo_completo_mision_api_rest() -> None:
     # 2. Añadir un espectrómetro y contratar a la especialista en geología
     res_inst = client.post(
         f"/api/v1/missions/{mission_id}/decisions",
-        json={"stage": 3, "decision": "instalar_componente", "params": {"componente_id": "inst_espectrometro"}},
+        json={
+            "stage": 3,
+            "decision": "instalar_componente",
+            "params": {"componente_id": "inst_espectrometro"},
+        },
     )
     assert res_inst.status_code == 200
     datos_inst = res_inst.json()
@@ -166,7 +197,11 @@ def test_flujo_completo_mision_api_rest() -> None:
 
     res_crew = client.post(
         f"/api/v1/missions/{mission_id}/decisions",
-        json={"stage": 3, "decision": "contratar_tripulante", "params": {"crew_id": "crew_elena"}},
+        json={
+            "stage": 3,
+            "decision": "contratar_tripulante",
+            "params": {"crew_id": "crew_elena"},
+        },
     )
     assert res_crew.status_code == 200
 
@@ -178,7 +213,11 @@ def test_flujo_completo_mision_api_rest() -> None:
     # Moverse con tecla E al laboratorio y ejecutar ciencia
     client.post(
         f"/api/v1/missions/{mission_id}/decisions",
-        json={"stage": 7, "decision": "mover_habitacion", "params": {"habitacion_id": "laboratorio"}},
+        json={
+            "stage": 7,
+            "decision": "mover_habitacion",
+            "params": {"habitacion_id": "laboratorio"},
+        },
     )
     res_sci = client.post(
         f"/api/v1/missions/{mission_id}/decisions",

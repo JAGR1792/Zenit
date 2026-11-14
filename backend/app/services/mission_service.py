@@ -121,7 +121,9 @@ def _resumen_estado(estado: EstadoMision) -> dict[str, Any]:
     }
 
 
-def procesar_decision_mision(mission_id: str, req: DecisionRequest) -> DecisionResponse | None:
+def procesar_decision_mision(
+    mission_id: str, req: DecisionRequest
+) -> DecisionResponse | None:
     """Valida y aplica una decisión del jugador sobre la misión.
 
     Args:

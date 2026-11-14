@@ -44,7 +44,9 @@ def get_mission(mission_id: str) -> EstadoMision:
     """Obtiene el estado completo de la misión."""
     estado = obtener_mision(mission_id)
     if not estado:
-        raise HTTPException(status_code=404, detail=f"Misión '{mission_id}' no encontrada.")
+        raise HTTPException(
+            status_code=404, detail=f"Misión '{mission_id}' no encontrada."
+        )
     return estado
 
 
@@ -53,7 +55,9 @@ def post_decision(mission_id: str, req: DecisionRequest) -> DecisionResponse:
     """Valida y ejecuta una decisión devolviendo la tabla de variables afectadas."""
     resp = procesar_decision_mision(mission_id, req)
     if not resp:
-        raise HTTPException(status_code=404, detail=f"Misión '{mission_id}' no encontrada.")
+        raise HTTPException(
+            status_code=404, detail=f"Misión '{mission_id}' no encontrada."
+        )
     return resp
 
 
@@ -62,7 +66,9 @@ def advance_mission_stage(mission_id: str) -> DecisionResponse:
     """Avanza a la siguiente etapa de la misión verificando restricciones críticas y operativas."""
     resp = procesar_avance_etapa(mission_id)
     if not resp:
-        raise HTTPException(status_code=404, detail=f"Misión '{mission_id}' no encontrada.")
+        raise HTTPException(
+            status_code=404, detail=f"Misión '{mission_id}' no encontrada."
+        )
     return resp
 
 
@@ -71,11 +77,15 @@ def get_mission_events(mission_id: str) -> list[EventoMision]:
     """Lista los eventos activos en el estado actual de la misión."""
     eventos = listar_eventos_activos(mission_id)
     if eventos is None:
-        raise HTTPException(status_code=404, detail=f"Misión '{mission_id}' no encontrada.")
+        raise HTTPException(
+            status_code=404, detail=f"Misión '{mission_id}' no encontrada."
+        )
     return eventos
 
 
-@router.post("/missions/{mission_id}/events/{event_id}/resolve", response_model=DecisionResponse)
+@router.post(
+    "/missions/{mission_id}/events/{event_id}/resolve", response_model=DecisionResponse
+)
 def resolve_mission_event(
     mission_id: str,
     event_id: str,
@@ -84,7 +94,9 @@ def resolve_mission_event(
     """Resuelve o consulta a Tierra sobre un evento activo."""
     resp = resolver_evento_mision(mission_id, event_id, req.option_id)
     if not resp:
-        raise HTTPException(status_code=404, detail=f"Misión '{mission_id}' no encontrada.")
+        raise HTTPException(
+            status_code=404, detail=f"Misión '{mission_id}' no encontrada."
+        )
     return resp
 
 
@@ -93,5 +105,7 @@ def get_mission_report(mission_id: str) -> InformeFinal:
     """Calcula y devuelve el informe final multidimensional con la escena del jefe."""
     informe = obtener_informe_mision(mission_id)
     if not informe:
-        raise HTTPException(status_code=404, detail=f"Misión '{mission_id}' no encontrada.")
+        raise HTTPException(
+            status_code=404, detail=f"Misión '{mission_id}' no encontrada."
+        )
     return informe

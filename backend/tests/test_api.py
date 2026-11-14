@@ -39,12 +39,20 @@ def test_crear_y_obtener_mision():
 def test_decision_instalar_componente():
     r = client.post(
         "/api/v1/missions",
-        json={"nombre_mision": "Prueba2", "destino": "OTB", "acuerdo_financiacion_id": "estandar"},
+        json={
+            "nombre_mision": "Prueba2",
+            "destino": "OTB",
+            "acuerdo_financiacion_id": "estandar",
+        },
     )
     mid = r.json()["id"]
     r2 = client.post(
         f"/api/v1/missions/{mid}/decisions",
-        json={"stage": 3, "decision": "instalar_componente", "params": {"componente_id": "inst_espectrometro"}},
+        json={
+            "stage": 3,
+            "decision": "instalar_componente",
+            "params": {"componente_id": "inst_espectrometro"},
+        },
     )
     assert r2.status_code == 200
     assert r2.json()["allowed"] is True
