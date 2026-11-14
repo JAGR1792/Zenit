@@ -135,14 +135,19 @@ function triggerInteractionE(): void {
       actionFeedback.value =
         'Telemetría primaria verificada en Cabina de Mando: lecturas exactas de Energía (Wh) y Δv.'
     } else if (currentRoom.value.id === 'laboratorio') {
-      actionFeedback.value =
-        '🔬 Recolectando datos científicos en el Laboratorio... ¡Luego ve a Sala de Sistemas para transmitirlos!'
-      emit('runScience')
+      if (props.mission.etapa_actual < 7) {
+        actionFeedback.value =
+          '⏳ En tránsito hacia el destino: el Laboratorio Científico se activará al entrar en órbita (Etapa 7).'
+      } else {
+        actionFeedback.value =
+          '🔬 Recolectando datos científicos en el Laboratorio... ¡Luego ve a Sala de Sistemas para transmitirlos!'
+        emit('runScience')
+      }
     } else if (currentRoom.value.id === 'soporte_vital') {
       actionFeedback.value = '☀ Regulando soporte vital y estabilizando estado de ánimo...'
       emit('runCrewTask', 'estabilizar_animo')
     } else {
-      if (pendingDataGb.value > 0 || props.mission.etapa_actual === 9) {
+      if (props.mission.etapa_actual >= 7 && (pendingDataGb.value > 0 || props.mission.etapa_actual === 9)) {
         actionFeedback.value = '📡 Transmitiendo paquete de datos por antena hacia Tierra...'
         emit('useCommWindow')
       } else {
@@ -407,8 +412,17 @@ onUnmounted(() => {
           </strong>
         </div>
         <div class="dock-cell dock-action">
-          <button class="btn-primary" style="width: 100%" @click="emit('runScience')">
-            [E] Operar Instrumentos Científicos
+          <button
+            class="btn-primary"
+            style="width: 100%"
+            :disabled="mission.etapa_actual < 7"
+            @click="emit('runScience')"
+          >
+            {{
+              mission.etapa_actual < 7
+                ? '⏳ Ciencia disponible al llegar al Destino (Etapa 7)'
+                : '[E] 🔬 Operar Instrumentos Científicos'
+            }}
           </button>
         </div>
       </template>
@@ -446,8 +460,13 @@ onUnmounted(() => {
           <button class="btn-cyan" style="flex: 1" @click="emit('runCrewTask', 'mantenimiento_general')">
             Reparar
           </button>
-          <button class="btn-primary" style="flex: 1" @click="emit('useCommWindow')">
-            Transmitir
+          <button
+            class="btn-primary"
+            style="flex: 1"
+            :disabled="mission.etapa_actual < 7"
+            @click="emit('useCommWindow')"
+          >
+            {{ mission.etapa_actual < 7 ? '⏳ Etapa 7+' : 'Transmitir' }}
           </button>
         </div>
       </template>

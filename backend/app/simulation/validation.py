@@ -58,6 +58,22 @@ def validar_decision(
             message="La misión ya ha finalizado por un fallo crítico.",
         )
 
+    # Bloquear cambios de diseño o planificación si la nave ya despegó (Etapa 6+)
+    if decision in (
+        "seleccionar_destino",
+        "seleccionar_financiacion",
+        "instalar_componente",
+        "remover_componente",
+        "contratar_tripulante",
+        "remover_tripulante",
+        "configurar_trayectoria",
+    ) and estado.etapa_actual >= 6:
+        return ResultadoValidacion(
+            allowed=False,
+            status="fail",
+            message="La nave ya está en vuelo; no se puede modificar la misión ni el diseño después del lanzamiento.",
+        )
+
     # Etapa 1: Elegir destino
     if decision == "seleccionar_destino":
         destino_id = params.get("destino")
@@ -209,6 +225,27 @@ def validar_decision(
             allowed=True,
             status="allowed",
             message="Plan orbital registrado en la computadora de vuelo.",
+        )
+
+    # Bloquear operaciones de vuelo y gasto de recursos mientras la nave sigue en Tierra (Etapas 1 a 5)
+    if decision == "tarea_tripulacion" and estado.etapa_actual < 6:
+        return ResultadoValidacion(
+            allowed=False,
+            status="warning",
+            message=(
+                f"La nave aún está en Tierra ({estado.nombre_etapa}). "
+                "Debes completar la planificación y despegar en la Etapa 5 antes de ejecutar tareas en vuelo."
+            ),
+        )
+
+    if decision in ("operacion_cientifica", "usar_ventana_comm") and estado.etapa_actual < 7:
+        return ResultadoValidacion(
+            allowed=False,
+            status="warning",
+            message=(
+                f"Operación bloqueada en '{estado.nombre_etapa}': la recolección de ciencia y transmisión de datos "
+                "solo pueden ejecutarse tras llegar al destino (Etapas 7 a 9)."
+            ),
         )
 
     # Costes imprevistos en Tránsito (Etapa 6) u Órbita (Etapas 7-9)

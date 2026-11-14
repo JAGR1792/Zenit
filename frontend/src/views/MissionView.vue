@@ -70,8 +70,9 @@ const difficultyOptions: Array<{
   },
 ]
 
-// Modos del visor izquierdo y sub-pestañas de la Etapa 3 para eliminar el scroll excesivo
-const activeViewportTab = ref<'rooms2d' | 'schematic' | 'telemetry'>('rooms2d')
+// Modos del visor izquierdo y sub-pestañas de la Etapa 3
+// En Etapas 1 a 5 (Tierra/Hangar) inicia en 'schematic'; la cubierta 2D operativa se desbloquea al despegar (Etapa 6+)
+const activeViewportTab = ref<'rooms2d' | 'schematic' | 'telemetry'>('schematic')
 const stage3SubTab = ref<'hardware' | 'crew'>('hardware')
 const activeCategory = ref<string>('instrumento')
 
@@ -161,12 +162,14 @@ const currentStageGuide = computed(() => {
   }
 })
 
-// Cambiar automáticamente al visor más útil según la etapa, permitiendo siempre cambio manual
+// Cambiar automáticamente al visor correspondiente según si la nave sigue en Tierra (1-5) o ya despegó (6+)
 watch(
   () => mission.value?.etapa_actual,
   (etapa) => {
-    if (etapa === 3 || etapa === 4 || etapa === 5) {
-      activeViewportTab.value = 'schematic'
+    if (etapa && etapa <= 5) {
+      if (activeViewportTab.value === 'rooms2d') {
+        activeViewportTab.value = 'schematic'
+      }
     } else if (etapa && etapa >= 6) {
       activeViewportTab.value = 'rooms2d'
     }
@@ -197,7 +200,7 @@ async function startNewMission(fromMenu = false): Promise<void> {
       acuerdo_financiacion_id: 'estandar',
       especialidad_director: 'comando',
     })
-    activeViewportTab.value = 'rooms2d'
+    activeViewportTab.value = 'schematic'
     if (fromMenu) {
       showMainMenu.value = false
     }
@@ -578,17 +581,27 @@ onMounted(async () => {
         <div class="viewport-switcher">
           <button
             class="vtab-btn"
-            :class="{ active: activeViewportTab === 'rooms2d' }"
-            @click="activeViewportTab = 'rooms2d'"
-          >
-            🎮 Cubierta 2D Pixel Art [Tecla E]
-          </button>
-          <button
-            class="vtab-btn"
             :class="{ active: activeViewportTab === 'schematic' }"
             @click="activeViewportTab = 'schematic'"
           >
-            🚀 Esquemático de Nave y Perros
+            🚀 {{ mission.etapa_actual <= 5 ? 'Hangar en Tierra: Nave y Perros' : 'Esquemático de Nave y Perros' }}
+          </button>
+          <button
+            class="vtab-btn"
+            :class="{ active: activeViewportTab === 'rooms2d' }"
+            :disabled="mission.etapa_actual < 6"
+            :title="
+              mission.etapa_actual < 6
+                ? 'La cubierta interior 2D se habilita cuando la nave despega (Etapa 6 en adelante)'
+                : 'Recorre el interior de la nave en vuelo con A/D y E'
+            "
+            @click="mission.etapa_actual >= 6 && (activeViewportTab = 'rooms2d')"
+          >
+            {{
+              mission.etapa_actual < 6
+                ? '🔒 Cubierta 2D (Se activa al Despegar · Etapa 6)'
+                : '🎮 Cubierta 2D en Vuelo [Tecla E]'
+            }}
           </button>
           <button
             class="vtab-btn"

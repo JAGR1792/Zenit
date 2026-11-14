@@ -266,12 +266,24 @@ def test_modo_facil_otorga_margen_presupuesto_e_instrumento_inicial() -> None:
     assert mision_facil.masa_lanzamiento_max_kg > mision_normal.masa_lanzamiento_max_kg
     assert "inst_espectrometro" in mision_facil.componentes_instalados
 
-    # Si intenta transmitir antes de recolectar datos, no pierde ventanas de comunicación
+    # En Etapa 1 (Tierra), intentar recolectar ciencia o transmitir está bloqueado para no gastar recursos antes de despegar
+    res_bloqueado_tierra = procesar_decision_mision(
+        mision_facil.id,
+        DecisionRequest(stage=1, decision="operacion_cientifica", params={}),
+    )
+    assert res_bloqueado_tierra is not None
+    assert res_bloqueado_tierra.allowed is False
+
+    # Avanzamos hasta Etapa 7 (Destino) y verificamos que transmitir con 0 GB no gasta ventanas
+    for _ in range(6):
+        procesar_avance_etapa(mision_facil.id)
+
     ventanas_antes = mision_facil.ventanas_comm_restantes
     res_tx = procesar_decision_mision(
         mision_facil.id,
         DecisionRequest(stage=7, decision="usar_ventana_comm", params={}),
     )
     assert res_tx is not None
+    assert res_tx.allowed is True
     assert res_tx.mission_state.ventanas_comm_restantes == ventanas_antes
 
