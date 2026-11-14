@@ -136,7 +136,7 @@ describe('Esquemático y componentes visuales de Zenit', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('ESQUEMÁTICO TÉCNICO DE LA NAVE')
+    expect(wrapper.text()).toContain('DISEÑO VISUAL DE LA NAVE Y DOTACIÓN PIXEL ART')
     expect(wrapper.text()).toContain('Cmdt. Director')
     expect(wrapper.text()).toContain('SOL')
   })

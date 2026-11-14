@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InformeFinal } from '../services/api'
+import PixelSprite from './PixelSprite.vue'
 
 defineProps<{
   report: InformeFinal
@@ -24,16 +25,29 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- Acto 1: Conversación con el Jefe y Ruptura de la Cuarta Pared -->
+    <!-- Acto 1: Escena visual con el Jefe en Pixel Art y Ruptura de la Cuarta Pared -->
     <div class="panel-sub boss-dialogue-box">
-      <div class="speaker-label">DIRECTOR DEL CONSORCIO AEROESPACIAL:</div>
-      <p class="serif-narrative boss-quote">{{ report.dialogo_jefe_apertura }}</p>
-
-      <div v-if="report.monologo_cuarta_pared" class="fourth-wall-box">
-        <div class="silence-banner">
-          [SILENCIO TOTAL EN SALA: {{ report.silencio_previo_segundos }} SEGUNDOS]
+      <div class="boss-stage-row">
+        <div class="boss-sprite-pedestal">
+          <PixelSprite
+            :animacion="report.hubo_muertes_tripulacion ? 'gato_idle' : 'gato_hablar'"
+            :width="116"
+            :height="116"
+            :fps="6"
+            etiqueta="DIRECTOR GENERAL"
+          />
         </div>
-        <p class="serif-narrative fourth-wall-text">{{ report.monologo_cuarta_pared }}</p>
+        <div class="boss-speech-col">
+          <div class="speaker-label">JEFE DE LA AGENCIA ESPACIAL:</div>
+          <p class="serif-narrative boss-quote">{{ report.dialogo_jefe_apertura }}</p>
+
+          <div v-if="report.monologo_cuarta_pared" class="fourth-wall-box">
+            <div class="silence-banner">
+              [SILENCIO TOTAL EN SALA: {{ report.silencio_previo_segundos }} SEGUNDOS]
+            </div>
+            <p class="serif-narrative fourth-wall-text">{{ report.monologo_cuarta_pared }}</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -139,6 +153,25 @@ const emit = defineEmits<{
 .boss-dialogue-box {
   padding: 16px;
   border-left: 3px solid var(--mist);
+}
+.boss-stage-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+@media (max-width: 680px) {
+  .boss-stage-row {
+    flex-direction: column;
+  }
+}
+.boss-sprite-pedestal {
+  background: #0d1220;
+  border: 1px solid var(--steel);
+  border-radius: 6px;
+  padding: 10px;
+}
+.boss-speech-col {
+  flex: 1;
 }
 .speaker-label {
   font-size: 11px;

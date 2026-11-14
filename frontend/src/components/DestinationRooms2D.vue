@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import type { EstadoMision } from '../services/api'
+import PixelSprite, { type AnimacionSprite } from './PixelSprite.vue'
 
 const props = defineProps<{
   mission: EstadoMision
@@ -13,8 +14,22 @@ const emit = defineEmits<{
   (e: 'useCommWindow'): void
 }>()
 
-// Posición horizontal del jugador dentro de la habitación actual (0 a 100%)
-const playerX = ref<number>(50)
+// Estado físico continuo a 60 FPS para el personaje del jugador en la habitación
+const playerX = ref<number>(48) // Porcentaje 8% a 92%
+const facingLeft = ref<boolean>(false)
+const isMoving = ref<boolean>(false)
+const isInteracting = ref<boolean>(false)
+const actionFeedback = ref<string>('Camina con [←/→] o [A/D] y pulsa [E] frente a puertas o terminales.')
+
+// Patrulla autónoma de los compañeros de tripulación / Gato Jefe en la sala
+const npcOffsets = reactive<Record<string, { x: number; dir: number; talking: boolean }>>({
+  npc_0: { x: 32, dir: 1, talking: false },
+  npc_1: { x: 66, dir: -1, talking: false },
+})
+
+const keysHeld = new Set<string>()
+let rafId: number | null = null
+let interactTimeout: number | null = null
 
 const currentRoom = computed(() => {
   return (
@@ -23,79 +38,167 @@ const currentRoom = computed(() => {
   )
 })
 
-const nearLeftDoor = computed(() => playerX.value <= 24 && !!currentRoom.value?.puerta_izquierda)
-const nearRightDoor = computed(() => playerX.value >= 76 && !!currentRoom.value?.puerta_derecha)
-const nearCenterConsole = computed(() => playerX.value > 28 && playerX.value < 72)
+const playerAnimation = computed<AnimacionSprite>(() => {
+  if (isInteracting.value) return 'perro_interactuar'
+  if (isMoving.value) return 'perro_caminar'
+  return 'perro_idle'
+})
 
-function handleKeydown(ev: KeyboardEvent): void {
+const nearLeftDoor = computed(() => playerX.value <= 20 && !!currentRoom.value?.puerta_izquierda)
+const nearRightDoor = computed(() => playerX.value >= 80 && !!currentRoom.value?.puerta_derecha)
+const nearCenterStation = computed(() => playerX.value >= 34 && playerX.value <= 66)
+
+const directorMood = computed(() => {
+  const dir = props.mission.tripulacion.find((t) => t.es_jugador)
+  return dir?.estado_animo ?? 'sol'
+})
+
+const roomCrewMembers = computed(() => {
+  if (!currentRoom.value) return []
+  return props.mission.tripulacion.filter(
+    (t) => !t.es_jugador && t.vivo && t.habitacion_actual === currentRoom.value?.id,
+  )
+})
+
+function updatePhysicsLoop(): void {
+  const left = keysHeld.has('ArrowLeft') || keysHeld.has('a') || keysHeld.has('A')
+  const right = keysHeld.has('ArrowRight') || keysHeld.has('d') || keysHeld.has('D')
+
+  if (left && !right) {
+    playerX.value = Math.max(8, playerX.value - 0.65)
+    facingLeft.value = true
+    isMoving.value = true
+  } else if (right && !left) {
+    playerX.value = Math.min(92, playerX.value + 0.65)
+    facingLeft.value = false
+    isMoving.value = true
+  } else {
+    isMoving.value = false
+  }
+
+  // Movimiento suave de los especialistas en la habitación
+  for (const key of Object.keys(npcOffsets)) {
+    const npc = npcOffsets[key]
+    if (!npc.talking) {
+      npc.x += npc.dir * 0.12
+      if (npc.x > 74) npc.dir = -1
+      if (npc.x < 26) npc.dir = 1
+    }
+  }
+
+  rafId = window.requestAnimationFrame(updatePhysicsLoop)
+}
+
+function handleKeyDown(ev: KeyboardEvent): void {
   const tag = (ev.target as HTMLElement | null)?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
-  if (ev.key === 'ArrowLeft' || ev.key === 'a' || ev.key === 'A') {
-    playerX.value = Math.max(8, playerX.value - 14)
-  } else if (ev.key === 'ArrowRight' || ev.key === 'd' || ev.key === 'D') {
-    playerX.value = Math.min(92, playerX.value + 14)
+  if (['ArrowLeft', 'ArrowRight', 'a', 'A', 'd', 'D'].includes(ev.key)) {
+    keysHeld.add(ev.key)
   } else if (ev.key === 'e' || ev.key === 'E') {
-    triggerKeyE()
+    ev.preventDefault()
+    triggerInteractionE()
   }
 }
 
-function triggerKeyE(): void {
+function handleKeyUp(ev: KeyboardEvent): void {
+  keysHeld.delete(ev.key)
+}
+
+function triggerInteractionE(): void {
   if (!currentRoom.value) return
+
+  // Reproducir animación de interacción del sprite (Fila 1 del spritesheet)
+  isInteracting.value = true
+  if (interactTimeout) window.clearTimeout(interactTimeout)
+  interactTimeout = window.setTimeout(() => {
+    isInteracting.value = false
+  }, 900)
+
+  // 1. Si está frente a la compuerta izquierda -> cambiar de habitación
   if (nearLeftDoor.value && currentRoom.value.puerta_izquierda) {
-    playerX.value = 72
-    emit('moveRoom', currentRoom.value.puerta_izquierda)
+    const targetRoom = currentRoom.value.puerta_izquierda
+    playerX.value = 76
+    facingLeft.value = true
+    actionFeedback.value = `Compuerta izquierda abierta → Entrando a ${targetRoom.replace('_', ' ')}`
+    emit('moveRoom', targetRoom)
     return
   }
+
+  // 2. Si está frente a la compuerta derecha -> cambiar de habitación
   if (nearRightDoor.value && currentRoom.value.puerta_derecha) {
-    playerX.value = 28
-    emit('moveRoom', currentRoom.value.puerta_derecha)
+    const targetRoom = currentRoom.value.puerta_derecha
+    playerX.value = 24
+    facingLeft.value = false
+    actionFeedback.value = `Compuerta derecha abierta → Entrando a ${targetRoom.replace('_', ' ')}`
+    emit('moveRoom', targetRoom)
     return
   }
-  // Interacción con el componente central de la sala actual
-  if (currentRoom.value.id === 'laboratorio') {
-    emit('runScience')
-  } else if (currentRoom.value.id === 'soporte_vital') {
-    emit('runCrewTask', 'estabilizar_animo')
-  } else if (currentRoom.value.id === 'sala_sistemas') {
-    if (props.mission.etapa_actual === 9) {
-      emit('useCommWindow')
+
+  // 3. Si está frente a la consola central de la habitación
+  if (nearCenterStation.value) {
+    if (currentRoom.value.id === 'cabina_mando') {
+      actionFeedback.value =
+        'Consultando telemetría primaria en Cabina de Mando: lecturas de Energía (Wh) y Combustible/Δv actualizadas.'
+    } else if (currentRoom.value.id === 'laboratorio') {
+      actionFeedback.value = 'Operando banco de instrumentos científicos en el Laboratorio...'
+      emit('runScience')
+    } else if (currentRoom.value.id === 'soporte_vital') {
+      actionFeedback.value = 'Regulando reciclaje de O₂ y estabilizando ánimo de la tripulación...'
+      emit('runCrewTask', 'estabilizar_animo')
     } else {
-      emit('runCrewTask', 'mantenimiento_general')
+      if (props.mission.etapa_actual === 9) {
+        actionFeedback.value = 'Activando antena de alta ganancia en ventana de comunicación...'
+        emit('useCommWindow')
+      } else {
+        actionFeedback.value = 'Ejecutando mantenimiento preventivo de subsistemas...'
+        emit('runCrewTask', 'mantenimiento_general')
+      }
     }
+    return
   }
+
+  actionFeedback.value = 'Acércate más a una puerta lateral o a la consola central para interactuar con [E].'
+}
+
+function stepWalk(delta: number): void {
+  facingLeft.value = delta < 0
+  isMoving.value = true
+  playerX.value = Math.min(92, Math.max(8, playerX.value + delta))
+  window.setTimeout(() => {
+    isMoving.value = false
+  }, 350)
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('keyup', handleKeyUp)
+  rafId = window.requestAnimationFrame(updatePhysicsLoop)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('keyup', handleKeyUp)
+  if (rafId !== null) window.cancelAnimationFrame(rafId)
+  if (interactTimeout !== null) window.clearTimeout(interactTimeout)
 })
-
-const moodColor = (mood: string): string => {
-  if (mood === 'sol') return '#F5C84C'
-  if (mood === 'nube') return '#9AA8B8'
-  return '#4A78C2'
-}
 </script>
 
 <template>
-  <div class="panel-box destination-2d">
-    <div class="room-top-bar">
+  <div class="panel-box interactive-room-wrapper">
+    <!-- Barra superior de navegación entre salas contiguas -->
+    <div class="room-header-bar">
       <div>
-        <span class="amber-title">INTERFAZ DE HABITACIONES CONTIGUAS (MODO DESTINO 2D)</span>
-        <span class="controls-hint">
-          Usa [←/→] o [A/D] para desplazarte y presiona <strong>[E]</strong> en puertas o consolas
+        <span class="badge-live">● SIMULACIÓN 2D PIXEL ART EN TIEMPO REAL</span>
+        <span class="room-title-main">
+          SALA ACTUAL: {{ currentRoom?.nombre.toUpperCase() }}
         </span>
       </div>
-      <!-- Mapa de habitaciones contiguas -->
-      <div class="room-tabs">
+      <div class="contiguous-map">
         <button
           v-for="room in mission.habitaciones_2d"
           :key="room.id"
-          class="room-pill"
+          class="map-node"
           :class="{
             active: room.id === mission.habitacion_jugador,
             alert: room.alerta_activa,
@@ -108,124 +211,171 @@ const moodColor = (mood: string): string => {
       </div>
     </div>
 
-    <!-- Escenario 2D lateral (Placeholder estilo Artboard Dirección A mientras llegan sprites) -->
-    <div v-if="currentRoom" class="scene-grid">
-      <div class="viewport-2d">
-        <!-- Ventana exterior según destino -->
+    <div v-if="currentRoom" class="game-stage-layout">
+      <!-- ESCENARIO 2D PIXEL ART ANIMADO -->
+      <div class="pixel-stage-canvas">
+        <!-- Fondo de ventana espacial según destino (OTB vs LUNA) y habitación -->
         <div
-          class="space-window"
-          :class="mission.destino === 'LUNA' ? 'window-moon' : 'window-otb'"
+          class="backdrop-layer"
+          :class="[
+            `room-bg-${currentRoom.id}`,
+            mission.destino === 'LUNA' ? 'dest-luna' : 'dest-otb',
+          ]"
         >
-          <div v-if="mission.destino === 'OTB'" class="celestial-earth"></div>
-          <div v-else class="celestial-moon"></div>
-          <div class="room-banner">
-            SALA ACTUAL: {{ currentRoom.nombre.toUpperCase() }} ({{ currentRoom.sistema_principal }})
+          <!-- Estrellas pixeladas -->
+          <div class="pixel-stars"></div>
+
+          <!-- Ventanal exterior con planeta -->
+          <div class="observation-window">
+            <div v-if="mission.destino === 'OTB'" class="planet-earth"></div>
+            <div v-else class="planet-moon"></div>
+            <div class="window-hud">
+              {{ mission.destino === 'LUNA' ? 'ÓRBITA LUNAR · 384.400 KM' : 'ÓRBITA TERRESTRE BAJA · 400 KM' }}
+            </div>
+          </div>
+
+          <!-- Luces de estado del módulo -->
+          <div class="bulkhead-lights">
+            <span
+              class="status-lamp"
+              :class="currentRoom.alerta_activa ? 'lamp-alert blink-warning' : 'lamp-ok'"
+            ></span>
+            <span class="lamp-text">{{ currentRoom.sistema_principal }}</span>
           </div>
         </div>
 
-        <!-- Piso de la habitación con Puerta Izquierda, Consola Central y Puerta Derecha -->
-        <div class="room-floor">
-          <!-- Puerta Izquierda -->
+        <!-- PISO INTERACTIVO CON PUERTAS CONTIGUAS, CONSOLA Y SPRITES ANIMADOS -->
+        <div class="deck-floor">
+          <!-- PUERTA CONTIGUA IZQUIERDA -->
           <div
-            class="door-frame left-door"
-            :class="{ highlighted: nearLeftDoor, disabled: !currentRoom.puerta_izquierda }"
+            class="airlock-door left"
+            :class="{ active: nearLeftDoor, sealed: !currentRoom.puerta_izquierda }"
             @click="currentRoom.puerta_izquierda && emit('moveRoom', currentRoom.puerta_izquierda)"
           >
-            <div class="door-label">
-              {{
+            <div v-if="nearLeftDoor && currentRoom.puerta_izquierda" class="key-e-floating">
+              [E] ABRIR PUERTA
+            </div>
+            <div class="door-arch">
+              <div class="door-lights"></div>
+              <span>{{
                 currentRoom.puerta_izquierda
-                  ? `[E] ◄ ${currentRoom.puerta_izquierda.replace('_', ' ').toUpperCase()}`
-                  : 'MAMPARO SELLADO'
-              }}
+                  ? `◄ ${currentRoom.puerta_izquierda.replace('_', ' ').toUpperCase()}`
+                  : 'SELLADA'
+              }}</span>
             </div>
           </div>
 
-          <!-- Estación Central de la Sala -->
-          <div class="station-console" :class="{ highlighted: nearCenterConsole }">
-            <div class="station-title">{{ currentRoom.sistema_principal }}</div>
-            <div class="station-sub">
-              <template v-if="currentRoom.id === 'cabina_mando'">
-                [Consola de Telemetría Primaria Activa]
-              </template>
-              <template v-else-if="currentRoom.id === 'laboratorio'">
-                Pulsa <strong>[E]</strong> o clic para operar instrumentos científicos
-              </template>
-              <template v-else-if="currentRoom.id === 'soporte_vital'">
-                Pulsa <strong>[E]</strong> para estabilizar estado de ánimo y soporte vital
-              </template>
-              <template v-else>
-                Pulsa <strong>[E]</strong> para mantenimiento de sistemas / transmitir por antena
-              </template>
-            </div>
-          </div>
-
-          <!-- Puerta Derecha -->
+          <!-- CONSOLA / ESTACIÓN INTERACTIVA CENTRAL DE LA HABITACIÓN -->
           <div
-            class="door-frame right-door"
-            :class="{ highlighted: nearRightDoor, disabled: !currentRoom.puerta_derecha }"
+            class="room-workstation"
+            :class="{ active: nearCenterStation, alert: currentRoom.alerta_activa }"
+            @click="triggerInteractionE"
+          >
+            <div v-if="nearCenterStation" class="key-e-floating">
+              <template v-if="currentRoom.id === 'cabina_mando'">[E] LEER TELEMETRÍA</template>
+              <template v-else-if="currentRoom.id === 'laboratorio'">[E] OPERAR LABORATORIO</template>
+              <template v-else-if="currentRoom.id === 'soporte_vital'">[E] SOPORTE VITAL / ÁNIMO</template>
+              <template v-else>[E] SISTEMAS / ANTENA</template>
+            </div>
+
+            <div class="console-screen">
+              <div class="screen-scanline"></div>
+              <div class="screen-title">{{ currentRoom.nombre.toUpperCase() }}</div>
+              <div class="screen-sub">
+                <template v-if="currentRoom.id === 'cabina_mando'">
+                  ENERGÍA: {{ mission.bateria_actual_wh }} Wh · Δv: {{ mission.delta_v_disponible_ms }} m/s
+                </template>
+                <template v-else-if="currentRoom.id === 'laboratorio'">
+                  CIENCIA: {{ mission.puntos_ciencia_generados }} pts · DATOS: {{ mission.datos_generados_gb }} GB
+                </template>
+                <template v-else-if="currentRoom.id === 'soporte_vital'">
+                  OXÍGENO: {{ mission.o2_dias_disponibles }}d · COMIDA: {{ mission.comida_dias_disponibles }}d
+                </template>
+                <template v-else>
+                  VENTANAS COMM: {{ mission.ventanas_comm_restantes }} · INTEGRIDAD:
+                  {{ Math.round((mission.rendimiento_subsistemas.energia ?? 1) * 100) }}%
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- PUERTA CONTIGUA DERECHA -->
+          <div
+            class="airlock-door right"
+            :class="{ active: nearRightDoor, sealed: !currentRoom.puerta_derecha }"
             @click="currentRoom.puerta_derecha && emit('moveRoom', currentRoom.puerta_derecha)"
           >
-            <div class="door-label">
-              {{
+            <div v-if="nearRightDoor && currentRoom.puerta_derecha" class="key-e-floating">
+              [E] ABRIR PUERTA
+            </div>
+            <div class="door-arch">
+              <div class="door-lights"></div>
+              <span>{{
                 currentRoom.puerta_derecha
-                  ? `[E] ${currentRoom.puerta_derecha.replace('_', ' ').toUpperCase()} ►`
-                  : 'ESCLUSA EXTERIOR'
-              }}
+                  ? `${currentRoom.puerta_derecha.replace('_', ' ').toUpperCase()} ►`
+                  : 'SELLADA'
+              }}</span>
             </div>
           </div>
 
-          <!-- Tripulantes presentes en la sala con su icono de estado de ánimo (Sol/Nube/Lluvia) -->
+          <!-- SPRITES DE TRIPULANTES ESPECIALISTAS / CONTROL EN LA SALA -->
           <div
-            v-for="(member, idx) in mission.tripulacion.filter(
-              (t) => t.habitacion_actual === currentRoom?.id && !t.es_jugador,
-            )"
+            v-for="(member, idx) in roomCrewMembers"
             :key="member.id"
-            class="crew-avatar npc-avatar"
-            :style="{ left: `${36 + idx * 18}%` }"
+            class="character-actor npc-actor"
+            :style="{ left: `${npcOffsets[`npc_${idx % 2}`]?.x ?? 35 + idx * 20}%` }"
           >
-            <div
-              class="mood-bubble"
-              :style="{ borderColor: moodColor(member.estado_animo), color: moodColor(member.estado_animo) }"
-            >
-              {{ member.estado_animo.toUpperCase() }}
-            </div>
-            <div class="pixel-body npc-body"></div>
-            <div class="avatar-caption">{{ member.nombre.split(' ')[1] || member.nombre }}</div>
+            <PixelSprite
+              :animacion="isInteracting ? 'gato_hablar' : 'gato_caminar'"
+              :flip-x="(npcOffsets[`npc_${idx % 2}`]?.dir ?? 1) < 0"
+              :width="92"
+              :height="92"
+              :fps="7"
+              :animo="member.estado_animo"
+              :etiqueta="`${member.nombre.split(' ')[1] || member.nombre} (${member.especialidad})`"
+            />
           </div>
 
-          <!-- Avatar del Jugador (Director) -->
-          <div class="crew-avatar player-avatar" :style="{ left: `${playerX}%` }">
-            <div class="mood-bubble" style="border-color: var(--amber); color: var(--amber)">
-              DIRECTOR [E]
-            </div>
-            <div class="pixel-body director-body"></div>
-            <div class="avatar-caption">TÚ</div>
+          <!-- SPRITE PRINCIPAL DEL JUGADOR (PERRO ASTRONAUTA CON CASCO) -->
+          <div class="character-actor player-actor" :style="{ left: `${playerX}%` }">
+            <PixelSprite
+              :animacion="playerAnimation"
+              :flip-x="facingLeft"
+              :width="104"
+              :height="104"
+              :fps="10"
+              :animo="directorMood"
+              etiqueta="DIRECTOR [TÚ]"
+            />
           </div>
         </div>
 
-        <!-- Controles táctiles rápidos para caminar y pulsar E -->
-        <div class="walk-bar">
-          <button @click="playerX = Math.max(8, playerX - 18)">◄ Caminar Izquierda</button>
-          <button class="btn-primary" @click="triggerKeyE()">
-            [Tecla E] Interactuar / Abrir Puerta
-          </button>
-          <button @click="playerX = Math.min(92, playerX + 18)">Caminar Derecha ►</button>
+        <!-- Barra de controles rápidos e indicador de acción -->
+        <div class="arcade-controls-bar">
+          <div class="btn-group">
+            <button @mousedown="stepWalk(-12)" @click="stepWalk(-10)">◄ Caminar [A / ←]</button>
+            <button class="btn-primary" @click="triggerInteractionE">
+              ⚡ [Tecla E] Interactuar / Cruzar Puerta
+            </button>
+            <button @mousedown="stepWalk(12)" @click="stepWalk(10)">Caminar [D / →] ►</button>
+          </div>
+          <div class="feedback-ticker">{{ actionFeedback }}</div>
         </div>
       </div>
 
-      <!-- Panel Derecho: Asimetría de Información según la habitación donde esté el jugador -->
-      <div class="room-telemetry-panel">
-        <div class="telemetry-header">TERMINAL LOCAL DE SALA</div>
+      <!-- PANEL LATERAL CONTEXTUAL (RESPETANDO LA REGLA DE ASIMETRÍA DE INFORMACIÓN) -->
+      <div class="contextual-room-hud">
+        <div class="hud-title">LECTURA LOCAL: {{ currentRoom.nombre.toUpperCase() }}</div>
 
-        <!-- 1. Si está en CABINA DE MANDO: ve Energía y Combustible/Delta-v exactos -->
+        <!-- CABINA DE MANDO: Único lugar con Energía y Combustible exactos -->
         <template v-if="currentRoom.id === 'cabina_mando'">
-          <div class="metric-row">
-            <span>Batería Reserva</span>
-            <span style="color: var(--cyan)">
+          <div class="hud-stat">
+            <span>Batería Acumulada</span>
+            <strong style="color: var(--cyan)">
               {{ mission.bateria_actual_wh }} / {{ mission.bateria_capacidad_wh }} Wh
-            </span>
+            </strong>
           </div>
-          <div class="bar">
+          <div class="hud-meter">
             <div
               :style="{
                 width: `${Math.min(100, (mission.bateria_actual_wh / Math.max(1, mission.bateria_capacidad_wh)) * 100)}%`,
@@ -234,18 +384,18 @@ const moodColor = (mood: string): string => {
             ></div>
           </div>
 
-          <div class="metric-row" style="margin-top: 8px">
-            <span>Balance Potencia</span>
-            <span :style="{ color: mission.balance_potencia_w >= 0 ? 'var(--green)' : 'var(--orange)' }">
+          <div class="hud-stat">
+            <span>Balance Eléctrico</span>
+            <strong :style="{ color: mission.balance_potencia_w >= 0 ? 'var(--green)' : 'var(--orange)' }">
               {{ mission.balance_potencia_w >= 0 ? `+${mission.balance_potencia_w}` : mission.balance_potencia_w }} W
-            </span>
+            </strong>
           </div>
 
-          <div class="metric-row" style="margin-top: 8px">
-            <span>Delta-v Restante</span>
-            <span style="color: var(--amber)">{{ mission.delta_v_disponible_ms }} m/s</span>
+          <div class="hud-stat">
+            <span>Propulsión / Delta-v</span>
+            <strong style="color: var(--amber)">{{ mission.delta_v_disponible_ms }} m/s</strong>
           </div>
-          <div class="bar">
+          <div class="hud-meter">
             <div
               :style="{
                 width: `${Math.min(100, (mission.delta_v_disponible_ms / Math.max(1, mission.delta_v_inicial_ms)) * 100)}%`,
@@ -253,335 +403,430 @@ const moodColor = (mood: string): string => {
               }"
             ></div>
           </div>
-          <p class="room-note">
-            Lectura directa de instrumentos de cabina. (Esta información crítica se oculta al salir de Cabina de Mando).
+          <p class="asymmetry-hint">
+            ✓ Estás en la <strong>Cabina de Mando</strong>: tienes acceso visual directo a las cifras de energía y combustible.
           </p>
         </template>
 
-        <!-- 2. Si está en LABORATORIO: ve Investigación y Datos -->
+        <!-- LABORATORIO CIENTÍFICO: Único lugar para ejecutar investigación -->
         <template v-else-if="currentRoom.id === 'laboratorio'">
-          <div class="metric-row">
-            <span>Puntos de Ciencia</span>
-            <span style="color: var(--cyan)">{{ mission.puntos_ciencia_generados }} pts</span>
+          <div class="hud-stat">
+            <span>Ciencia Acumulada</span>
+            <strong style="color: var(--cyan)">{{ mission.puntos_ciencia_generados }} pts</strong>
           </div>
-          <div class="metric-row">
-            <span>Datos en Memoria</span>
-            <span style="color: var(--amber)">{{ mission.datos_generados_gb }} GB</span>
+          <div class="hud-stat">
+            <span>Memoria de Datos</span>
+            <strong style="color: var(--amber)">{{ mission.datos_generados_gb }} GB</strong>
           </div>
-          <div class="metric-row">
-            <span>Calidad de Muestras</span>
-            <span style="color: var(--green)">{{ mission.calidad_datos_promedio }}%</span>
+          <div class="hud-stat">
+            <span>Calidad Experimental</span>
+            <strong style="color: var(--green)">{{ mission.calidad_datos_promedio }}%</strong>
           </div>
-          <button class="btn-primary" style="width: 100%; margin-top: 10px" @click="emit('runScience')">
-            [E] Ejecutar Campaña de Instrumentos
+          <button class="btn-primary hud-action-btn" @click="triggerInteractionE">
+            🔬 [E] Operar Instrumentos del Laboratorio
           </button>
-          <p class="room-note">
-            Nota: Para ver energía exacta (Wh) y Delta-v restante debes caminar a la Cabina de Mando.
+          <p class="asymmetry-hint">
+            🔒 <em>Energía y combustible ocultos aquí:</em> camina a la izquierda hacia la Cabina de Mando con <strong>[E]</strong> para consultarlos.
           </p>
         </template>
 
-        <!-- 3. Si está en SOPORTE VITAL: ve O2, Comida y Salud Mental -->
+        <!-- MÓDULO DE VIDA Y HABITACIÓN -->
         <template v-else-if="currentRoom.id === 'soporte_vital'">
-          <div class="metric-row">
-            <span>Reserva Oxígeno</span>
-            <span style="color: var(--green)">{{ mission.o2_dias_disponibles }} días</span>
+          <div class="hud-stat">
+            <span>Autonomía Oxígeno</span>
+            <strong style="color: var(--green)">{{ mission.o2_dias_disponibles }} días</strong>
           </div>
-          <div class="metric-row">
+          <div class="hud-stat">
             <span>Agua y Raciones</span>
-            <span style="color: var(--green)">{{ mission.comida_dias_disponibles }} días</span>
+            <strong style="color: var(--green)">{{ mission.comida_dias_disponibles }} días</strong>
           </div>
-          <button
-            class="btn-cyan"
-            style="width: 100%; margin-top: 10px"
-            @click="emit('runCrewTask', 'estabilizar_animo')"
-          >
-            [E] Estabilizar Ánimo y Soporte Vital
+          <button class="btn-cyan hud-action-btn" @click="triggerInteractionE">
+            ☀️ [E] Estabilizar Ánimo de Tripulación
           </button>
-          <p class="room-note">
-            Energía y combustible ocultos fuera de Cabina de Mando; investigación requiere ir al Laboratorio.
+          <p class="asymmetry-hint">
+            El icono sobre la cabeza de cada tripulante (☀️ Sol, ☁️ Nube, 🌧️ Lluvia) altera su velocidad y calidad de trabajo.
           </p>
         </template>
 
-        <!-- 4. Si está en SALA DE SISTEMAS: ve Antena, Ventanas Comm y Mantenimiento -->
+        <!-- SALA DE SISTEMAS Y COMUNICACIONES -->
         <template v-else>
-          <div class="metric-row">
+          <div class="hud-stat">
             <span>Ventanas Comm</span>
-            <span style="color: var(--lilac)">{{ mission.ventanas_comm_restantes }} disponibles</span>
+            <strong style="color: var(--lilac)">{{ mission.ventanas_comm_restantes }} restantes</strong>
           </div>
-          <div class="metric-row">
+          <div class="hud-stat">
             <span>Datos Transmitidos</span>
-            <span style="color: var(--cyan)">
+            <strong style="color: var(--cyan)">
               {{ mission.datos_transmitidos_gb }} / {{ mission.datos_generados_gb }} GB
-            </span>
+            </strong>
           </div>
-          <button
-            class="btn-cyan"
-            style="width: 100%; margin-top: 8px"
-            @click="emit('runCrewTask', 'mantenimiento_general')"
-          >
-            [E] Mantenimiento Común de Subsistemas
+          <button class="btn-cyan hud-action-btn" @click="emit('runCrewTask', 'mantenimiento_general')">
+            🔧 [E] Reparar / Mantenimiento Común
           </button>
-          <button
-            class="btn-primary"
-            style="width: 100%; margin-top: 6px"
-            @click="emit('useCommWindow')"
-          >
-            Transmitir Datos en Ventana Comm
+          <button class="btn-primary hud-action-btn" @click="emit('useCommWindow')">
+            📡 Transmitir Datos a Tierra (1 Ventana)
           </button>
         </template>
-
-        <!-- Alertas sin cuantificar visibles en el panel -->
-        <div v-if="mission.eventos_activos.length > 0" class="unquantified-alert blink-warning">
-          ▲ ALERTA ACTIVA: {{ mission.eventos_activos[0].titulo }} (Ver consola de eventos abajo)
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.destination-2d {
+.interactive-room-wrapper {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border-color: var(--amber);
 }
-.room-top-bar {
+
+.room-header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
 }
-.amber-title {
-  color: var(--amber);
+
+.badge-live {
+  background: rgba(255, 176, 0, 0.18);
+  border: 1px solid var(--amber);
+  color: var(--gold);
+  font-size: 10px;
   font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.room-title-main {
   font-size: 13px;
-  display: block;
+  font-weight: 700;
+  color: var(--bone);
 }
-.controls-hint {
-  font-size: 11px;
-  color: var(--mist);
-}
-.room-tabs {
+
+.contiguous-map {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
-.room-pill {
+
+.map-node {
   font-size: 11px;
   padding: 5px 10px;
 }
-.room-pill.active {
+
+.map-node.active {
   border-color: var(--amber);
+  background: rgba(255, 176, 0, 0.22);
   color: var(--gold);
-  background: rgba(255, 176, 0, 0.16);
+  font-weight: 700;
 }
-.room-pill.alert {
+
+.map-node.alert {
   border-color: var(--orange);
 }
-.scene-grid {
+
+.game-stage-layout {
   display: grid;
-  grid-template-columns: 1fr 250px;
+  grid-template-columns: 1fr 265px;
   gap: 14px;
 }
-@media (max-width: 820px) {
-  .scene-grid {
+
+@media (max-width: 900px) {
+  .game-stage-layout {
     grid-template-columns: 1fr;
   }
 }
-.viewport-2d {
-  background: var(--void);
-  border: 1px solid var(--steel);
+
+.pixel-stage-canvas {
+  background: #080b14;
+  border: 2px solid var(--steel);
   border-radius: 6px;
-  padding: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
-.space-window {
-  height: 92px;
-  border-radius: 5px;
+
+.backdrop-layer {
+  height: 125px;
   position: relative;
+  border-bottom: 3px solid #2b3550;
   overflow: hidden;
-  border: 1px solid var(--steel);
+  background: linear-gradient(180deg, #10162b 0%, #1b2340 100%);
 }
-.window-otb {
-  background: linear-gradient(180deg, #0b0e1a 0%, #1b2340 60%, #2e6fd8 100%);
-}
-.window-moon {
-  background: linear-gradient(180deg, #0b0e1a 0%, #1b2340 70%, #6e6a66 100%);
-}
-.celestial-earth {
+
+.pixel-stars {
   position: absolute;
-  bottom: -45px;
-  left: 18%;
-  width: 130px;
-  height: 130px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #4fd1c5, #2e6fd8 65%, #1b2340);
+  inset: 0;
+  background-image: radial-gradient(#e8e4d8 1px, transparent 1px),
+    radial-gradient(#4fd1c5 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
+  opacity: 0.28;
 }
-.celestial-moon {
+
+.observation-window {
   position: absolute;
   top: 14px;
-  right: 18%;
-  width: 58px;
-  height: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  height: 82px;
+  background: #060810;
+  border: 3px solid var(--steel);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.planet-earth {
+  position: absolute;
+  bottom: -55px;
+  left: 25%;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #b8b2a7, #6e6a66 75%);
+  background: radial-gradient(circle at 35% 35%, #4fd1c5, #2e6fd8 60%, #1b2340);
+  box-shadow: 0 0 18px rgba(79, 209, 197, 0.45);
 }
-.room-banner {
-  position: relative;
-  z-index: 2;
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gold);
-  background: rgba(11, 14, 26, 0.72);
+
+.planet-moon {
+  position: absolute;
+  top: 12px;
+  right: 28%;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #e8e4d8, #b8b2a7 55%, #6e6a66);
+  box-shadow: 0 0 14px rgba(232, 228, 216, 0.35);
 }
-.room-floor {
-  position: relative;
-  height: 125px;
-  background: #141b33;
+
+.window-hud {
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  font-size: 9px;
+  color: var(--cyan);
+  letter-spacing: 0.05em;
+}
+
+.bulkhead-lights {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(11, 14, 26, 0.8);
+  padding: 3px 8px;
+  border-radius: 4px;
   border: 1px solid var(--steel);
-  border-radius: 5px;
+}
+
+.status-lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.lamp-ok {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.lamp-alert {
+  background: var(--orange);
+  box-shadow: 0 0 8px var(--orange);
+}
+
+.lamp-text {
+  font-size: 10px;
+  color: var(--mist);
+}
+
+.deck-floor {
+  position: relative;
+  height: 175px;
+  background: repeating-linear-gradient(
+    90deg,
+    #161e36 0px,
+    #161e36 44px,
+    #12182b 44px,
+    #12182b 48px
+  );
+  border-bottom: 6px solid #2b3550;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 10px;
+  align-items: flex-end;
+  padding: 0 12px 12px;
 }
-.door-frame {
-  width: 110px;
-  height: 88px;
-  background: var(--steel);
-  border: 2px solid var(--mist);
-  border-radius: 4px;
+
+.airlock-door {
+  width: 92px;
+  height: 132px;
+  background: #232d4b;
+  border: 3px solid var(--steel);
+  border-radius: 6px 6px 0 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 6px;
+  position: relative;
   cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.door-frame.highlighted {
+
+.airlock-door.active {
   border-color: var(--amber);
-  box-shadow: 0 0 10px rgba(255, 176, 0, 0.35);
+  box-shadow: 0 0 16px rgba(255, 176, 0, 0.45);
 }
-.door-frame.disabled {
+
+.airlock-door.sealed {
   opacity: 0.35;
   cursor: default;
 }
-.door-label {
-  font-size: 10px;
+
+.door-arch {
+  font-size: 9px;
+  font-weight: 700;
   color: var(--gold);
-  font-weight: 700;
-}
-.station-console {
-  flex: 1;
-  margin: 0 14px;
-  padding: 10px;
-  background: var(--void);
-  border: 1px dashed var(--cyan);
-  border-radius: 4px;
   text-align: center;
+  padding: 4px;
 }
-.station-console.highlighted {
-  border-style: solid;
-  border-color: var(--amber);
-}
-.station-title {
-  font-size: 11px;
-  color: var(--cyan);
-  font-weight: 700;
-}
-.station-sub {
-  font-size: 10px;
-  color: var(--mist);
-  margin-top: 4px;
-}
-.crew-avatar {
-  position: absolute;
-  bottom: 8px;
-  transform: translateX(-50%);
+
+.room-workstation {
+  width: 230px;
+  height: 112px;
+  margin-bottom: 8px;
+  background: #0d1222;
+  border: 2px solid var(--cyan);
+  border-radius: 6px;
+  padding: 8px;
+  position: relative;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  transition: left 0.15s ease-out;
+  justify-content: center;
+}
+
+.room-workstation.active {
+  border-color: var(--amber);
+  box-shadow: 0 0 18px rgba(255, 176, 0, 0.38);
+}
+
+.room-workstation.alert {
+  border-color: var(--orange);
+}
+
+.key-e-floating {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--amber);
+  color: var(--void);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(255, 176, 0, 0.6);
+  z-index: 6;
+}
+
+.console-screen {
+  text-align: center;
+}
+
+.screen-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+.screen-sub {
+  font-size: 10px;
+  color: var(--cyan);
+}
+
+.character-actor {
+  position: absolute;
+  bottom: 6px;
+  transform: translateX(-50%);
+  z-index: 4;
   pointer-events: none;
 }
-.mood-bubble {
-  font-size: 9px;
-  font-weight: 700;
+
+.player-actor {
+  z-index: 5;
+}
+
+.arcade-controls-bar {
   background: var(--void);
-  border: 1px solid;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-bottom: 3px;
-  white-space: nowrap;
-}
-.pixel-body {
-  width: 18px;
-  height: 28px;
-  border-radius: 3px;
-  border: 2px solid var(--bone);
-}
-.director-body {
-  background: var(--amber);
-}
-.npc-body {
-  background: var(--cyan);
-}
-.avatar-caption {
-  font-size: 9px;
-  color: var(--bone);
-  margin-top: 2px;
-}
-.walk-bar {
+  padding: 8px 12px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
-.room-telemetry-panel {
+
+.btn-group {
+  display: flex;
+  gap: 6px;
+}
+
+.feedback-ticker {
+  font-size: 11px;
+  color: var(--cyan);
+}
+
+.contextual-room-hud {
   background: var(--void);
   border: 1px solid var(--steel);
   border-radius: 6px;
   padding: 12px;
-  font-size: 11px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  font-size: 11px;
 }
-.telemetry-header {
+
+.hud-title {
   color: var(--amber);
   font-weight: 700;
   border-bottom: 1px solid var(--steel);
-  padding-bottom: 4px;
-  margin-bottom: 4px;
+  padding-bottom: 5px;
 }
-.metric-row {
+
+.hud-stat {
   display: flex;
   justify-content: space-between;
 }
-.bar {
+
+.hud-meter {
   height: 6px;
   background: var(--steel);
   border-radius: 3px;
   overflow: hidden;
 }
-.bar > div {
+
+.hud-meter > div {
   height: 100%;
 }
-.room-note {
+
+.hud-action-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.asymmetry-hint {
   font-size: 10px;
   color: var(--mist);
-  margin-top: 8px;
-  line-height: 1.4;
-}
-.unquantified-alert {
+  line-height: 1.45;
   margin-top: auto;
-  padding: 6px;
-  border: 1px solid var(--orange);
-  border-radius: 4px;
-  color: var(--orange);
-  font-size: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--steel);
 }
 </style>

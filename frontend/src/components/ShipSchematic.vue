@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ComponenteCatalogo, EstadoMision } from '../services/api'
+import PixelSprite from './PixelSprite.vue'
 
 const props = defineProps<{
   mission: EstadoMision
@@ -23,25 +24,19 @@ const moodColor = (mood: string): string => {
   if (mood === 'nube') return '#9AA8B8'
   return '#4A78C2'
 }
-
-const moodIcon = (mood: string): string => {
-  if (mood === 'sol') return '☀ SOL'
-  if (mood === 'nube') return '☁ NUBE'
-  return '🌧 LLUVIA'
-}
 </script>
 
 <template>
   <div class="panel-box schematic-wrapper">
     <div class="schematic-header">
       <div>
-        <span class="label-amber">ESQUEMÁTICO TÉCNICO DE LA NAVE</span>
+        <span class="label-amber">DISEÑO VISUAL DE LA NAVE Y DOTACIÓN PIXEL ART</span>
         <span class="dest-tag">{{
           mission.destino === 'LUNA' ? 'CONFIGURACIÓN CISLUNAR' : 'CONFIGURACIÓN OTB'
         }}</span>
       </div>
       <div class="sub-caption">
-        Los módulos instalados y la dotación se actualizan en tiempo real sobre el chasis
+        Cada componente comprado se acopla al chasis; la tripulación muestra su sprite y estado de ánimo
       </div>
     </div>
 
@@ -108,11 +103,9 @@ const moodIcon = (mood: string): string => {
         </g>
 
         <!-- CUERPO CENTRAL DE LA NAVE (4 HABITACIONES CONTIGUAS) -->
-        <!-- 4. Sala de Sistemas (Popa) -->
         <rect x="190" y="80" width="75" height="90" fill="#1B2340" stroke="#3A4666" stroke-width="2" />
         <text x="198" y="96" fill="#8FA3BF" font-size="8">SISTEMAS</text>
 
-        <!-- 3. Soporte Vital (ECLSS) -->
         <rect
           x="265"
           y="80"
@@ -124,11 +117,9 @@ const moodIcon = (mood: string): string => {
         />
         <text x="275" y="96" fill="#7BD88F" font-size="8">VIDA / O2</text>
 
-        <!-- 2. Laboratorio Científico -->
         <rect x="340" y="80" width="80" height="90" fill="#1B2340" stroke="#3A4666" stroke-width="2" />
         <text x="348" y="96" fill="#4FD1C5" font-size="8">LABORATORIO</text>
 
-        <!-- 1. Cabina de Mando (Proa) -->
         <polygon
           points="420,80 485,96 485,154 420,170"
           fill="#1B2340"
@@ -155,7 +146,7 @@ const moodIcon = (mood: string): string => {
           <text x="485" y="68" fill="#F5D36B" font-size="9">Óptica Ka</text>
         </g>
 
-        <!-- PAYLOADS CIENTÍFICOS Y ROBOTACOPLADOS -->
+        <!-- PAYLOADS CIENTÍFICOS Y ROBOT ACOPLADOS -->
         <g v-if="installedSlots.has('payload_espectrometro')">
           <rect x="350" y="142" width="28" height="22" fill="#0B0E1A" stroke="#4FD1C5" stroke-width="1.5" />
           <text x="353" y="156" fill="#4FD1C5" font-size="7">SPEC</text>
@@ -175,22 +166,32 @@ const moodIcon = (mood: string): string => {
       </svg>
     </div>
 
-    <!-- Roster de Tripulación con Estado de Ánimo Visible (Sol, Nube, Lluvia) -->
+    <!-- Roster de Tripulación con Sprites Pixel Art Animados y Estado de Ánimo -->
     <div class="crew-strip">
       <div v-for="member in mission.tripulacion" :key="member.id" class="crew-card">
-        <div class="crew-top">
-          <span
-            class="mood-dot"
-            :style="{ backgroundColor: moodColor(member.estado_animo) }"
-            :title="`Estado de ánimo: ${member.estado_animo}`"
-          ></span>
-          <span class="mood-tag" :style="{ color: moodColor(member.estado_animo) }">
-            {{ moodIcon(member.estado_animo) }}
-          </span>
-          <span class="exp-tag">EXP {{ member.experiencia }}/5</span>
+        <div class="crew-sprite-row">
+          <PixelSprite
+            :animacion="member.es_jugador ? 'perro_caminar' : 'gato_hablar'"
+            :width="64"
+            :height="64"
+            :fps="7"
+            :animo="member.estado_animo"
+          />
+          <div class="crew-info-col">
+            <div class="crew-top">
+              <span
+                class="mood-dot"
+                :style="{ backgroundColor: moodColor(member.estado_animo) }"
+              ></span>
+              <span class="mood-tag" :style="{ color: moodColor(member.estado_animo) }">
+                {{ member.estado_animo.toUpperCase() }}
+              </span>
+              <span class="exp-tag">EXP {{ member.experiencia }}/5</span>
+            </div>
+            <div class="crew-name">{{ member.nombre }}</div>
+            <div class="crew-role">{{ member.rol }} · [{{ member.especialidad.toUpperCase() }}]</div>
+          </div>
         </div>
-        <div class="crew-name">{{ member.nombre }}</div>
-        <div class="crew-role">{{ member.rol }} · [{{ member.especialidad.toUpperCase() }}]</div>
       </div>
     </div>
   </div>
@@ -239,7 +240,7 @@ const moodIcon = (mood: string): string => {
 }
 .crew-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 8px;
 }
 .crew-card {
@@ -249,6 +250,14 @@ const moodIcon = (mood: string): string => {
   padding: 8px;
   font-size: 11px;
 }
+.crew-sprite-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.crew-info-col {
+  flex: 1;
+}
 .crew-top {
   display: flex;
   align-items: center;
@@ -256,8 +265,8 @@ const moodIcon = (mood: string): string => {
   margin-bottom: 4px;
 }
 .mood-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   display: inline-block;
 }
