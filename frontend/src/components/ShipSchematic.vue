@@ -42,8 +42,26 @@ const moodColor = (mood: string): string => {
 
     <div class="svg-stage">
       <svg viewBox="0 0 680 250" class="ship-svg" aria-label="Esquemático visual de la nave">
-        <!-- Fondo estelar y planeta de referencia -->
-        <rect x="0" y="0" width="680" height="250" fill="#0B0E1A" rx="6" />
+        <!-- Fondo estelar con gradiente y estrellas -->
+        <defs>
+          <radialGradient id="spaceGrad" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stop-color="#1B2340" />
+            <stop offset="100%" stop-color="#05070F" />
+          </radialGradient>
+        </defs>
+        <rect x="0" y="0" width="680" height="250" fill="url(#spaceGrad)" rx="6" />
+        <g fill="#E8E4D8" opacity="0.5">
+          <circle cx="40" cy="30" r="1" />
+          <circle cx="120" cy="55" r="0.8" />
+          <circle cx="200" cy="20" r="1.2" />
+          <circle cx="300" cy="40" r="0.9" />
+          <circle cx="420" cy="25" r="1" />
+          <circle cx="500" cy="60" r="0.7" />
+          <circle cx="620" cy="35" r="1.1" />
+          <circle cx="80" cy="200" r="0.8" />
+          <circle cx="260" cy="220" r="1" />
+          <circle cx="480" cy="210" r="0.9" />
+        </g>
         <circle
           v-if="mission.destino === 'OTB'"
           cx="590"
