@@ -166,9 +166,9 @@ onUnmounted(() => {
   <div class="pixel-sprite-container" :style="{ width: `${width}px` }">
     <!-- Efecto de estado de ánimo flotante sobre la cabeza (Sol, Nube, Lluvia) -->
     <div v-if="animo" class="animo-widget" :class="`animo-${animo}`">
-      <span v-if="animo === 'sol'" class="animo-icon">☀️</span>
-      <span v-else-if="animo === 'nube'" class="animo-icon">☁️</span>
-      <span v-else class="animo-icon">🌧️</span>
+      <span v-if="animo === 'sol'" class="animo-icon">☀</span>
+      <span v-else-if="animo === 'nube'" class="animo-icon">☁</span>
+      <span v-else class="animo-icon">🌧</span>
     </div>
 
     <canvas
