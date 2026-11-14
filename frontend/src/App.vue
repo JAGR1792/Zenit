@@ -15,6 +15,7 @@
         @mover="moverHabitacion"
         @interactuar="interactuarHabitacion"
       />
+      <InformeFinalView :mission-id="mission.id" />
     </div>
     <p v-else>Error al crear la misión.</p>
   </main>
@@ -24,6 +25,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { zenitApi } from './services/api'
 import Sala2D from './components/Sala2D.vue'
+import InformeFinalView from './components/InformeFinalView.vue'
 
 const mission = ref<any>(null)
 const loading = ref(true)
