@@ -116,6 +116,109 @@ const hasScientificInstrumentInstalled = computed(() => {
   })
 })
 
+const hiredSpecialists = computed(() => {
+  if (!mission.value) return []
+  return mission.value.tripulacion.filter((t) => !t.es_jugador)
+})
+
+// Crónica narrativa reactiva (Trama "Expediente Helios-9") según etapa, destino y tripulación
+const currentStoryBeat = computed(() => {
+  if (!mission.value) return null
+  const st = mission.value.etapa_actual
+  const isLuna = mission.value.destino === 'LUNA'
+  const crewNames = hiredSpecialists.value.map((t) => t.nombre).join(', ')
+  const solo = hiredSpecialists.value.length === 0
+
+  if (st === 1) {
+    return {
+      chapter: 'CAPÍTULO I · EL APAGÓN HELIOS-9',
+      speaker: 'COMISIONADO FÉLIX VANCE (EL GATO JEFE)',
+      quote: isLuna
+        ? '«Tras la tormenta solar Helios-9 perdimos contacto con todas las sondas automáticas del polo sur lunar. Has elegido la Operación Cráter Shackleton: bajo ese hielo perpetuo hay una firma isotópica que ningún robot pudo descifrar. Necesito que vayas allá arriba y traigas la verdad.»'
+        : '«La tormenta solar Helios-9 dejó ciega nuestra red de satélites automáticos y abrió una brecha en la magnetosfera superior. Con la Operación Escudo Ionosférico en OTB (400 km), tu misión es medir la anomalía desde primera línea antes de la siguiente llamarada.»',
+    }
+  }
+  if (st === 2) {
+    return {
+      chapter: 'CAPÍTULO II · EL PACTO EN EL DESPACHO',
+      speaker: 'COMISIONADO FÉLIX VANCE (EL GATO JEFE)',
+      quote:
+        mission.value.acuerdo_financiacion_id === 'ambicioso'
+          ? '«El Consorcio Aeroespacial ha puesto toda la carne en el asador. Tienes el presupuesto máximo, Director, pero a cambio esperan al menos 85 puntos de ciencia transmitidos sin excusas.»'
+          : mission.value.acuerdo_financiacion_id === 'austero'
+            ? '«El Fondo Académico tiene recursos muy limitados. Cada dólar cuenta y no habrá margen para derroches, pero si logras traer 45 puntos de ciencia habrás salvado el programa.»'
+            : '«El Programa Estatal Zenit te respalda con un presupuesto equilibrado. Administra bien cada compra en el hangar y deja un colchón financiero para imprevistos en vuelo.»',
+    }
+  }
+  if (st === 3) {
+    return {
+      chapter: 'CAPÍTULO III · ENSAMBLAJE EN EL HANGAR 04',
+      speaker: solo ? 'ALERTA DE DOTACIÓN (HANGAR)' : `EQUIPO A BORDO (${crewNames})`,
+      quote: solo
+        ? 'Actualmente estás tú solo en el manifiesto de vuelo (1/4). Puedes despegar en solitario para ahorrar sueldos y masa, pero sufrirás fatiga psicológica por aislamiento y menor velocidad en el Laboratorio. ¡Revisa la pestaña "🐶 2. Tripulación" si deseas contratar especialistas!'
+        : `Tu dotación canina (${crewNames}) ya revisa los planos en el hangar. Con ${mission.value.tripulacion.length} tripulantes a bordo, la nave registra ${mission.value.masa_total_kg} kg frente al límite estructural de ${mission.value.masa_lanzamiento_max_kg} kg.`,
+    }
+  }
+  if (st === 4) {
+    return {
+      chapter: 'CAPÍTULO IV · VENTANA DE TRANSFERENCIA',
+      speaker: 'COMPUTADORA DE NAVEGACIÓN ASTRODINÁMICA',
+      quote: isLuna
+        ? `La Luna se alinea sobre el plano orbital. La inyección translunar exige al menos ${mission.value.delta_v_requerido_total_ms} m/s totales; tu propulsor cuenta con ${mission.value.delta_v_disponible_ms} m/s.`
+        : `Ventana de inserción hacia la termosfera (400 km) calculada. Se requieren ${mission.value.delta_v_requerido_total_ms} m/s para completar ascenso, órbita y reentrada.`,
+    }
+  }
+  if (st === 5) {
+    return {
+      chapter: 'CAPÍTULO V · CUENTA REGRESIVA EN RAMPA',
+      speaker: 'CONTROL DE TIERRA ZENIT',
+      quote: solo
+        ? '«Torre de lanzamiento despejada. El Director despega en misión en solitario. Presurización de cabina nominal; motores listos para ignición.»'
+        : `«Torre de lanzamiento despejada. Dotación completa (${crewNames}) asegurada en cabina. Todos los sistemas listos para ignición.»`,
+    }
+  }
+  if (st === 6) {
+    return {
+      chapter: 'CAPÍTULO VI · EL SILENCIO DEL CRUCERO',
+      speaker: solo ? 'BITÁCORA DEL DIRECTOR (EN SOLITARIO)' : 'COMUNICACIÓN INTERNA DE CABINA',
+      quote: solo
+        ? `Viajas completamente solo a través del vacío rumbo a ${mission.value.destino}. El zumbido del soporte vital es tu única compañía mientras vigilas las alertas de los subsistemas.`
+        : `La Tierra se empequeñece tras la ventanilla mientras ${crewNames} supervisan la presión de los conductos y la carga de baterías rumbo a ${mission.value.destino}.`,
+    }
+  }
+  if (st === 7) {
+    return {
+      chapter: 'CAPÍTULO VII · EL HALLAZGO EN ÓRBITA',
+      speaker: 'LABORATORIO CIENTÍFICO DE LA NAVE',
+      quote:
+        mission.value.datos_generados_gb > 0
+          ? `¡Los sensores han capturado la firma del fenómeno Helios-9 (${mission.value.datos_generados_gb} GB en memoria y ${mission.value.puntos_ciencia_generados} pts de ciencia)! El siguiente paso crítico es enviarlos por antena a Tierra.`
+          : isLuna
+            ? 'Bajo la sombra perpetua del Cráter Shackleton, los sensores detectan ecos cristalinos e isótopos solares atrapados en el hielo. ¡Activa el Laboratorio (Paso 1) para registrar el hallazgo!'
+            : 'Las auroras de alta energía envuelven el casco a 400 km de altitud. Las partículas del evento Helios-9 están justo frente a nosotros. ¡Activa el Laboratorio (Paso 1) para capturar los datos!',
+    }
+  }
+  if (st === 8) {
+    return {
+      chapter: 'CAPÍTULO VIII · DESGASTE EN EL ESPACIO PROFUNDO',
+      speaker: solo ? 'MONITOR BIOMÉDICO (SOLITARIO)' : 'MÓDULO DE VIDA Y OPERACIONES',
+      quote: solo
+        ? 'El aislamiento de operar toda la nave sin ayuda empieza a pesar en tus reflejos. Mantén el ánimo en Sol y asegúrate de no dejar datos sin transmitir.'
+        : `Tras intensas jornadas en órbita, el equipo (${crewNames}) ajusta el reciclaje de oxígeno y calibra las válvulas antes de la última ventana de enlace con Tierra.`,
+    }
+  }
+  return {
+    chapter: 'CAPÍTULO IX · ÚLTIMO ENLACE ANTES DE REENTRADA',
+    speaker: 'COMISIONADO FÉLIX VANCE (ENLACE DE RADIO)',
+    quote:
+      mission.value.datos_transmitidos_gb > 0 && pendingDataToTransmitGb.value <= 0
+        ? `«Aquí el Comisionado Vance desde Tierra: hemos recibido los ${mission.value.datos_transmitidos_gb} GB íntegros en nuestros servidores centrales. Enciendan motores de retorno y vuelvan a casa.»`
+        : pendingDataToTransmitGb.value > 0
+          ? `«¡Director, aún tienes ${pendingDataToTransmitGb.value} GB de datos guardados en la memoria de la nave! Usa la antena (Paso 2) ahora mismo; lo que no se transmita antes de reentrar no servirá para el informe.»`
+          : '«Director, nuestras antenas en Tierra siguen esperando tus paquetes de telemetría científica. Recolecta en el Laboratorio (Paso 1) y transmite (Paso 2) antes de regresar.»',
+  }
+})
+
 // Guía contextual paso a paso por etapa para que el jugador siempre entienda qué hacer
 const currentStageGuide = computed(() => {
   if (!mission.value) return null
@@ -735,6 +838,15 @@ onMounted(async () => {
       <!-- PANEL DERECHO (42%): CONSOLA DE DECISIONES DE ETAPA + PIE DE AVANCE FIJO -->
       <aside class="right-command-column">
         <div class="command-scroll-area">
+          <!-- CRÓNICA NARRATIVA DE LA TRAMA (EXPEDIENTE HELIOS-9) -->
+          <div v-if="currentStoryBeat" class="story-chapter-box">
+            <div class="story-head">
+              <span class="story-chapter-tag">{{ currentStoryBeat.chapter }}</span>
+              <span class="story-speaker">{{ currentStoryBeat.speaker }}</span>
+            </div>
+            <p class="serif-narrative story-quote">{{ currentStoryBeat.quote }}</p>
+          </div>
+
           <!-- GUÍA CONTEXTUAL PASO A PASO DE LA ETAPA ACTUAL -->
           <div v-if="currentStageGuide" class="stage-guide-banner">
             <div class="guide-banner-head">
@@ -873,7 +985,7 @@ onMounted(async () => {
             <div class="stage-eyebrow">ETAPA 03 DE 10 · INGENIERÍA DE SISTEMAS</div>
             <h2 class="stage-title">Diseño de Nave y Tripulación Canina</h2>
 
-            <!-- Indicador rápido de preparación de ciencia y masa -->
+            <!-- Indicador rápido de preparación de ciencia, tripulación y masa -->
             <div class="design-readiness-strip">
               <span
                 class="readiness-pill"
@@ -883,6 +995,18 @@ onMounted(async () => {
                   hasScientificInstrumentInstalled
                     ? '✓ Instrumento Científico Instalado'
                     : '⚠ Sin instrumento extra (usará sensores base)'
+                }}
+              </span>
+              <span
+                class="readiness-pill"
+                :class="mission.tripulacion.length > 1 ? 'pill-ok' : 'pill-warn'"
+                style="cursor: pointer"
+                @click="stage3SubTab = 'crew'"
+              >
+                {{
+                  mission.tripulacion.length > 1
+                    ? `✓ Dotación: ${mission.tripulacion.length}/4 Perros`
+                    : '⚠ En Solitario (1/4) · Clic para contratar tripulación'
                 }}
               </span>
               <span
@@ -1849,6 +1973,48 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* CRÓNICA NARRATIVA DE LA TRAMA */
+.story-chapter-box {
+  background: linear-gradient(135deg, rgba(27, 35, 64, 0.92), rgba(11, 14, 26, 0.96));
+  border: 1px solid var(--steel);
+  border-left: 4px solid var(--gold);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.story-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.story-chapter-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+}
+
+.story-speaker {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--cyan);
+  background: rgba(79, 209, 197, 0.12);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.story-quote {
+  font-size: 13px;
+  color: var(--bone);
+  line-height: 1.5;
 }
 
 /* BANNER DE GUÍA DE ETAPA */

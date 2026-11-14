@@ -1,4 +1,4 @@
-"""Motor de evaluación multidimensional, selección de finales ramificados e informe del jefe."""
+"""Motor de evaluación multidimensional, selección de finales ramificados e informe del Gato Jefe."""
 
 from __future__ import annotations
 
@@ -7,13 +7,18 @@ from app.schemas.mission import DimensionEvaluacion, EstadoMision, InformeFinal
 
 
 def generar_informe_final(estado: EstadoMision) -> InformeFinal:
-    """Calcula las 7 dimensiones de evaluación, determina el final ramificado (1 a 5) y construye la escena del jefe.
+    """Calcula las 7 dimensiones de evaluación, determina el final ramificado (1 a 5) y construye la escena del Gato Jefe.
+
+    Adapta todos los diálogos según:
+    - Si el jugador voló en solitario (sin contratar tripulación) o con especialistas a bordo.
+    - El destino elegido (OTB vs Cráter Lunar Shackleton).
+    - Si recolectó datos en el Laboratorio y si logró transmitirlos por la antena.
 
     Args:
         estado: Estado final de la misión.
 
     Returns:
-        InformeFinal: Estructura completa con diálogo del jefe, monólogo de cuarta pared y reporte técnico.
+        InformeFinal: Estructura completa con diálogo del Gato Jefe, monólogo de cuarta pared y reporte técnico.
     """
     acuerdo = next(
         (a for a in ACUERDOS_FINANCIACION if a["id"] == estado.acuerdo_financiacion_id),
@@ -21,9 +26,18 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
     )
     meta_ciencia = float(acuerdo["exigencia_ciencia"])
     params_destino = DESTINOS_CATALOGO[estado.destino]
+    nombre_destino_corto = (
+        "la Órbita Terrestre Baja (OTB)"
+        if estado.destino.value == "OTB"
+        else "el Cráter Lunar Shackleton"
+    )
 
     vivos = [t for t in estado.tripulacion if t.vivo]
     total_crew = max(1, len(estado.tripulacion))
+    especialistas = [t for t in estado.tripulacion if not t.es_jugador]
+    fue_en_solitario = len(especialistas) == 0
+    nombres_especialistas = ", ".join(t.nombre for t in especialistas)
+
     sin_retorno = "sin_deltav_retorno" in estado.banderas_penalizacion_diferida
     fallo_temprano = estado.estado_juego in ("fallo_inmediato", "perdida_mision")
     hubo_bajas = (len(vivos) < total_crew) or sin_retorno or fallo_temprano
@@ -49,14 +63,17 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
     )
     score_datos = round(ratio_tx * (estado.calidad_datos_promedio / 100.0) * 100.0, 1)
 
-    # 3. Dimensión Supervivencia y Salud de Tripulación
+    # 3. Dimensión Supervivencia y Salud de Tripulación (penaliza aislamiento si fue en solitario)
     if fallo_temprano or len(vivos) == 0:
         score_supervivencia = 0.0
     elif sin_retorno:
         score_supervivencia = 20.0
     else:
         salud_media = sum((t.salud + t.salud_mental) / 2.0 for t in vivos) / total_crew
-        score_supervivencia = round((len(vivos) / total_crew) * salud_media, 1)
+        penalizacion_solitario = 0.85 if fue_en_solitario else 1.0
+        score_supervivencia = round(
+            (len(vivos) / total_crew) * salud_media * penalizacion_solitario, 1
+        )
 
     # 4. Dimensión Presupuesto Global
     ratio_presupuesto = max(
@@ -100,32 +117,68 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         1,
     )
 
-    # Selección de uno de los 5 finales ramificados
+    # Diagnóstico narrativo específico sobre la ciencia y los datos
+    if estado.datos_generados_gb <= 0:
+        diagnostico_ciencia_narrativo = (
+            "Llegaste hasta la órbita de destino, pero no activaste ni una sola vez el Laboratorio Científico "
+            "(0 GB recolectados)."
+        )
+    elif estado.datos_transmitidos_gb <= 0:
+        diagnostico_ciencia_narrativo = (
+            f"Recolectaste {estado.datos_generados_gb:.1f} GB de datos valiosos en el Laboratorio, pero olvidaste "
+            "transmitirlos por la antena en la Sala de Sistemas antes de emprender el regreso (0 GB recibidos en Tierra)."
+        )
+    elif estado.datos_transmitidos_gb < estado.datos_generados_gb:
+        diagnostico_ciencia_narrativo = (
+            f"Lograste enviar {estado.datos_transmitidos_gb:.1f} GB de los {estado.datos_generados_gb:.1f} GB recolectados, "
+            "dejando parte de los descubrimientos sin transmitir por falta de ventanas o ancho de banda."
+        )
+    else:
+        diagnostico_ciencia_narrativo = (
+            f"Transmitiste íntegramente los {estado.datos_transmitidos_gb:.1f} GB de telemetría científica a nuestras estaciones."
+        )
+
+    # Selección de uno de los 5 finales ramificados con diálogos reactivos (Solitario vs Con Tripulación)
     if fallo_temprano or (hubo_bajas and estado.datos_transmitidos_gb <= 0.2):
         final_id = "fallo_total"
         numero_final = 5
         titulo_final = "Final 5 — Fallo Total de la Misión"
-        subtitulo_final = "Pérdida de vehículo y ausencia de retorno científico."
-        dialogo_apertura = (
-            "La oficina está a oscuras. Sobre el escritorio de acero solo hay una carpeta cerrada con el sello "
-            f"de investigación de siniestros. El jefe te mira en silencio: «{estado.causa_fallo or 'Perdimos la misión por completo.'}»"
-        )
+        subtitulo_final = "Pérdida del vehículo espacial y ausencia de retorno científico."
+        if fue_en_solitario:
+            dialogo_apertura = (
+                "El despacho del Comisionado Félix Vance (El Gato Jefe) está en penumbra. Sobre su escritorio de acero "
+                "reposa tu expediente de vuelo en solitario con el sello de siniestro total: "
+                f"«Quisiste hacerlo todo tú solo rumbo a {nombre_destino_corto}, sin especialistas a bordo. "
+                f"{estado.causa_fallo or 'El vehículo no resistió la misión.'}»"
+            )
+        else:
+            dialogo_apertura = (
+                "El despacho del Comisionado Félix Vance (El Gato Jefe) está en penumbra. Sobre el escritorio de acero "
+                f"reposan las fichas de {nombres_especialistas}. El Jefe te mira en silencio: "
+                f"«{estado.causa_fallo or 'Perdimos la nave y la expedición por completo.'}»"
+            )
         frase_despedida = (
-            "«La física no negocia con el optimismo, Director. Cuando vuelva a leer una ficha técnica, "
-            "recuerde que cada número tiene peso.»"
+            "«La física orbital no negocia con la improvisación, Director. Cada kilogramo de masa y cada metro por segundo "
+            "de Delta-v deciden quién vuelve a casa.»"
         )
     elif hubo_bajas and estado.datos_transmitidos_gb > 0.2:
         final_id = "perdida_tripulacion_datos_recuperados"
         numero_final = 4
-        titulo_final = "Final 4 — Pérdida de Tripulación, Datos Recuperados"
-        subtitulo_final = "La telemetría llegó a las antenas terrenas, pero la nave no regresó con su dotación."
-        dialogo_apertura = (
-            "Las pantallas del despacho muestran los paquetes de datos descargados desde la antena, "
-            "pero las sillas de la sala de espera están vacías."
-        )
+        titulo_final = "Final 4 — Pérdida Humana, Datos Recuperados"
+        subtitulo_final = "La ciencia llegó por antena a la Tierra, pero la nave no logró regresar a salvo."
+        if fue_en_solitario:
+            dialogo_apertura = (
+                "En las pantallas del Comisionado Félix Vance brillan los paquetes de telemetría que alcanzaste a transmitir "
+                f"desde {nombre_destino_corto} antes de que se agotaran tus reservas de retorno en solitario."
+            )
+        else:
+            dialogo_apertura = (
+                f"Las antenas de Tierra recibieron los {estado.datos_transmitidos_gb:.1f} GB enviados por tu equipo "
+                f"({nombres_especialistas}), pero las sillas frente al escritorio del Gato Jefe están vacías."
+            )
         frase_despedida = (
-            "«Los servidores están llenos de ciencia nueva. Ojalá alguien en este edificio tuviera hoy "
-            "el valor de celebrarlo.»"
+            "«Nuestros servidores tienen los datos de la anomalía Helios-9, pero el precio que pagamos en esa órbita "
+            "jamás podrá justificarse en un balance contable.»"
         )
     elif (
         score_nave < 72.0
@@ -136,46 +189,74 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         numero_final = 3
         titulo_final = "Final 3 — Retorno de Emergencia"
         subtitulo_final = (
-            "La tripulación sobrevivió al límite operativo con telemetría parcial."
+            "Sobrevivencia al límite operativo con reservas críticas y sistemas desgastados."
         )
-        dialogo_apertura = (
-            "El jefe apoya ambas manos sobre la mesa iluminada con luz fría: "
-            "«Los trajiste de vuelta por los pelos, Director. El casco regresó con las reservas al mínimo, "
-            "pero al menos podemos analizar qué salió mal.»"
-        )
+        if fue_en_solitario:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance apoya las garras sobre la mesa iluminada con luz ámbar: "
+                f"«Regresaste vivo de {nombre_destino_corto} por puro milagro, Director. Te lanzaste completamente solo, "
+                "sin contratar a un solo especialista en la Etapa 3; el aislamiento te pasó factura y la cápsula aterrizó "
+                f"con las baterías y el soporte vital al límite. {diagnostico_ciencia_narrativo}»"
+            )
+        else:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance apoya las garras sobre la mesa iluminada con luz ámbar: "
+                f"«Trajiste de vuelta a {nombres_especialistas} por los pelos, Director. La nave aterrizó con los sistemas "
+                f"al límite tras el viaje a {nombre_destino_corto}. {diagnostico_ciencia_narrativo}»"
+            )
         frase_despedida = (
-            "«Sobrevivir a un diseño al límite enseña más que diez simulaciones en tierra. "
-            "Corrija los márgenes para el próximo vuelo.»"
+            "«Sobrevivir a un vuelo al límite enseña más que diez simulaciones en tierra. "
+            "Para la próxima misión, equilibra mejor tu dotación y tus reservas de energía.»"
         )
     elif score_ciencia >= 70.0 and score_datos >= 65.0:
         final_id = "exito_cientifico_pleno"
         numero_final = 1
         titulo_final = "Final 1 — Éxito Científico Pleno"
         subtitulo_final = (
-            "Objetivos científicos cumplidos, datos transmitidos y retorno íntegro."
+            "Misión histórica: objetivos científicos cumplidos, datos transmitidos y retorno íntegro."
         )
-        dialogo_apertura = (
-            "El jefe se levanta al verte entrar en la oficina y extiende el informe encuadernado: "
-            "«Un trabajo de ingeniería impecable. Equilibraste masa, impulso específico, energía y ancho de banda "
-            "sin comprometer ni una sola vida.»"
-        )
+        if fue_en_solitario:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance se levanta de su sillón y aplaude con asombro mientras revisa tu telemetría: "
+                f"«Increíble, Director. Volaste completamente en solitario hasta {nombre_destino_corto}, operaste tú mismo "
+                "el Laboratorio y la Antena sin apoyo de especialistas, y aun así cumpliste la meta científica y regresaste "
+                f"con la nave intacta. {diagnostico_ciencia_narrativo}»"
+            )
+        else:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance se levanta al verte entrar junto a tu equipo y extiende el informe dorado: "
+                f"«Un trabajo de dirección impecable en {nombre_destino_corto}. Coordinaste a {nombres_especialistas}, "
+                "equilibraste masa, Delta-v, energía y ancho de banda, y trajiste a todo tu equipo sano y salvo. "
+                f"{diagnostico_ciencia_narrativo}»"
+            )
         frase_despedida = (
-            "«Así se construye la exploración espacial real: leyendo cada parámetro y respetando cada restricción. "
-            "Enhorabuena, Director.»"
+            "«Así se escribe la historia aeroespacial del Programa Zenit: leyendo cada ficha técnica y ejecutando "
+            "cada ventana de transmisión con precisión quirúrgica. Enhorabuena, Director.»"
         )
     else:
         final_id = "supervivencia_mision_parcial"
         numero_final = 2
         titulo_final = "Final 2 — Supervivencia con Misión Parcial"
-        subtitulo_final = "La tripulación regresó sana y salva, pero el retorno de datos científicos quedó incompleto."
-        dialogo_apertura = (
-            "El jefe revisa las gráficas en su terminal ámbar: "
-            "«La nave regresó de una pieza y tu gente está en casa, que es lo primero. "
-            "Sin embargo, desde el punto de vista científico nos quedamos cortos respecto a lo prometido.»"
+        subtitulo_final = (
+            "Retorno seguro a Tierra, pero la cosecha o transmisión de datos científicos quedó incompleta."
         )
+        if fue_en_solitario:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance revisa las gráficas en su terminal ámbar y te observa con gesto serio: "
+                f"«La nave regresó de una pieza y tú volviste sano y salvo de {nombre_destino_corto}, que es lo primero. "
+                "Pero decidiste despegar completamente solo, sin contratar a ningún especialista en la Etapa 3. "
+                f"Sin manos expertas en el Laboratorio, nos quedamos cortos en la meta científica. {diagnostico_ciencia_narrativo}»"
+            )
+        else:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance revisa las gráficas en su terminal ámbar: "
+                f"«La nave regresó de una pieza de {nombre_destino_corto} y tanto tú como tu equipo ({nombres_especialistas}) "
+                "están en casa sanos y salvos, que es lo primero. Sin embargo, en el plano científico nos quedamos cortos "
+                f"respecto al acuerdo firmado. {diagnostico_ciencia_narrativo}»"
+            )
         frase_despedida = (
-            "«Traer a la tripulación con vida siempre es una victoria; lograr además toda la ciencia exige "
-            "afinar el cuello de botella entre instrumentos y comunicaciones.»"
+            "«Regresar con vida siempre es una victoria; para alcanzar el Éxito Pleno recuerda recolectar ciencia "
+            "en el Laboratorio (Etapa 7) y transmitir todos los GB en la Sala de Sistemas antes de volver.»"
         )
 
     # Monólogo de ruptura de la cuarta pared si hubo pérdida de tripulación / sin retorno
@@ -183,14 +264,38 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
     silencio_previo = 0
     if hubo_bajas:
         silencio_previo = 4
-        monologo_cuarta_pared = (
-            "[Silencio absoluto en la oficina durante cuatro segundos. El jefe aparta los papeles técnicos y "
-            "mira directamente hacia la pantalla, hablándote a ti, el jugador]: "
-            "«Para ti eran perfiles deterministas con un icono de sol o de lluvia sobre la cabeza y una fila más "
-            "en la tabla de masa y presupuesto. Los números de las fichas técnicas estaban ahí desde el minuto uno: "
-            "sabías cuánto pesaba la nave, cuánto oxígeno llevabas y cuántos metros por segundo exigía volver a casa. "
-            "Nadie te ocultó un solo dato. Tú pulsaste el botón de lanzamiento asumiendo ese riesgo.»"
+        if fue_en_solitario:
+            monologo_cuarta_pared = (
+                "[Silencio absoluto en el despacho durante cuatro segundos. El Gato Jefe aparta los informes y "
+                "mira directamente hacia la pantalla, hablándote a ti, el jugador]: "
+                "«Pensaste que podías ahorrar presupuesto lanzando al Director en solitario y llevando los números al límite. "
+                "Las fichas técnicas estuvieron frente a tus ojos desde el primer minuto: la masa máxima del cohete, "
+                "los metros por segundo de Delta-v requeridos para volver y el consumo de oxígeno. "
+                "Nadie te ocultó un solo parámetro. Tú pulsaste el botón de lanzamiento.»"
+            )
+        else:
+            monologo_cuarta_pared = (
+                "[Silencio absoluto en el despacho durante cuatro segundos. El Gato Jefe aparta los informes y "
+                "mira directamente hacia la pantalla, hablándote a ti, el jugador]: "
+                f"«Para ti, {nombres_especialistas} eran solo sprites estáticos con un icono de sol o de lluvia sobre la cabeza "
+                "y una fila más en la tabla de masa y presupuesto. Pero los números de las fichas técnicas estaban ahí "
+                "desde el minuto uno: sabías cuánto pesaba la nave, cuánto oxígeno llevabas y cuánto Delta-v exigía volver a casa. "
+                "Nadie te ocultó un solo dato. Tú pulsaste el botón de lanzamiento asumiendo ese riesgo.»"
+            )
+
+    comentario_supervivencia = (
+        (
+            "Volaste en solitario (1/1): regresaste con vida, aunque el aislamiento redujo tu rendimiento mental."
+            if fue_en_solitario
+            else f"Regresaron los {len(vivos)}/{total_crew} integrantes de la expedición ({nombres_especialistas} + Director)."
         )
+        if not hubo_bajas
+        else (
+            "Vuelo en solitario fallido: no lograste regresar con vida a la Tierra."
+            if fue_en_solitario
+            else f"Bajas críticas en la misión ({len(vivos)}/{total_crew} sobrevivientes)."
+        )
+    )
 
     dimensiones = [
         DimensionEvaluacion(
@@ -201,38 +306,37 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             if score_ciencia >= 75
             else ("Parcial" if score_ciencia >= 40 else "Deficiente"),
             comentario_jefe=(
-                f"Generaste {estado.puntos_ciencia_generados:.1f} puntos de ciencia frente a una meta de {meta_ciencia:.0f}."
+                f"Generaste {estado.puntos_ciencia_generados:.1f} puntos de ciencia frente a una meta de {meta_ciencia:.0f} pts."
             ),
             explicacion_tecnica=(
-                "Depende de los instrumentos instalados, la presencia del especialista afín y su estado de concentración."
+                "Se obtiene operando el Laboratorio Científico en la Etapa 7; rinde más si contratas al especialista afín al instrumento."
             ),
         ),
         DimensionEvaluacion(
             id="supervivencia",
-            nombre="Supervivencia y Tripulación",
+            nombre="Supervivencia y Dotación",
             puntuacion=score_supervivencia,
-            estado_etiqueta="Íntegra" if not hubo_bajas else "Pérdida Crítica",
-            comentario_jefe=(
-                f"Regresaron {len(vivos)}/{total_crew} tripulantes en condiciones de retorno nominal."
+            estado_etiqueta=(
+                ("Solitario" if fue_en_solitario else "Íntegra")
                 if not hubo_bajas
-                else "No lograste traer de vuelta a toda la tripulación a salvo."
+                else "Pérdida Crítica"
             ),
+            comentario_jefe=comentario_supervivencia,
             explicacion_tecnica=(
-                "Condicionada por la autonomía de soporte vital (O2/comida), el aislamiento y el Delta-v de retorno."
+                "Volar solo ahorra salarios y masa, pero penaliza la salud mental y la velocidad/calidad de las tareas."
             ),
         ),
         DimensionEvaluacion(
             id="datos",
             nombre="Calidad y Transmisión de Datos",
             puntuacion=score_datos,
-            estado_etiqueta="Fluida" if score_datos >= 70 else "Cuello de Botella",
+            estado_etiqueta="Fluida" if score_datos >= 70 else "Incompleta",
             comentario_jefe=(
-                f"Transmitiste {estado.datos_transmitidos_gb:.1f} GB de {estado.datos_generados_gb:.1f} GB generados "
+                f"Transmitiste {estado.datos_transmitidos_gb:.1f} GB de {estado.datos_generados_gb:.1f} GB recolectados "
                 f"(Calidad media: {estado.calidad_datos_promedio:.0f}%)."
             ),
             explicacion_tecnica=(
-                "Los datos sin transmitir en las ventanas de comunicación fijas no puntúan. "
-                "Usar ventanas para pedir diagnóstico a Tierra reduce el margen de descarga."
+                "Los datos generados en el Laboratorio deben enviarse a Tierra usando las ventanas de comunicación en las Etapas 7 a 9."
             ),
         ),
         DimensionEvaluacion(
@@ -246,7 +350,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
                 f"Saldo final: {estado.presupuesto_restante_usd:,.0f} USD de {estado.presupuesto_inicial_usd:,.0f} USD iniciales."
             ),
             explicacion_tecnica=(
-                "Límite duro que integra compra de componentes, salarios y gastos de contingencia en tiempo real."
+                "Límite duro que integra compra de componentes, salarios de especialistas y gastos operativos en tiempo real."
             ),
         ),
         DimensionEvaluacion(
@@ -254,8 +358,8 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             nombre="Tiempo y Planificación Orbital",
             puntuacion=score_tiempo,
             estado_etiqueta="En Ventana" if score_tiempo >= 75 else "Con Demora",
-            comentario_jefe=f"Duración operativa acumulada: {estado.dias_transcurridos} día(s) en {estado.destino.value}.",
-            explicacion_tecnica="La elección entre transferencia estándar o rápida intercambia tiempo (consumibles) por Delta-v.",
+            comentario_jefe=f"Duración operativa acumulada: {estado.dias_transcurridos} día(s) en misión hacia {estado.destino.value}.",
+            explicacion_tecnica="La elección entre transferencia Hohmann o rápida intercambia días de soporte vital por consumo de Delta-v.",
         ),
         DimensionEvaluacion(
             id="nave",
@@ -263,34 +367,42 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             puntuacion=score_nave,
             estado_etiqueta="Nominal" if score_nave >= 85 else "Degradada",
             comentario_jefe=f"Integridad media de subsistemas al cierre: {score_nave:.0f}%.",
-            explicacion_tecnica="Refleja los fallos aleatorios ocurridos y la eficacia de las reparaciones ejecutadas.",
+            explicacion_tecnica="Refleja las anomalías sufridas en vuelo y las reparaciones realizadas por la tripulación.",
         ),
         DimensionEvaluacion(
             id="retorno",
             nombre="Capacidad de Retorno",
             puntuacion=score_retorno,
             estado_etiqueta="Asegurado" if score_retorno > 0 else "Fallido",
-            comentario_jefe=f"Delta-v remanente tras reentrada/retorno: {estado.delta_v_disponible_ms:.1f} m/s.",
+            comentario_jefe=f"Delta-v remanente tras maniobra de reentrada: {estado.delta_v_disponible_ms:.1f} m/s.",
             explicacion_tecnica=(
-                "Calculado por la ecuación de Tsiolkovsky descontando ascenso, inyección, maniobras imprevistas y retorno."
+                "Calculado mediante la ecuación de Tsiolkovsky descontando lanzamiento, inyección, contingencias y retorno."
             ),
         ),
     ]
 
-    # Construir trazabilidad causal y recomendaciones pedagógicas
-    trazabilidad: list[str] = list(estado.bitacora_decisiones[-6:])
+    # Construir trazabilidad causal y recomendaciones pedagógicas específicas
+    trazabilidad: list[str] = list(estado.bitacora_decisiones[-7:])
     recomendaciones: list[str] = []
+    if fue_en_solitario:
+        recomendaciones.append(
+            "Contratar al menos 1 o 2 especialistas en la Etapa 3 (pestaña '🐶 2. Tripulación'): evitas el debuff de aislamiento en solitario y multiplicas los puntos de ciencia y reparación."
+        )
+    if estado.datos_generados_gb <= 0 and not fallo_temprano:
+        recomendaciones.append(
+            "En la Etapa 7 (Operaciones Científicas), recuerda pulsar '🔬 PASO 1: Recolectar Datos en Laboratorio' o usar la tecla [E] dentro del Laboratorio para generar ciencia."
+        )
+    elif estado.datos_generados_gb > estado.datos_transmitidos_gb + 0.2 and not fallo_temprano:
+        recomendaciones.append(
+            f"Dejaste {estado.datos_generados_gb - estado.datos_transmitidos_gb:.1f} GB sin enviar en la memoria de la nave: usa el botón '📡 PASO 2: Transmitir Datos a Tierra' antes de finalizar la Etapa 9."
+        )
     if estado.masa_total_kg > estado.masa_lanzamiento_max_kg:
         recomendaciones.append(
             f"Reducir la masa total ({estado.masa_total_kg} kg) por debajo del límite fijo del lanzador ({estado.masa_lanzamiento_max_kg} kg)."
         )
     if estado.balance_potencia_w < 0:
         recomendaciones.append(
-            f"Corregir el déficit eléctrico ({estado.balance_potencia_w} W): la potencia generada por los paneles debe superar el consumo simultáneo."
-        )
-    if estado.datos_generados_gb > estado.datos_transmitidos_gb + 0.5:
-        recomendaciones.append(
-            "Dimensionar la antena (kbps y ventanas/día) acorde al volumen de datos generado por los instrumentos científicos."
+            f"Corregir el déficit eléctrico ({estado.balance_potencia_w} W) instalando paneles solares de mayor generación."
         )
     if sin_retorno or estado.delta_v_inicial_ms < estado.delta_v_requerido_total_ms:
         recomendaciones.append(
@@ -298,7 +410,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         )
     if not recomendaciones:
         recomendaciones.append(
-            "Configuración sobresaliente: puedes intentar ahora el destino lunar con el acuerdo de financiación austero."
+            "Ejecución sobresaliente: lograste coordinar diseño, dotación, recolección y transmisión. Prueba ahora el destino Lunar o una dificultad superior."
         )
 
     return InformeFinal(
@@ -318,6 +430,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         frase_despedida=frase_despedida,
         resumen_tecnico_datos={
             "destino": estado.destino.value,
+            "modo_dotacion": "En Solitario (1)" if fue_en_solitario else f"Equipo ({total_crew})",
             "masa_final_kg": estado.masa_total_kg,
             "masa_max_lanzador_kg": estado.masa_lanzamiento_max_kg,
             "delta_v_inicial_ms": estado.delta_v_inicial_ms,
