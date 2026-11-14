@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zenit — Tablero de arte (Dirección A)</title>
+<style>
+  :root{
+    --void:#0B0E1A; --cabin:#1B2340; --steel:#3A4666; --mist:#8FA3BF; --bone:#E8E4D8;
+    --amber:#FFB000; --gold:#F5D36B; --cyan:#4FD1C5; --green:#7BD88F; --orange:#FF7A3D;
+    --red:#E5484D; --lilac:#6B5B95; --sun:#F5C84C; --cloud:#9AA8B8; --rain:#4A78C2;
+    --earth:#2E6FD8; --moon1:#B8B2A7; --moon2:#6E6A66;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--void);color:var(--bone);font-family:'IBM Plex Mono',monospace;padding:24px}
+  h1{color:var(--gold);font-size:28px;margin-bottom:8px}
+  h2{color:var(--amber);font-size:18px;margin:24px 0 12px;border-bottom:1px solid var(--steel);padding-bottom:4px}
+  p{color:var(--mist);font-size:13px;line-height:1.6;margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .swatch{background:var(--cabin);border:1px solid var(--steel);border-radius:6px;padding:8px}
+  .chip{height:48px;border-radius:4px;margin-bottom:6px}
+  .name{font-size:11px;font-weight:700}
+  .hex{font-size:10px;color:var(--mist)}
+  .scene{background:var(--cabin);border:1px solid var(--steel);border-radius:8px;padding:16px;margin-top:12px;display:grid;grid-template-columns:1fr 220px;gap:16px}
+  .window{background:linear-gradient(180deg,#2E6FD8 0%,#1B2340 100%);border-radius:6px;height:120px;position:relative;overflow:hidden}
+  .earth{position:absolute;bottom:-30px;left:20%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#4FD1C5,#2E6FD8 60%,#1B2340)}
+  .panel{background:var(--void);border:1px solid var(--steel);border-radius:6px;padding:10px;font-size:11px}
+  .bar{height:6px;background:var(--steel);border-radius:3px;margin:4px 0;overflow:hidden}
+  .bar>div{height:100%}
+  .door{background:var(--steel);border:2px solid var(--amber);border-radius:4px;padding:6px;text-align:center;font-size:11px;color:var(--amber)}
+  .crew{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .mood{width:14px;height:14px;border-radius:50%}
+  .typo{font-family:'Source Serif 4',serif;font-size:16px;color:var(--bone);margin:8px 0}
+  .mono{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--cyan)}
+  .note{background:var(--void);border-left:3px solid var(--amber);padding:8px 12px;margin:12px 0;font-size:12px;color:var(--mist)}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<h1>Zenit — Tablero de arte (Dirección A: retrofuturismo de sala de control)</h1>
+<p>Paleta base, colores semánticos, estados de ánimo, destinos y boceto de cabina de mando. Generado como referencia visual para el equipo.</p>
+
+<h2>1. Paleta base</h2>
+<div class="grid">
+  <div class="swatch"><div class="chip" style="background:#0B0E1A"></div><div class="name">Vacío</div><div class="hex">#0B0E1A</div></div>
+  <div class="swatch"><div class="chip" style="background:#1B2340"></div><div class="name">Azul de cabina</div><div class="hex">#1B2340</div></div>
+  <div class="swatch"><div class="chip" style="background:#3A4666"></div><div class="name">Acero</div><div class="hex">#3A4666</div></div>
+  <div class="swatch"><div class="chip" style="background:#8FA3BF"></div><div class="name">Niebla polar</div><div class="hex">#8FA3BF</div></div>
+  <div class="swatch"><div class="chip" style="background:#E8E4D8"></div><div class="name">Hueso</div><div class="hex">#E8E4D8</div></div>
+  <div class="swatch"><div class="chip" style="background:#FFB000"></div><div class="name">Ámbar fósforo</div><div class="hex">#FFB000</div></div>
+  <div class="swatch"><div class="chip" style="background:#F5D36B"></div><div class="name">Oro de mediodía</div><div class="hex">#F5D36B</div></div>
+</div>
+
+<h2>2. Colores semánticos (alertas sin cuantificar)</h2>
+<div class="grid">
+  <div class="swatch"><div class="chip" style="background:#4FD1C5"></div><div class="name">Telemetría normal</div><div class="hex">#4FD1C5</div></div>
+  <div class="swatch"><div class="chip" style="background:#7BD88F"></div><div class="name">Vida / recursos sanos</div><div class="hex">#7BD88F</div></div>
+  <div class="swatch"><div class="chip" style="background:#FF7A3D"></div><div class="name">Advertencia</div><div class="hex">#FF7A3D</div></div>
+  <div class="swatch"><div class="chip" style="background:#E5484D"></div><div class="name">Fallo grave</div><div class="hex">#E5484D</div></div>
+  <div class="swatch"><div class="chip" style="background:#6B5B95"></div><div class="name">Luz cenicienta / incertidumbre</div><div class="hex">#6B5B95</div></div>
+</div>
+<p class="note">Regla: el color debe ser ambiguo a propósito. Una alerta naranja puede ser trivial o el inicio de un desastre; la intensidad del parpadeo o del sonido da una pista sin dar un número.</p>
+
+<h2>3. Estados de ánimo de la tripulación</h2>
+<div class="grid">
+  <div class="swatch"><div class="chip" style="background:#F5C84C"></div><div class="name">Sol</div><div class="hex">#F5C84C</div></div>
+  <div class="swatch"><div class="chip" style="background:#9AA8B8"></div><div class="name">Nube</div><div class="hex">#9AA8B8</div></div>
+  <div class="swatch"><div class="chip" style="background:#4A78C2"></div><div class="name">Lluvia</div><div class="hex">#4A78C2</div></div>
+</div>
+
+<h2>4. Variantes por destino</h2>
+<div class="grid">
+  <div class="swatch"><div class="chip" style="background:#2E6FD8"></div><div class="name">OTB — azul Tierra</div><div class="hex">#2E6FD8</div></div>
+  <div class="swatch"><div class="chip" style="background:#F5D36B"></div><div class="name">OTB — amanecer</div><div class="hex">#F5D36B</div></div>
+  <div class="swatch"><div class="chip" style="background:#B8B2A7"></div><div class="name">Luna — gris cálido</div><div class="hex">#B8B2A7</div></div>
+  <div class="swatch"><div class="chip" style="background:#6E6A66"></div><div class="name">Luna — sombra</div><div class="hex">#6E6A66</div></div>
+</div>
+
+<h2>5. Tipografía</h2>
+<p class="mono">IBM Plex Mono — datos de la máquina: ENERGÍA 74% · COMBUSTIBLE 61% · Δv 3.2 km/s</p>
+<p class="typo">Source Serif 4 — narrativa: El silencio del módulo de vida se rompe cuando la válvula de oxígeno empieza a silbar.</p>
+
+<h2>6. Boceto de cabina de mando</h2>
+<div class="scene">
+  <div>
+    <div class="window"><div class="earth"></div></div>
+    <div class="crew">
+      <span class="mood" style="background:#F5C84C"></span>
+      <span style="font-size:11px;color:var(--mist)">Tripulante — especialista (sol)</span>
+    </div>
+    <div class="door" style="margin-top:10px">[E] ABRIR PUERTA</div>
+  </div>
+  <div class="panel">
+    <div style="color:var(--amber);font-weight:700;margin-bottom:6px">TELEMETRÍA</div>
+    <div>Energía <span style="color:var(--cyan)">74%</span><div class="bar"><div style="width:74%;background:var(--cyan)"></div></div></div>
+    <div>Combustible <span style="color:var(--amber)">61%</span><div class="bar"><div style="width:61%;background:var(--amber)"></div></div></div>
+    <div>Soporte vital <span style="color:var(--green)">OK</span><div class="bar"><div style="width:88%;background:var(--green)"></div></div></div>
+    <div style="margin-top:8px;color:var(--orange)">▲ Alerta: presión en módulo 2</div>
+    <div style="color:var(--lilac)">? Comunicación: sin ventana</div>
+  </div>
+</div>
+
+<h2>7. Arco “la luz sube”</h2>
+<p>Planificación y negociación: oscuras, oficina nocturna. Lanzamiento y tránsito: contraste creciente. Operaciones en destino: punto más luminoso (ámbar + cian). Retorno e informe final: oficina fría y desaturada.</p>
+<div style="display:flex;gap:6px;margin-top:8px">
+  <div style="flex:1;height:24px;background:#0B0E1A;border:1px solid #3A4666"></div>
+  <div style="flex:1;height:24px;background:#1B2340;border:1px solid #3A4666"></div>
+  <div style="flex:1;height:24px;background:#3A4666;border:1px solid #FFB000"></div>
+  <div style="flex:1;height:24px;background:#FFB000;border:1px solid #F5D36B"></div>
+  <div style="flex:1;height:24px;background:#4FD1C5;border:1px solid #E8E4D8"></div>
+  <div style="flex:1;height:24px;background:#8FA3BF;border:1px solid #3A4666"></div>
+</div>
+</body>
+</html>
