@@ -1,3 +1,115 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  --void: #0B0E1A;
+  --cabin: #1B2340;
+  --steel: #3A4666;
+  --mist: #8FA3BF;
+  --bone: #E8E4D8;
+  --amber: #FFB000;
+  --gold: #F5D36B;
+  --cyan: #4FD1C5;
+  --green: #7BD88F;
+  --orange: #FF7A3D;
+  --red: #E5484D;
+  --lilac: #6B5B95;
+  --sun: #F5C84C;
+  --cloud: #9AA8B8;
+  --rain: #4A78C2;
+  --earth: #2E6FD8;
+  --moon1: #B8B2A7;
+  --moon2: #6E6A66;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--void);
+  color: var(--bone);
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.serif-narrative {
+  font-family: 'Source Serif 4', Georgia, serif;
+}
+
+.mono-tech {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+button {
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  background: var(--cabin);
+  color: var(--bone);
+  border: 1px solid var(--steel);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.08s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--amber);
+  background: #232d52;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: rgba(255, 176, 0, 0.16);
+  border-color: var(--amber);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: rgba(255, 176, 0, 0.28);
+}
+
+.btn-cyan {
+  background: rgba(79, 209, 197, 0.14);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.panel-box {
+  background: var(--cabin);
+  border: 1px solid var(--steel);
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.panel-sub {
+  background: var(--void);
+  border: 1px solid var(--steel);
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--steel);
+}
+
+@keyframes pulse-alert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.blink-warning {
+  animation: pulse-alert 1.6s infinite ease-in-out;
+}

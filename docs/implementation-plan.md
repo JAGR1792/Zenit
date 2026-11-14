@@ -121,15 +121,15 @@ Justificación: suficiente para variedad narrativa sin sobrecargar el alcance de
 
 ---
 
-## 5. Decisiones técnicas abiertas
+## 5. Decisiones técnicas abiertas y resueltas
 
-1. **Realismo vs jugabilidad**: ¿usar valores reales de delta-v o simplificados? Opción A: reales (más educativo). Opción B: simplificados (más accesible). Implicación: afecta la curva de aprendizaje.
-2. **Costes imprevistos**: separar presupuesto financiero de energía. En tránsito y en órbita, los costes de reparación consumen presupuesto; la energía consumida por maniobras extra consume energía. Verificar en ambos contextos.
-3. **Representación gráfica de la nave**: esquemático técnico (barato, claro) vs pixel art (más caro, más inmersivo). Decisión abierta según presupuesto de arte.
-4. **Especialidad vs experiencia**: especialidad habilita tareas; experiencia modifica velocidad. Tareas comunes (reparación) las puede hacer cualquiera, pero el especialista es mejor. ¿Un no-especialista puede fallar? Opción A: nunca falla, solo más lento. Opción B: probabilidad de fallo. Implicación: frustración vs realismo.
-5. **Accesibilidad (daltonismo)**: reforzar color con forma/parpadeo.
-6. **Reserva del rojo**: ¿solo para fallos graves o también decoración?
-7. **Persistencia de datos en Vercel**: SQLite efímero en `/tmp`. ¿Usar DB gestionada (Postgres/Neon) para producción?
+1. **Realismo vs jugabilidad (Resuelta — Opción A)**: Usar valores físicos reales en propulsión y energía (ecuación de Tsiolkovsky, $I_{\text{sp}}$, $\text{W}$ y $\text{Wh}$) y valores simplificados en soporte vital y tripulación (días-persona de $\text{O}_2$ y comida).
+2. **Costes imprevistos (Implementado)**: Separar presupuesto financiero de energía. En tránsito y en órbita, los costes de soporte terrestre consumen presupuesto financiero en tiempo real; las maniobras y sistemas redundantes consumen energía ($\text{Wh}$) y $\Delta v$.
+3. **Representación gráfica de la nave (En progreso — Placeholders activos)**: Esquemático técnico SVG reactivo (`ShipSchematic.vue`) y vista 2D lateral de habitaciones (`DestinationRooms2D.vue` / `Sala2D.vue`) con la paleta de `artboard.html` listos mientras se integran los sprites definitivos.
+4. **Especialidad vs experiencia (Resuelta — Opción A)**: La especialidad habilita tareas científicas y optimiza las comunes; la experiencia modifica la velocidad. En tareas comunes (como reparación), un no-especialista **nunca falla**, únicamente tarda más tiempo y obtiene menor rendimiento/calidad.
+5. **Accesibilidad (daltonismo)**: Reforzar color con forma (`▲`, `?`) y parpadeo suave (`blink-warning`).
+6. **Reserva del rojo**: Reservado para fallos graves y ruptura de cuarta pared.
+7. **Persistencia de datos en Vercel**: SQLite con respaldo en `/tmp/zenit_missions.db` y memoria para entornos serverless efímeros.
 
 ---
 
