@@ -21,6 +21,8 @@ por visualizaciones y pixel art de habitaciones.
 - `docs/game-design.md` — documento de diseño del juego (experiencia, sistemas, evaluación).
 - `artboard.html` — dirección de arte (paleta, tipografía, boceto de cabina).
 - `vercel.json` — infraestructura de despliegue multi-service.
+- `.agents/skills/` — skills de diseño frontend (frontend-design, frontend-patterns,
+  web-design-skills) importadas de Proyecto-IA. Usarlas para mejorar la UI.
 
 **Estado actual del repo:** MVP en fase 0 (hello world). Backend FastAPI + frontend Vue/Vite,
 desplegado en Vercel como proyecto multi-service. No hay aún lógica de juego.
