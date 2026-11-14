@@ -1,17 +1,47 @@
-# AGENTS.md - Guía para Agentes de IA en MDGN (Space Mission Design Game)
+# AGENTS.md - Guía para Agentes de IA en Zenit (Simulador narrativo de misiones espaciales)
 
 Este archivo define las reglas de colaboración, estructura y comandos para agentes de IA
-(Claude, Cursor, Copilot, OpenCode, etc.) que trabajen en el **Space Mission Design Game**.
+(Claude, Cursor, Copilot, OpenCode, etc.) que trabajen en **Zenit**, un simulador narrativo
+de misiones espaciales educativo.
 
 Los agentes de IA **DEBEN** leer, respetar y adherirse estrictamente a todas las instrucciones,
 estándares y restricciones de flujo de trabajo descritas a continuación.
 
 ---
 
+## 0. Contexto del proyecto (LEER PRIMERO)
+
+**Proyecto actual:** Zenit — Simulador narrativo de misiones espaciales (juego serio educativo).
+El jugador es director de una misión espacial tripulada y debe planificar, diseñar, ejecutar
+y evaluar una expedición científica. Experiencia principalmente textual/narrativa, apoyada
+por visualizaciones y pixel art de habitaciones.
+
+**Documentos de referencia obligatorios (leer antes de codear):**
+- `docs/implementation-plan.md` — arquitectura, interdependencias, eventos, evaluación, MVP por fases.
+- `artboard.html` — dirección de arte (paleta, tipografía, boceto de cabina).
+- `vercel.json` — infraestructura de despliegue multi-service.
+
+**Estado actual del repo:** MVP en fase 0 (hello world). Backend FastAPI + frontend Vue/Vite,
+desplegado en Vercel como proyecto multi-service. No hay aún lógica de juego.
+
+**Decisiones clave ya tomadas:**
+- Múltiples finales: ruta lineal con finales ramificados según decisiones clave.
+- MVP: un solo tipo de misión (exploración científica), dos destinos (OTB y Luna).
+- Presupuesto global como límite duro, costes de ejecución descontados en tiempo real.
+- Capacidad de lanzamiento fija (masa máxima), independiente del proveedor.
+- Catálogo de componentes con ficha técnica visible, sin avisos de incompatibilidad.
+- Interfaz de gestión de recursos en destino: vista 2D pixel art, habitaciones contiguas,
+  interacción con tecla "e".
+
+**Decisiones abiertas** (ver `docs/implementation-plan.md` §5): realismo vs jugabilidad,
+costes imprevistos, representación gráfica de la nave, especialidad vs experiencia, etc.
+No resolverlas por cuenta propia; plantear opciones y preguntar.
+
+---
+
 ## 1. Descripción General
 
-**Proyecto:** Space Mission Design Game — experiencia interactiva para diseñar, validar y
-simular una misión espacial (reto NASA, 48 h).
+**Proyecto:** Zenit — simulador narrativo de misiones espaciales educativo (director de misión).
 
 **Stack tecnológico:**
 - **Frontend:** Vue 3 + TypeScript, Vite, Tailwind CSS, Three.js
