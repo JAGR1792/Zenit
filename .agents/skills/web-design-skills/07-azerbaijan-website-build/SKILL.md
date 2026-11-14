@@ -1,13 +1,7 @@
 ---
 name: azerbaijan-website-build
 description: Build premium tri-lingual websites from scratch for Azerbaijani businesses. Handles data gathering (website scrape, social media, or interview), brand development, and full Astro + Tailwind build with AZ/RU/EN language support.
-triggers:
-  - azerbaijan
-  - az website
-  - baku
-  - azerbaijani
 ---
-
 # Azerbaijan Website Build
 
 Build a stunning, $75K+ agency-quality website from scratch for an Azerbaijani business. Every site is tri-lingual (Azerbaijani, Russian, English) with a language switcher, built on Astro 5.x + Tailwind CSS v4, and deployed to Vercel.

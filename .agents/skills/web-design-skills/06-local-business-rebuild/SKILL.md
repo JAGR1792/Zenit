@@ -1,17 +1,7 @@
 ---
 name: local-business-rebuild
-description: >
-  Build a stunning new website for a local business prospect. Adapted from the
-  full website-rebuild skill but optimized for speculative local business pitches.
-  10-phase process: brand extraction, SEO audit, design audit, rebuild plan, full
-  build with design system, copy optimization, combined QA, pre-deploy checklist,
-  and output to monorepo. Uses scraped content from prospect-scrape as input.
-  No tools/calculator research phase. Single combined QA round.
-  Triggers on: "rebuild prospect", "local business rebuild", "build prospect site",
-  "rebuild their site", "prospect rebuild", or any request to build a new website
-  for a qualified prospect.
+description: Build a stunning new website for a local business prospect. Adapted from the full website-rebuild skill but optimized for speculative local business pitches. 10-phase process: brand extraction, SEO audit, design audit, rebuild plan, full build with design system, copy optimization, combined QA, pre-deploy checklist, and output to monorepo. Uses scraped content from prospect-scrape as input. No tools/calculator research phase. Single combined QA round. Triggers on: "rebuild prospect", "local business rebuild", "build prospect site", "rebuild their site", "prospect rebuild", or any request to build a new website for a qualified prospect.
 ---
-
 # Local Business Website Rebuild
 
 Build a world-class website for a local business prospect using their scraped content and branding. This is the core value delivery — the rebuilt site must be so dramatically better than their current one that the business owner immediately sees the value.

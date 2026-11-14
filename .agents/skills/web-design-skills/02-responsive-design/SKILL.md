@@ -1,14 +1,7 @@
 ---
 name: responsive-design
-description: >
-  Responsive web design sub-skill. Provides mobile-first layout patterns,
-  CSS Grid/Flexbox strategies, responsive images, fluid typography, container
-  queries, and breakpoint systems. Pull this in whenever building or reviewing
-  UI that must work across mobile, tablet, desktop, and large screens.
-  Triggers on: "make it responsive", "responsive design", "mobile-first",
-  "breakpoints", "fluid layout", or any request involving cross-device layout.
+description: Responsive web design sub-skill. Provides mobile-first layout patterns, CSS Grid/Flexbox strategies, responsive images, fluid typography, container queries, and breakpoint systems. Pull this in whenever building or reviewing UI that must work across mobile, tablet, desktop, and large screens. Triggers on: "make it responsive", "responsive design", "mobile-first", "breakpoints", "fluid layout", or any request involving cross-device layout.
 ---
-
 # Responsive Design
 
 Comprehensive responsive web design patterns for building layouts that adapt seamlessly across all device types and screen sizes. This is a **sub-skill** — pull it into any design or build workflow that needs cross-device support.

@@ -1,13 +1,8 @@
-﻿---
-name: frontend-patterns
-description: Patr
-ones de desarrollo frontend para React, Next.
-js, gestión de estado, optimización de rend
-imiento y buenas prácticas de UI.
-origin: EC
-C
 ---
-
+name: frontend-patterns
+description: Patrones de desarrollo frontend para React, Next.js, gestion de estado, optimizacion de rendimiento y buenas practicas de UI.
+origin: ECC
+---
 # Patrones de Desarrollo Frontend
 
 Pat

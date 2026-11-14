@@ -1,13 +1,7 @@
 ---
 name: design-system-generator
 description: Generate a structured DESIGN.md file for any business or project. Produces a machine-readable design system specification that build pipelines consume during code generation. Based on VoltAgent/awesome-design-md format.
-triggers:
-  - generate design system
-  - create DESIGN.md
-  - design system from scratch
-  - design specification
 ---
-
 # Design System Generator
 
 ## How This Skill Works

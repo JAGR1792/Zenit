@@ -1,20 +1,7 @@
 ---
 name: website-rebuild
-description: >
-  Full website rebuild agent. Takes an existing website URL and rebuilds it from
-  scratch into a world-class, SEO-optimized, WCAG AA accessible, visually stunning
-  website using Astro + Tailwind CSS, deployed to Vercel via GitHub.
-  Executes a rigorous 14-phase process: brand extraction, content scraping, SEO audit,
-  design audit, rebuild planning, full build with design system, copy optimization,
-  3 QA rounds, competitive tools research, tools build, tools QA, pre-deploy checklist,
-  and Vercel deployment. Produces 11+ documentation deliverables.
-  Triggers on: "rebuild website", "redesign website", "rebuild site from URL",
-  "website rebuild", "redo this website", "make this website better", "rebuild from scratch",
-  "full site redesign", or any request to take an existing URL and create a new,
-  professional website from it. Also triggers when the user provides a URL and asks
-  to build/create/design a new version of that site.
+description: Full website rebuild agent. Takes an existing website URL and rebuilds it from scratch into a world-class, SEO-optimized, WCAG AA accessible, visually stunning website using Astro + Tailwind CSS, deployed to Vercel via GitHub. Executes a rigorous 14-phase process: brand extraction, content scraping, SEO audit, design audit, rebuild planning, full build with design system, copy optimization, 3 QA rounds, competitive tools research, tools build, tools QA, pre-deploy checklist, and Vercel deployment. Produces 11+ documentation deliverables. Triggers on: "rebuild website", "redesign website", "rebuild site from URL", "website rebuild", "redo this website", "make this website better", "rebuild from scratch", "full site redesign", or any request to take an existing URL and create a new, professional website from it. Also triggers when the user provides a URL and asks to build/create/design a new version of that site.
 ---
-
 # Full Website Rebuild Agent
 
 Take an existing website URL and rebuild it from scratch into an extraordinary, production-ready website. The result should look like a $20,000+ agency build — visually stunning, conversion-optimized, fully accessible, and SEO-complete.
