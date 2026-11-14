@@ -18,6 +18,7 @@ const props = withDefaults(
     fps?: number
     animo?: 'sol' | 'nube' | 'lluvia' | null
     etiqueta?: string
+    paso?: number
   }>(),
   {
     flipX: false,
@@ -26,6 +27,7 @@ const props = withDefaults(
     fps: 8,
     animo: null,
     etiqueta: '',
+    paso: 0,
   },
 )
 
@@ -190,6 +192,16 @@ watch(
   () => {
     frameIndex = 0
     dibujarFrame()
+  },
+)
+
+watch(
+  () => props.paso,
+  () => {
+    if (props.animacion === 'perro_caminar' || props.animacion === 'gato_caminar') {
+      frameIndex = (frameIndex + 1) % 6
+      dibujarFrame()
+    }
   },
 )
 

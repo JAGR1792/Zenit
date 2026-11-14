@@ -18,6 +18,7 @@ const emit = defineEmits<{
 const playerX = ref<number>(48) // Porcentaje 8% a 92%
 const facingLeft = ref<boolean>(false)
 const isMoving = ref<boolean>(false)
+const pasoAnimacion = ref<number>(0)
 const isInteracting = ref<boolean>(false)
 const actionFeedback = ref<string>('Camina con [←/→] o [A/D] y pulsa [E] frente a puertas o terminales.')
 
@@ -68,10 +69,12 @@ function updatePhysicsLoop(): void {
     playerX.value = Math.max(8, playerX.value - 0.65)
     facingLeft.value = true
     isMoving.value = true
+    pasoAnimacion.value = (pasoAnimacion.value + 1) % 100000
   } else if (right && !left) {
     playerX.value = Math.min(92, playerX.value + 0.65)
     facingLeft.value = false
     isMoving.value = true
+    pasoAnimacion.value = (pasoAnimacion.value + 1) % 100000
   } else {
     isMoving.value = false
   }
@@ -343,8 +346,9 @@ onUnmounted(() => {
               :flip-x="facingLeft"
               :width="104"
               :height="104"
-              :fps="10"
+              :fps="12"
               :animo="directorMood"
+              :paso="pasoAnimacion"
               etiqueta="DIRECTOR [TÚ]"
             />
           </div>
