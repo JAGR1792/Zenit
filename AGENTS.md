@@ -57,6 +57,15 @@ paquete Python puro, independiente de FastAPI, frontend y base de datos.
 
 ## 2. Reglas de Colaboración Multi-Agente
 
+### 0.1 Idioma (OBLIGATORIO)
+
+- **Todo el código, comentarios, docstrings, mensajes de usuario, textos de la interfaz, alertas y commits deben estar en español.**
+- No usar i18n ni fallback a inglés en el MVP: Zenit es un juego en español.
+- Los mensajes de commit siguen el formato convencional pero en español:
+  `tipo(scope): descripción` (ej. `feat(simulation): agregar modelo de masa con margen`).
+- Las únicas excepciones son nombres de librerías, APIs externas y términos técnicos sin
+  traducción natural (p. ej. `delta-v`, `commit`, `endpoint`).
+
 ### 2.1 Ramificación Aislada
 - **NUNCA** commitear directamente a `main` ni a `dev`.
 - Crear rama: `agent/<nombre-agente>/<caracteristica>`
