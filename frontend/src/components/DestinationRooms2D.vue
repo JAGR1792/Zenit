@@ -19,7 +19,7 @@ const playerX = ref<number>(48) // Porcentaje 8% a 92%
 const facingLeft = ref<boolean>(false)
 const isMoving = ref<boolean>(false)
 const pasoAnimacion = ref<number>(0)
-const pasoContador = ref<number>(0)
+const ultimoFrameMs = ref<number>(0)
 const isInteracting = ref<boolean>(false)
 const actionFeedback = ref<string>('Camina con [←/→] o [A/D] y pulsa [E] frente a puertas o terminales.')
 
@@ -70,23 +70,22 @@ function updatePhysicsLoop(): void {
     playerX.value = Math.max(8, playerX.value - 0.65)
     facingLeft.value = true
     isMoving.value = true
-    pasoContador.value += 1
-    if (pasoContador.value >= 4) {
-      pasoContador.value = 0
+    const ahora = Date.now()
+    if (ahora - ultimoFrameMs.value >= 160) {
+      ultimoFrameMs.value = ahora
       pasoAnimacion.value = (pasoAnimacion.value + 1) % 100000
     }
   } else if (right && !left) {
     playerX.value = Math.min(92, playerX.value + 0.65)
     facingLeft.value = false
     isMoving.value = true
-    pasoContador.value += 1
-    if (pasoContador.value >= 4) {
-      pasoContador.value = 0
+    const ahora = Date.now()
+    if (ahora - ultimoFrameMs.value >= 160) {
+      ultimoFrameMs.value = ahora
       pasoAnimacion.value = (pasoAnimacion.value + 1) % 100000
     }
   } else {
     isMoving.value = false
-    pasoContador.value = 0
   }
 
   // Movimiento suave de los especialistas en la habitación
@@ -359,6 +358,7 @@ onUnmounted(() => {
               :fps="8"
               :animo="directorMood"
               :paso="pasoAnimacion"
+              :animar="!isMoving"
               etiqueta="DIRECTOR [TÚ]"
             />
           </div>

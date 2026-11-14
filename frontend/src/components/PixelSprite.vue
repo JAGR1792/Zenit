@@ -19,6 +19,7 @@ const props = withDefaults(
     animo?: 'sol' | 'nube' | 'lluvia' | null
     etiqueta?: string
     paso?: number
+    animar?: boolean
   }>(),
   {
     flipX: false,
@@ -28,6 +29,7 @@ const props = withDefaults(
     animo: null,
     etiqueta: '',
     paso: 0,
+    animar: true,
   },
 )
 
@@ -205,10 +207,18 @@ watch(
   },
 )
 
+watch(
+  () => props.animar,
+  (v) => {
+    if (v) iniciarBucleAnimacion()
+    else if (timerId !== null) { window.clearInterval(timerId); timerId = null }
+  },
+)
+
 onMounted(async () => {
   await inicializarAssetsSprites()
   dibujarFrame()
-  iniciarBucleAnimacion()
+  if (props.animar) iniciarBucleAnimacion()
 })
 
 onUnmounted(() => {
