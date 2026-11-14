@@ -1,15 +1,10 @@
 <template>
-  <div class="min-h-screen bg-slate-900 text-slate-100">
-    <header class="border-b border-slate-700 px-6 py-4">
-      <h1 class="text-xl font-bold">Space Mission Design Game</h1>
-      <p class="text-sm text-slate-400">Design, validate and simulate a space mission.</p>
-    </header>
-    <main class="p-6">
-      <MissionView />
-    </main>
-  </div>
+  <main class="container">
+    <h1>Hola mundo</h1>
+  </main>
 </template>
 
-<script setup lang="ts">
-import MissionView from './views/MissionView.vue'
-</script>
+<style scoped>
+.container { display: flex; align-items: center; justify-content: center; height: 100vh; }
+h1 { font-size: 2rem; }
+</style>

@@ -1,27 +1,21 @@
-# Space Mission Design Game
+# Zenit
 
-Interactive experience to design, validate and simulate a space mission.
+Hola mundo. Proyecto base listo para desplegar en Vercel (multi-service).
 
 ## Stack
-Vue 3 + TypeScript + Vite + Tailwind + Three.js (frontend); Python + FastAPI +
-Pydantic + NumPy + SQLite (backend); Docker Compose.
+- Backend: FastAPI (Python)
+- Frontend: Vue 3 + Vite
 
 ## Run backend
-```
+```bash
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
 ## Run frontend
-```
+```bash
 cd frontend
 npm install
 npm run dev
-```
-
-## Tests
-```
-cd backend && pytest
-cd frontend && npm test
 ```
