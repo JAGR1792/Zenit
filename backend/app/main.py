@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint (Hola mundo)."""
+"""Punto de entrada de la aplicación FastAPI (Hola mundo)."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
