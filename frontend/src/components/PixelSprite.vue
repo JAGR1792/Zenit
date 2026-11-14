@@ -19,7 +19,7 @@ export function obtenerSpriteTripulante(
   especialidad: string,
   esJugador = false,
 ): AnimacionSprite {
-  if (esJugador) return 'perro_caminar'
+  if (esJugador) return 'perro_idle'
   if (especialidad === 'geologia' || especialidad === 'astrobiologia') {
     return 'perro_cientifico'
   }
@@ -241,13 +241,12 @@ function dibujarFrame(): void {
     }
   }
 
-  // 2. Perros Especialistas de la Tripulación (ELEMENTOS.zip: Científico, Ingeniero, Médico, Comunicaciones)
+  // 2. Perros Especialistas de la Tripulación (ELEMENTOS.zip: estáticos en su puesto)
   if (esAnimacionPerroEspecialista(props.animacion)) {
     const par = cacheEspecialistas[props.animacion]
     const spriteCanvas = props.flipX ? par?.izq : par?.der
     if (spriteCanvas) {
-      const bobY = props.animar ? (frameIndex % 2 === 0 ? 0 : -2) : 0
-      dibujarCanvasCentrado(ctx, canvas, spriteCanvas, bobY)
+      dibujarCanvasCentrado(ctx, canvas, spriteCanvas, 0)
       return
     }
   }

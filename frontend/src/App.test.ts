@@ -6,7 +6,7 @@ import type { ComponenteCatalogo, EstadoMision } from './services/api'
 
 describe('Esquemático y componentes visuales de Zenit', () => {
   it('asigna siempre sprites de perro a toda la tripulación según su especialidad', () => {
-    expect(obtenerSpriteTripulante('comando', true)).toBe('perro_caminar')
+    expect(obtenerSpriteTripulante('comando', true)).toBe('perro_idle')
     expect(obtenerSpriteTripulante('geologia', false)).toBe('perro_cientifico')
     expect(obtenerSpriteTripulante('astrobiologia', false)).toBe('perro_cientifico')
     expect(obtenerSpriteTripulante('ingenieria', false)).toBe('perro_ingeniero')

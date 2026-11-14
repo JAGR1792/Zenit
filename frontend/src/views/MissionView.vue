@@ -300,9 +300,10 @@ onMounted(async () => {
               <span class="cast-group-label">TRIPULACIÓN CANINA (A BORDO)</span>
               <div class="cast-row">
                 <PixelSprite
-                  animacion="perro_caminar"
+                  animacion="perro_idle"
                   :width="56"
                   :height="72"
+                  :animar="false"
                   animo="sol"
                   etiqueta="DIRECTOR"
                 />
@@ -310,6 +311,7 @@ onMounted(async () => {
                   animacion="perro_cientifico"
                   :width="56"
                   :height="72"
+                  :animar="false"
                   animo="sol"
                   etiqueta="CIENTÍFICO"
                 />
@@ -317,6 +319,7 @@ onMounted(async () => {
                   animacion="perro_ingeniero"
                   :width="56"
                   :height="72"
+                  :animar="false"
                   animo="sol"
                   etiqueta="INGENIERO"
                 />
@@ -324,6 +327,7 @@ onMounted(async () => {
                   animacion="perro_medico"
                   :width="56"
                   :height="72"
+                  :animar="false"
                   animo="nube"
                   etiqueta="MÉDICO"
                 />
@@ -331,6 +335,7 @@ onMounted(async () => {
                   animacion="perro_comunicaciones"
                   :width="56"
                   :height="72"
+                  :animar="false"
                   animo="lluvia"
                   etiqueta="COMMS"
                 />
@@ -768,10 +773,10 @@ onMounted(async () => {
           <div v-if="mission.etapa_actual === 1" class="stage-card">
             <div class="stage-hero-row">
               <PixelSprite
-                animacion="perro_interactuar"
+                animacion="perro_idle"
                 :width="72"
                 :height="92"
-                :fps="8"
+                :animar="false"
                 animo="sol"
                 etiqueta="DIRECTOR"
               />
@@ -968,7 +973,7 @@ onMounted(async () => {
                       :animacion="obtenerSpriteTripulante(cand.especialidad, false)"
                       :width="58"
                       :height="72"
-                      :fps="6"
+                      :animar="false"
                       :animo="cand.estado_animo"
                     />
                     <div style="flex: 1">

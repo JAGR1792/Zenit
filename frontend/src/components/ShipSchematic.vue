@@ -192,7 +192,7 @@ const moodColor = (mood: string): string => {
             :animacion="obtenerSpriteTripulante(member.especialidad, member.es_jugador)"
             :width="64"
             :height="76"
-            :fps="7"
+            :animar="false"
             :animo="member.estado_animo"
           />
           <div class="crew-info-col">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { EstadoMision } from '../services/api'
 import PixelSprite, {
   obtenerSpriteTripulante,
@@ -25,10 +25,8 @@ const actionFeedback = ref<string>(
   'Desplázate con [←/→] o [A/D] · Pulsa [E] frente a compuertas o consolas.',
 )
 
-const npcOffsets = reactive<Record<string, { x: number; dir: number; talking: boolean }>>({
-  npc_0: { x: 30, dir: 1, talking: false },
-  npc_1: { x: 68, dir: -1, talking: false },
-})
+// Posiciones fijas (estáticas) para los tripulantes en la sala
+const POSICIONES_ESTATICAS_TRIPULACION = [32, 68, 24]
 
 const keysHeld = new Set<string>()
 let rafId: number | null = null
@@ -84,15 +82,6 @@ function updatePhysicsLoop(): void {
     isMoving.value = true
   } else {
     isMoving.value = false
-  }
-
-  for (const key of Object.keys(npcOffsets)) {
-    const npc = npcOffsets[key]
-    if (!npc.talking) {
-      npc.x += npc.dir * 0.1
-      if (npc.x > 74) npc.dir = -1
-      if (npc.x < 26) npc.dir = 1
-    }
   }
 
   rafId = window.requestAnimationFrame(updatePhysicsLoop)
@@ -335,19 +324,19 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Perros Especialistas de la tripulación en la sala (ELEMENTOS.zip) -->
+        <!-- Perros Especialistas de la tripulación en la sala (ESTÁTICOS en su puesto) -->
         <div
           v-for="(member, idx) in roomCrewMembers"
           :key="member.id"
           class="character-actor npc-actor"
-          :style="{ left: `${npcOffsets[`npc_${idx % 2}`]?.x ?? 34 + idx * 22}%` }"
+          :style="{ left: `${POSICIONES_ESTATICAS_TRIPULACION[idx % POSICIONES_ESTATICAS_TRIPULACION.length]}%` }"
         >
           <PixelSprite
             :animacion="obtenerSpriteTripulante(member.especialidad, false)"
-            :flip-x="(npcOffsets[`npc_${idx % 2}`]?.dir ?? 1) < 0"
+            :flip-x="idx % 2 === 1"
             :width="78"
             :height="96"
-            :fps="6"
+            :animar="false"
             :animo="member.estado_animo"
             :etiqueta="`${member.nombre.split(' ')[1] || member.nombre} · ${member.especialidad.toUpperCase()}`"
           />
