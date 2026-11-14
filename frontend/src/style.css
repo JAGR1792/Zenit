@@ -1,6 +1,9 @@
 :root {
+  /* Paleta oficial Dirección A (artboard.html) */
   --void: #0B0E1A;
+  --void-deep: #070912;
   --cabin: #1B2340;
+  --cabin-hover: #232E52;
   --steel: #3A4666;
   --mist: #8FA3BF;
   --bone: #E8E4D8;
@@ -25,12 +28,35 @@
   padding: 0;
 }
 
+html,
 body {
   background-color: var(--void);
   color: var(--bone);
   font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   line-height: 1.5;
-  min-height: 100vh;
+  height: 100%;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars discretos estilo consola aeroespacial */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--steel);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mist);
 }
 
 .serif-narrative {
@@ -39,45 +65,63 @@ body {
 
 .mono-tech {
   font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 button {
   font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   background: var(--cabin);
   color: var(--bone);
   border: 1px solid var(--steel);
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   font-size: 12px;
-  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.08s ease;
+  line-height: 1.2;
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease,
+    color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
 button:hover:not(:disabled) {
   border-color: var(--amber);
-  background: #232d52;
+  background: var(--cabin-hover);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: rgba(255, 176, 0, 0.16);
+  background: rgba(255, 176, 0, 0.18);
   border-color: var(--amber);
   color: var(--gold);
   font-weight: 600;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: rgba(255, 176, 0, 0.28);
+  background: rgba(255, 176, 0, 0.3);
+  box-shadow: 0 0 12px rgba(255, 176, 0, 0.25);
 }
 
 .btn-cyan {
-  background: rgba(79, 209, 197, 0.14);
+  background: rgba(79, 209, 197, 0.12);
   border-color: var(--cyan);
   color: var(--cyan);
+}
+
+.btn-cyan:hover:not(:disabled) {
+  background: rgba(79, 209, 197, 0.24);
+  border-color: var(--cyan);
 }
 
 .panel-box {
@@ -106,88 +150,25 @@ button:disabled {
 }
 
 @keyframes pulse-alert {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.42;
+  }
 }
 
 .blink-warning {
   animation: pulse-alert 1.6s infinite ease-in-out;
 }
 
-/* === Pulido visual (Dirección A: retrofuturismo de sala de control) === */
-
-body {
-  background:
-    radial-gradient(ellipse at top, #1a2240 0%, #0B0E1A 60%),
-    #0B0E1A;
-  background-attachment: fixed;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.018) 0px,
-    rgba(255, 255, 255, 0.018) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  mix-blend-mode: overlay;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9998;
-  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
-}
-
-.panel-box,
-.choice-card,
-.comp-card,
-.event-card {
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-}
-
-.choice-card:hover,
-.comp-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 12px rgba(79, 209, 197, 0.12);
-}
-
-.brand-title {
-  text-shadow: 0 0 12px rgba(245, 211, 107, 0.35);
-}
-
-.stage-segment.current {
-  box-shadow: 0 0 14px rgba(255, 176, 0, 0.5);
-}
-
-button.btn-primary {
-  box-shadow: 0 0 10px rgba(255, 176, 0, 0.2);
-}
-
-button.btn-primary:hover:not(:disabled) {
-  box-shadow: 0 0 16px rgba(255, 176, 0, 0.4);
-}
-
-.status-banner {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-}
-
-.tech-table tr:hover td {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-/* Tipografía: suavizar renderizado */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

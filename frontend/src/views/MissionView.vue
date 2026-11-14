@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import BossReportScene from '../components/BossReportScene.vue'
 import DestinationRooms2D from '../components/DestinationRooms2D.vue'
 import PixelSprite from '../components/PixelSprite.vue'
@@ -14,19 +14,22 @@ import {
 const catalog = ref<CatalogoCompleto | null>(null)
 const mission = ref<EstadoMision | null>(null)
 const finalReport = ref<InformeFinal | null>(null)
-const statusMessage = ref<string>('Inicializando consola y escenario 2D de misión Zenit...')
+const statusMessage = ref<string>('Inicializando consola de misión Zenit...')
 const lastStatusType = ref<'allowed' | 'warning' | 'fail'>('allowed')
 const loading = ref<boolean>(false)
+
+// Modos del visor izquierdo y sub-pestañas de la Etapa 3 para eliminar el scroll excesivo
+const activeViewportTab = ref<'rooms2d' | 'schematic' | 'telemetry'>('rooms2d')
+const stage3SubTab = ref<'hardware' | 'crew'>('hardware')
 const activeCategory = ref<string>('instrumento')
-const showLive2DSimulator = ref<boolean>(true)
 
 const categories = [
-  { id: 'motor', label: 'Propulsión (Motores)' },
-  { id: 'energia', label: 'Energía (Paneles/Baterías)' },
-  { id: 'antena', label: 'Telecomunicaciones' },
-  { id: 'soporte_vital', label: 'Soporte Vital (ECLSS)' },
-  { id: 'instrumento', label: 'Instrumentos Científicos' },
-  { id: 'robot', label: 'Sistemas Autónomos (Robots)' },
+  { id: 'motor', label: 'Motores' },
+  { id: 'energia', label: 'Energía' },
+  { id: 'antena', label: 'Antenas' },
+  { id: 'soporte_vital', label: 'Soporte Vital' },
+  { id: 'instrumento', label: 'Ciencia' },
+  { id: 'robot', label: 'Robots' },
 ]
 
 const filteredComponents = computed(() => {
@@ -38,6 +41,23 @@ const currentDestinationInfo = computed(() => {
   if (!catalog.value || !mission.value) return null
   return catalog.value.destinos.find((d) => d.id === mission.value?.destino) ?? null
 })
+
+const nonZeroDeltas = computed(() => {
+  if (!mission.value) return []
+  return mission.value.ultimos_cambios_variables.filter((c) => Math.abs(c.delta) > 0.01)
+})
+
+// Cambiar automáticamente al visor más útil según la etapa, permitiendo siempre cambio manual
+watch(
+  () => mission.value?.etapa_actual,
+  (etapa) => {
+    if (etapa === 3 || etapa === 4 || etapa === 5) {
+      activeViewportTab.value = 'schematic'
+    } else if (etapa && etapa >= 6) {
+      activeViewportTab.value = 'rooms2d'
+    }
+  },
+)
 
 async function startNewMission(): Promise<void> {
   loading.value = true
@@ -52,8 +72,9 @@ async function startNewMission(): Promise<void> {
       acuerdo_financiacion_id: 'estandar',
       especialidad_director: 'comando',
     })
+    activeViewportTab.value = 'rooms2d'
     statusMessage.value =
-      'Misión activa. Usa [←/→] o [A/D] y la tecla [E] en el escenario Pixel Art 2D para recorrer las habitaciones.'
+      'Misión activa. Usa [←/→] y [E] en la cubierta 2D o toma decisiones en el panel derecho.'
     lastStatusType.value = 'allowed'
   } catch (err) {
     statusMessage.value = `Error al conectar con el backend: ${(err as Error).message}`
@@ -128,463 +149,164 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="zenit-shell">
-    <!-- Cabecera Principal -->
-    <header class="top-header">
-      <div>
-        <h1 class="brand-title">ZENIT // SIMULADOR NARRATIVO DE MISIONES ESPACIALES</h1>
-        <p class="brand-sub">
-          Dirección de misión espacial tripulada · Exploración Pixel Art 2D + Ingeniería de Sistemas
-        </p>
+  <div class="cockpit-layout">
+    <!-- ======================================================================= -->
+    <!-- 1. CINTA SUPERIOR DE TELEMETRÍA Y PROGRESO DE ETAPAS (FIJA Y COMPACTA)  -->
+    <!-- ======================================================================= -->
+    <header class="top-ribbon">
+      <div class="brand-cluster">
+        <span class="brand-mark">ZENIT</span>
+        <div class="brand-titles">
+          <span class="brand-main">DIRECCIÓN DE MISIÓN ESPACIAL</span>
+          <span v-if="mission" class="brand-stage-sub">{{ mission.nombre_etapa }}</span>
+        </div>
       </div>
-      <div class="header-actions">
-        <button
-          class="btn-cyan"
-          @click="showLive2DSimulator = !showLive2DSimulator"
+
+      <!-- Línea de tiempo de las 10 etapas -->
+      <nav v-if="mission" class="timeline-10" aria-label="Progreso de etapas de la misión">
+        <div
+          v-for="step in 10"
+          :key="step"
+          class="timeline-node"
+          :class="{
+            done: step < mission.etapa_actual,
+            current: step === mission.etapa_actual,
+          }"
+          :title="`Etapa ${step}`"
         >
-          {{ showLive2DSimulator ? 'Ocultar Escenario 2D Pixel Art' : 'Mostrar Escenario 2D Pixel Art' }}
-        </button>
-        <div v-if="mission" class="stage-indicator">
-          <span class="stage-step">ETAPA {{ mission.etapa_actual }} / 10</span>
-          <span class="stage-name">{{ mission.nombre_etapa }}</span>
+          {{ step }}
+        </div>
+      </nav>
+
+      <!-- Telemetría clave en tiempo real (tabular-nums, sin advertir desastres) -->
+      <div v-if="mission" class="telemetry-pills">
+        <div class="tpill">
+          <span class="tpill-label">PRESUPUESTO</span>
+          <strong class="tpill-val" style="color: var(--gold)">
+            ${{ mission.presupuesto_restante_usd.toLocaleString() }}
+          </strong>
+        </div>
+        <div class="tpill">
+          <span class="tpill-label">MASA (MÁX {{ mission.masa_lanzamiento_max_kg }})</span>
+          <strong class="tpill-val">{{ mission.masa_total_kg }} kg</strong>
+        </div>
+        <div class="tpill">
+          <span class="tpill-label">DELTA-V</span>
+          <strong class="tpill-val" style="color: var(--cyan)">
+            {{ mission.delta_v_disponible_ms }} m/s
+          </strong>
+        </div>
+        <div class="tpill">
+          <span class="tpill-label">POTENCIA</span>
+          <strong class="tpill-val">
+            {{
+              mission.balance_potencia_w >= 0
+                ? `+${mission.balance_potencia_w}`
+                : mission.balance_potencia_w
+            }}
+            W
+          </strong>
         </div>
       </div>
     </header>
 
-    <!-- Barra de Progreso de las 10 Etapas (Arco "La luz sube" de artboard.html) -->
-    <div v-if="mission" class="stages-track">
-      <div
-        v-for="step in 10"
-        :key="step"
-        class="stage-segment"
-        :class="{
-          done: step < mission.etapa_actual,
-          current: step === mission.etapa_actual,
-        }"
-      >
-        {{ step }}
-      </div>
-    </div>
+    <!-- ======================================================================= -->
+    <!-- ESCENA FINAL (ETAPA 10 O FALLO DE MISIÓN): DESPACHO DEL JEFE            -->
+    <!-- ======================================================================= -->
+    <main v-if="finalReport" class="final-report-viewport">
+      <BossReportScene :report="finalReport" @restart="startNewMission" />
+    </main>
 
-    <!-- Banner de estado / retroalimentación de la última decisión -->
-    <div
-      class="status-banner"
-      :class="{
-        'banner-ok': lastStatusType === 'allowed',
-        'banner-warn': lastStatusType === 'warning',
-        'banner-fail': lastStatusType === 'fail',
-      }"
-    >
-      <strong>BITÁCORA DE CONTROL:</strong> {{ statusMessage }}
-    </div>
-
-    <!-- Vista Etapa 10 o Fallo Crítico: Escena del Despacho del Jefe e Informe Final -->
-    <BossReportScene
-      v-if="finalReport"
-      :report="finalReport"
-      @restart="startNewMission"
-    />
-
-    <!-- Cuerpo Principal del Juego (Etapas 1 a 9) -->
-    <template v-else-if="mission && catalog">
-      <!-- ESCENARIO 2D PIXEL ART EN TIEMPO REAL (DISPONIBLE DESDE EL INICIO PARA PROBAR SPRITES Y SALAS CON TECLA E) -->
-      <DestinationRooms2D
-        v-if="showLive2DSimulator"
-        :mission="mission"
-        @move-room="(roomId) => executeDecision('mover_habitacion', { habitacion_id: roomId })"
-        @run-science="executeDecision('operacion_cientifica', {})"
-        @run-crew-task="(subtipo) => executeDecision('tarea_tripulacion', { subtipo })"
-        @use-comm-window="executeDecision('usar_ventana_comm', {})"
-      />
-
-      <div class="main-workspace">
-        <!-- COLUMNA IZQUIERDA: Narrativa, Decisiones de Etapa, Catálogo y Eventos -->
-        <div class="left-column">
-          <!-- ETAPA 1: DEFINICIÓN DE LA MISIÓN (OTB vs LUNA) -->
-          <section v-if="mission.etapa_actual === 1" class="panel-box stage-panel">
-            <div class="stage-character-banner">
-              <PixelSprite
-                animacion="perro_interactuar"
-                :width="84"
-                :height="84"
-                :fps="8"
-                animo="sol"
-                etiqueta="CMDT. DIRECTOR"
-              />
-              <div>
-                <h2 class="stage-heading">ETAPA 1 — DEFINICIÓN DE LA MISIÓN</h2>
-                <p class="serif-narrative narrative-lead" style="margin-bottom: 0">
-                  En la oficina de planificación, los dos dossiers de expedición científica descansan
-                  sobre la mesa metálica. La capacidad estructural máxima del lanzador es fija ({{
-                    mission.masa_lanzamiento_max_kg
-                  }}
-                  kg). Elige el objetivo orbital de tu misión:
-                </p>
-              </div>
-            </div>
-
-            <div class="cards-grid">
-              <div
-                v-for="dest in catalog.destinos"
-                :key="dest.id"
-                class="choice-card"
-                :class="{ selected: mission.destino === dest.id }"
-                @click="executeDecision('seleccionar_destino', { destino: dest.id })"
-              >
-                <div class="choice-top">
-                  <span class="choice-title">{{ dest.nombre }}</span>
-                  <span class="badge">{{ dest.id }}</span>
-                </div>
-                <p class="serif-narrative choice-desc">{{ dest.descripcion }}</p>
-                <div class="tech-specs-mini">
-                  <span>Δv mín. requerido: {{ dest.delta_v_total_minimo_ms }} m/s</span>
-                  <span>Tránsito estándar: {{ dest.dias_transito_estandar }} día(s)</span>
-                  <span>Estancia: {{ dest.dias_operacion_destino }} días</span>
-                  <span>Eclipse orbital: {{ Math.round(dest.fraccion_eclipse * 100) }}%</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- ETAPA 2: NEGOCIACIÓN Y FINANCIACIÓN CON EL JEFE ANIMADO -->
-          <section v-if="mission.etapa_actual === 2" class="panel-box stage-panel">
-            <div class="stage-character-banner">
-              <PixelSprite
-                animacion="gato_hablar"
-                :width="88"
-                :height="88"
-                :fps="7"
-                etiqueta="PATROCINADOR JEFE"
-              />
-              <div>
-                <h2 class="stage-heading">ETAPA 2 — NEGOCIACIÓN Y FINANCIACIÓN</h2>
-                <p class="serif-narrative narrative-lead" style="margin-bottom: 0">
-                  El Jefe del Consorcio revisa su portapapeles mientras escucha tu propuesta para
-                  {{ mission.destino }}. El presupuesto acordado será un límite duro durante el
-                  diseño y se descontará en tiempo real en vuelo.
-                </p>
-              </div>
-            </div>
-
-            <div class="cards-grid">
-              <div
-                v-for="acuerdo in catalog.acuerdos_financiacion"
-                :key="acuerdo.id"
-                class="choice-card"
-                :class="{ selected: mission.acuerdo_financiacion_id === acuerdo.id }"
-                @click="executeDecision('seleccionar_financiacion', { acuerdo_id: acuerdo.id })"
-              >
-                <div class="choice-top">
-                  <span class="choice-title">{{ acuerdo.nombre }}</span>
-                  <span class="badge" style="color: var(--amber)">
-                    ${{ acuerdo.presupuesto_usd.toLocaleString() }} USD
-                  </span>
-                </div>
-                <p class="serif-narrative choice-desc">{{ acuerdo.descripcion }}</p>
-                <div class="tech-specs-mini">
-                  <span>Meta científica exigida: {{ acuerdo.exigencia_ciencia }} pts</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- ETAPA 3: DISEÑO DE LA NAVE Y SELECCIÓN DE PERSONAL -->
-          <section v-if="mission.etapa_actual === 3" class="panel-box stage-panel">
-            <h2 class="stage-heading">ETAPA 3 — DISEÑO DE LA NAVE Y SELECCIÓN DE PERSONAL</h2>
-            <p class="serif-narrative narrative-lead">
-              Examina las fichas técnicas antes de adquirir cada componente: el catálogo publica
-              todos los valores nominales sin ocultar datos, pero no bloqueará ni advertirá si
-              diseñas una configuración con sobrepeso o déficit energético.
-            </p>
-
-            <!-- Pestañas de Categorías del Catálogo -->
-            <div class="cat-tabs">
-              <button
-                v-for="cat in categories"
-                :key="cat.id"
-                :class="{ 'btn-primary': activeCategory === cat.id }"
-                @click="activeCategory = cat.id"
-              >
-                {{ cat.label }}
-              </button>
-            </div>
-
-            <!-- Fichas Técnicas Visibles del Catálogo -->
-            <div class="catalog-grid">
-              <div
-                v-for="comp in filteredComponents"
-                :key="comp.id"
-                class="comp-card"
-                :class="{ installed: mission.componentes_instalados.includes(comp.id) }"
-              >
-                <div class="comp-header">
-                  <span class="comp-title">{{ comp.nombre }}</span>
-                  <span class="comp-price">${{ comp.costo_usd.toLocaleString() }} USD</span>
-                </div>
-                <p class="comp-desc">{{ comp.descripcion_ficha }}</p>
-                <div class="ficha-tecnica">
-                  <span>Masa: {{ comp.masa_kg }} kg</span>
-                  <span v-if="comp.consumo_w > 0">Consumo: {{ comp.consumo_w }} W</span>
-                  <span v-if="comp.generacion_w > 0">Generación: {{ comp.generacion_w }} W</span>
-                  <span v-if="comp.capacidad_wh > 0">Batería: {{ comp.capacidad_wh }} Wh</span>
-                  <span v-if="comp.isp_s > 0">Isp: {{ comp.isp_s }} s</span>
-                  <span v-if="comp.combustible_kg > 0">Propelente: {{ comp.combustible_kg }} kg</span>
-                  <span v-if="comp.tasa_kbps > 0">Tasa: {{ comp.tasa_kbps }} kbps</span>
-                  <span v-if="comp.ventanas_dia > 0">Ventanas/día: {{ comp.ventanas_dia }}</span>
-                  <span v-if="comp.dias_o2 > 0">O2/Comida: {{ comp.dias_o2 }} días-persona</span>
-                  <span v-if="comp.puntos_ciencia_base > 0">
-                    Ciencia: +{{ comp.puntos_ciencia_base }} pts ({{ comp.datos_gb_dia }} GB/día)
-                  </span>
-                </div>
-                <div class="comp-actions">
-                  <button
-                    v-if="!mission.componentes_instalados.includes(comp.id)"
-                    class="btn-primary"
-                    @click="executeDecision('instalar_componente', { componente_id: comp.id })"
-                  >
-                    Instalar en Nave
-                  </button>
-                  <button
-                    v-else-if="comp.categoria === 'instrumento' || comp.categoria === 'robot'"
-                    @click="executeDecision('remover_componente', { componente_id: comp.id })"
-                  >
-                    Desinstalar (Reembolsar)
-                  </button>
-                  <span v-else class="installed-tag">✓ INSTALADO EN CHASIS</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Selección de Personal con Sprites (Máximo 4 incluido el jugador) -->
-            <div class="crew-recruitment">
-              <h3 class="sub-heading">
-                POOL DE TRIPULACIÓN ({{ mission.tripulacion.length }} / 4 PLAZAS OCUPADAS)
-              </h3>
-              <p class="serif-narrative" style="font-size: 13px; color: var(--mist); margin-bottom: 8px">
-                Al contratar un especialista, aparecerá inmediatamente caminando en su habitación
-                asignada dentro del escenario 2D superior.
-              </p>
-              <div class="catalog-grid">
-                <div
-                  v-for="cand in catalog.candidatos_tripulacion"
-                  :key="cand.id"
-                  class="comp-card"
-                  :class="{ installed: mission.tripulacion.some((t) => t.id === cand.id) }"
-                >
-                  <div class="cand-row">
-                    <PixelSprite
-                      animacion="gato_caminar"
-                      :width="56"
-                      :height="56"
-                      :fps="7"
-                      :animo="cand.estado_animo"
-                    />
-                    <div style="flex: 1">
-                      <div class="comp-header">
-                        <span class="comp-title">{{ cand.nombre }}</span>
-                        <span class="comp-price">-${{ cand.salario_usd.toLocaleString() }} USD</span>
-                      </div>
-                      <div style="font-size: 10px; color: var(--cyan)">
-                        {{ cand.rol }} · [{{ cand.especialidad.toUpperCase() }}] · Exp {{ cand.experiencia }}/5
-                      </div>
-                    </div>
-                  </div>
-                  <p class="comp-desc">{{ cand.biografia_corta }}</p>
-                  <div class="comp-actions">
-                    <button
-                      v-if="!mission.tripulacion.some((t) => t.id === cand.id)"
-                      class="btn-cyan"
-                      :disabled="mission.tripulacion.length >= 4"
-                      @click="executeDecision('contratar_tripulante', { crew_id: cand.id })"
-                    >
-                      Contratar Especialista
-                    </button>
-                    <button
-                      v-else
-                      @click="executeDecision('remover_tripulante', { crew_id: cand.id })"
-                    >
-                      Relevar del Puesto
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- ETAPA 4: PLANIFICACIÓN ORBITAL -->
-          <section v-if="mission.etapa_actual === 4" class="panel-box stage-panel">
-            <h2 class="stage-heading">ETAPA 4 — PLANIFICACIÓN ORBITAL</h2>
-            <p class="serif-narrative narrative-lead">
-              Calculando efemérides Tierra-{{ mission.destino }}. Una transferencia estándar (tipo
-              Hohmann) minimiza el gasto de Delta-v pero prolonga la exposición en tránsito; una
-              transferencia rápida reduce los días de vuelo a costa de un mayor impulso propulsivo.
-            </p>
-            <div class="cards-grid">
-              <div
-                class="choice-card"
-                :class="{ selected: mission.perfil_trayectoria === 'estandar' }"
-                @click="
-                  executeDecision('configurar_trayectoria', {
-                    perfil_trayectoria: 'estandar',
-                    ventana_lanzamiento: mission.ventana_lanzamiento,
-                  })
-                "
-              >
-                <div class="choice-top">
-                  <span class="choice-title">Transferencia Orbital Estándar (Mínima Energía)</span>
-                </div>
-                <p class="serif-narrative choice-desc">
-                  Optimiza el consumo de propelente, pero exige más días de soporte vital en tránsito.
-                </p>
-              </div>
-
-              <div
-                class="choice-card"
-                :class="{ selected: mission.perfil_trayectoria === 'rapida' }"
-                @click="
-                  executeDecision('configurar_trayectoria', {
-                    perfil_trayectoria: 'rapida',
-                    ventana_lanzamiento: mission.ventana_lanzamiento,
-                  })
-                "
-              >
-                <div class="choice-top">
-                  <span class="choice-title">Transferencia Rápida Directa (+18% Δv)</span>
-                </div>
-                <p class="serif-narrative choice-desc">
-                  Acorta el tránsito y el desgaste de consumibles, exigiendo mayor margen de Delta-v.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <!-- ETAPA 5: LANZAMIENTO -->
-          <section v-if="mission.etapa_actual === 5" class="panel-box stage-panel">
-            <h2 class="stage-heading">ETAPA 5 — LANZAMIENTO E INSERCIÓN INICIAL</h2>
-            <p class="serif-narrative narrative-lead">
-              Secuencia de ignición principal activada. El motor comprobará la restricción física
-              crítica de masa de lanzamiento ({{ mission.masa_total_kg }} kg frente al límite fijo de
-              {{ mission.masa_lanzamiento_max_kg }} kg) y el Delta-v de ascenso ({{
-                currentDestinationInfo?.delta_v_lanzamiento_ms
-              }}
-              m/s). Pulsa «Avanzar Etapa» para ejecutar el despegue.
-            </p>
-          </section>
-
-          <!-- ETAPA 6: TRÁNSITO -->
-          <section v-if="mission.etapa_actual === 6" class="panel-box stage-panel">
-            <h2 class="stage-heading">ETAPA 6 — CRUCERO Y TRÁNSITO ORBITAL</h2>
-            <p class="serif-narrative narrative-lead">
-              La nave navega en el vacío hacia {{ mission.destino }}. Camina por las habitaciones en
-              el escenario 2D superior y resuelve cualquier anomalía decidiendo si emplear trabajo de
-              la tripulación, presupuesto de energía a bordo o presupuesto financiero desde Tierra.
-            </p>
-          </section>
-
-          <!-- ETAPAS 7, 8, 9: GUÍA DE OPERACIONES EN EL ESCENARIO 2D -->
-          <section v-if="mission.etapa_actual >= 7 && mission.etapa_actual <= 9" class="panel-box stage-panel">
-            <h2 class="stage-heading">
-              ETAPA {{ mission.etapa_actual }} — {{ mission.nombre_etapa.toUpperCase() }}
-            </h2>
-            <p class="serif-narrative narrative-lead">
-              Usa el <strong>Escenario 2D Pixel Art</strong> de arriba: desplázate con
-              <code>←</code> / <code>→</code> (o <code>A</code> / <code>D</code>) y pulsa la tecla
-              <strong><code>E</code></strong> frente a las puertas para cambiar de sala o frente a
-              las terminales del Laboratorio, Módulo de Vida y Sala de Sistemas.
-            </p>
-          </section>
-
-          <!-- CONSOLA DE EVENTOS ACTIVOS Y ALERTAS SIN CUANTIFICAR -->
-          <section v-if="mission.eventos_activos.length > 0" class="panel-box events-panel">
-            <h3 class="event-heading">
-              ▲ EVENTOS Y ANOMALÍAS ACTIVAS (MENSAJES DE ALERTA SIN CUANTIFICAR)
-            </h3>
-            <div v-for="ev in mission.eventos_activos" :key="ev.id" class="event-card">
-              <div class="event-top">
-                <span class="event-title">{{ ev.titulo }}</span>
-                <span class="badge" style="border-color: var(--orange); color: var(--orange)">
-                  Subsistema: {{ ev.subsistema_afectado.toUpperCase() }}
-                </span>
-              </div>
-              <p class="serif-narrative event-alert">{{ ev.mensaje_alerta }}</p>
-              <div v-if="ev.diagnosticado_por_tierra" class="earth-feedback">
-                <strong>RETROALIMENTACIÓN DE TIERRA:</strong> {{ ev.diagnostico_detallado }}
-              </div>
-              <div class="event-options">
-                <button
-                  v-for="opt in ev.opciones"
-                  :key="opt.id"
-                  class="opt-btn"
-                  @click="handleResolveEvent(ev.id, opt.id)"
-                >
-                  <div>{{ opt.texto }}</div>
-                  <div class="opt-costs">
-                    <span v-if="opt.costo_presupuesto_usd > 0">
-                      -${{ opt.costo_presupuesto_usd.toLocaleString() }} USD
-                    </span>
-                    <span v-if="opt.costo_energia_wh > 0">-{{ opt.costo_energia_wh }} Wh</span>
-                    <span v-if="opt.costo_delta_v_ms > 0">-{{ opt.costo_delta_v_ms }} m/s Δv</span>
-                    <span v-if="opt.consume_ventana_comm">-1 Ventana Comm</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <!-- Botón de Avance de Etapa -->
-          <div class="stage-footer-bar">
-            <button class="btn-primary advance-btn" :disabled="loading" @click="advanceStage">
-              {{
-                mission.etapa_actual < 9
-                  ? `Confirmar y Avanzar a Etapa ${mission.etapa_actual + 1} ►`
-                  : 'Ejecutar Maniobra de Retorno y Evaluación Final ►'
-              }}
-            </button>
-          </div>
+    <!-- ======================================================================= -->
+    <!-- ESTACIÓN DE TRABAJO DE DOBLE PANEL (SIN SCROLL DE PÁGINA COMPLETA)      -->
+    <!-- ======================================================================= -->
+    <main v-else-if="mission && catalog" class="split-workstation">
+      <!-- PANEL IZQUIERDO (58%): VISOR INTERACTIVO MULTIMODO + CHIPS DE IMPACTO -->
+      <section class="left-viewport-column">
+        <!-- Conmutador de Vista Principal -->
+        <div class="viewport-switcher">
+          <button
+            class="vtab-btn"
+            :class="{ active: activeViewportTab === 'rooms2d' }"
+            @click="activeViewportTab = 'rooms2d'"
+          >
+            🎮 Cubierta 2D Pixel Art [Tecla E]
+          </button>
+          <button
+            class="vtab-btn"
+            :class="{ active: activeViewportTab === 'schematic' }"
+            @click="activeViewportTab = 'schematic'"
+          >
+            🚀 Esquemático de Nave y Dotación
+          </button>
+          <button
+            class="vtab-btn"
+            :class="{ active: activeViewportTab === 'telemetry' }"
+            @click="activeViewportTab = 'telemetry'"
+          >
+            📊 Tabla Completa de Variables
+          </button>
         </div>
 
-        <!-- COLUMNA DERECHA: Nave Visual + Tabla Explícita de Variables Afectadas -->
-        <div class="right-column">
-          <ShipSchematic :mission="mission" :catalog="catalog.componentes" />
+        <!-- Contenido del Visor Activo -->
+        <div class="viewport-stage-body">
+          <DestinationRooms2D
+            v-if="activeViewportTab === 'rooms2d'"
+            :mission="mission"
+            @move-room="(roomId) => executeDecision('mover_habitacion', { habitacion_id: roomId })"
+            @run-science="executeDecision('operacion_cientifica', {})"
+            @run-crew-task="(subtipo) => executeDecision('tarea_tripulacion', { subtipo })"
+            @use-comm-window="executeDecision('usar_ventana_comm', {})"
+          />
 
-          <!-- TABLA DE VISIBILIDAD DE CONSECUENCIAS (Valores explícitos sin advertir del desastre) -->
-          <div class="panel-box variables-panel">
-            <div class="var-header">
-              <span class="label-amber">TABLA DE VARIABLES DE LA NAVE (VALORES EXPLÍCITOS)</span>
-              <p class="var-note">
-                El simulador expone los datos físicos reales resultantes de tus decisiones sin emitir
-                juicios preventivos. Interpreta las magnitudes antes de despegar.
+          <ShipSchematic
+            v-else-if="activeViewportTab === 'schematic'"
+            :mission="mission"
+            :catalog="catalog.componentes"
+          />
+
+          <!-- Vista 3: Tabla Completa de Variables Explícitas -->
+          <div v-else class="panel-box full-telemetry-sheet">
+            <div class="sheet-header">
+              <span class="sheet-title">MATRIZ DE VARIABLES INTERDEPENDIENTES DE LA NAVE</span>
+              <p class="sheet-sub">
+                Valores explícitos en tiempo real. El simulador muestra las magnitudes físicas sin
+                predecir ni bloquear configuraciones deficientes.
               </p>
             </div>
-
-            <table class="tech-table">
+            <table class="clean-table">
               <thead>
                 <tr>
-                  <th>Parámetro</th>
+                  <th>Variable de Sistema</th>
                   <th>Valor Actual</th>
-                  <th>Referencia / Capacidad</th>
+                  <th>Parámetro de Referencia</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Presupuesto Global</td>
+                  <td>Presupuesto Financiero Global</td>
                   <td style="color: var(--gold)">
                     ${{ mission.presupuesto_restante_usd.toLocaleString() }} USD
                   </td>
                   <td>Inicial: ${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD</td>
                 </tr>
                 <tr>
-                  <td>Masa Total (m₀)</td>
+                  <td>Masa Total al Lanzamiento (m₀)</td>
                   <td>{{ mission.masa_total_kg }} kg</td>
-                  <td>Máx. Lanzador: {{ mission.masa_lanzamiento_max_kg }} kg</td>
+                  <td>Capacidad máxima fija: {{ mission.masa_lanzamiento_max_kg }} kg</td>
+                </tr>
+                <tr>
+                  <td>Masa Seca / Propelente</td>
+                  <td>{{ mission.masa_seca_kg }} kg / {{ mission.masa_combustible_kg }} kg</td>
+                  <td>Impulso específico (Isp): {{ mission.isp_efectivo_s }} s</td>
                 </tr>
                 <tr>
                   <td>Delta-v Disponible</td>
                   <td style="color: var(--cyan)">{{ mission.delta_v_disponible_ms }} m/s</td>
-                  <td>Est. Misión: {{ mission.delta_v_requerido_total_ms }} m/s</td>
+                  <td>Requerido estimado ({{ mission.destino }}): {{ mission.delta_v_requerido_total_ms }} m/s</td>
                 </tr>
                 <tr>
-                  <td>Potencia (Gen / Cons)</td>
+                  <td>Balance Eléctrico (Gen / Cons)</td>
                   <td>
                     {{ mission.generacion_w }} W / {{ mission.consumo_w }} W ({{
                       mission.balance_potencia_w >= 0
@@ -593,251 +315,906 @@ onMounted(() => {
                     }}
                     W)
                   </td>
-                  <td>Batería: {{ mission.bateria_actual_wh }} Wh</td>
+                  <td>Batería acumulada: {{ mission.bateria_actual_wh }} / {{ mission.bateria_capacidad_wh }} Wh</td>
                 </tr>
                 <tr>
                   <td>Soporte Vital (O₂ / Raciones)</td>
-                  <td>{{ mission.o2_dias_disponibles }} días</td>
-                  <td>Tránsito + Destino: {{ mission.dias_transito + mission.dias_en_destino }} d</td>
+                  <td>{{ mission.o2_dias_disponibles }} días / {{ mission.comida_dias_disponibles }} días</td>
+                  <td>Duración misión: {{ mission.dias_transito + mission.dias_en_destino }} días</td>
                 </tr>
                 <tr>
-                  <td>Datos y Ventanas Comm</td>
+                  <td>Ciencia y Transmisión de Datos</td>
                   <td>
-                    {{ mission.datos_transmitidos_gb }} / {{ mission.datos_generados_gb }} GB
+                    {{ mission.puntos_ciencia_generados }} pts · {{ mission.datos_transmitidos_gb }} /
+                    {{ mission.datos_generados_gb }} GB
                   </td>
                   <td>
                     {{ mission.ventanas_comm_restantes }} ventanas ({{
                       Math.round(mission.probabilidad_enlace_comm * 100)
-                    }}% enlace)
+                    }}% disp.)
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
 
-            <!-- Último impacto de decisión (Delta explícito) -->
-            <div v-if="mission.ultimos_cambios_variables.length > 0" class="delta-section">
-              <div class="delta-title">IMPACTO DE LA ÚLTIMA DECISIÓN:</div>
-              <table class="tech-table delta-table">
-                <thead>
-                  <tr>
-                    <th>Variable</th>
-                    <th>Antes</th>
-                    <th>Después</th>
-                    <th>Δ Cambio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="chg in mission.ultimos_cambios_variables" :key="chg.variable">
-                    <td>{{ chg.etiqueta }}</td>
-                    <td>{{ chg.valor_anterior }} {{ chg.unidad }}</td>
-                    <td>{{ chg.valor_nuevo }} {{ chg.unidad }}</td>
-                    <td
-                      :style="{
-                        color:
-                          chg.delta > 0
-                            ? 'var(--cyan)'
-                            : chg.delta < 0
-                              ? 'var(--amber)'
-                              : 'var(--mist)',
-                      }"
+        <!-- Barra inferior del visor: Bitácora + Chips instantáneos de Variables Afectadas (Δ) -->
+        <div
+          class="live-delta-bar"
+          :class="{
+            'bar-ok': lastStatusType === 'allowed',
+            'bar-warn': lastStatusType === 'warning',
+            'bar-fail': lastStatusType === 'fail',
+          }"
+        >
+          <div class="log-message-line">
+            <span class="log-tag">BITÁCORA:</span>
+            <span>{{ statusMessage }}</span>
+          </div>
+
+          <div v-if="nonZeroDeltas.length > 0" class="delta-chips-row">
+            <span class="delta-label">IMPACTO Δ:</span>
+            <span
+              v-for="chg in nonZeroDeltas"
+              :key="chg.variable"
+              class="delta-chip"
+            >
+              {{ chg.etiqueta }}: {{ chg.valor_anterior }} →
+              <strong>{{ chg.valor_nuevo }} {{ chg.unidad }}</strong>
+              ({{ chg.delta > 0 ? `+${chg.delta}` : chg.delta }})
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL DERECHO (42%): CONSOLA DE DECISIONES DE ETAPA + PIE DE AVANCE FIJO -->
+      <aside class="right-command-column">
+        <div class="command-scroll-area">
+          <!-- ALERTAS Y EVENTOS ACTIVOS (PRIORIDAD ALTA CUANDO OCURREN) -->
+          <div v-if="mission.eventos_activos.length > 0" class="events-drawer">
+            <div class="event-drawer-header blink-warning">
+              ▲ ALERTA DE SUBSISTEMA SIN CUANTIFICAR ({{ mission.eventos_activos.length }})
+            </div>
+            <div v-for="ev in mission.eventos_activos" :key="ev.id" class="event-item">
+              <div class="event-item-top">
+                <strong>{{ ev.titulo }}</strong>
+                <span class="badge" style="border-color: var(--orange); color: var(--orange)">
+                  {{ ev.subsistema_afectado.toUpperCase() }}
+                </span>
+              </div>
+              <p class="serif-narrative event-copy">{{ ev.mensaje_alerta }}</p>
+              <div v-if="ev.diagnosticado_por_tierra" class="earth-diag-box">
+                <strong>DIAGNÓSTICO DE TIERRA:</strong> {{ ev.diagnostico_detallado }}
+              </div>
+              <div class="event-btn-stack">
+                <button
+                  v-for="opt in ev.opciones"
+                  :key="opt.id"
+                  class="event-opt-button"
+                  @click="handleResolveEvent(ev.id, opt.id)"
+                >
+                  <span>{{ opt.texto }}</span>
+                  <span class="opt-cost-pills">
+                    <em v-if="opt.costo_presupuesto_usd > 0">
+                      -${{ opt.costo_presupuesto_usd.toLocaleString() }}
+                    </em>
+                    <em v-if="opt.costo_energia_wh > 0">-{{ opt.costo_energia_wh }} Wh</em>
+                    <em v-if="opt.costo_delta_v_ms > 0">-{{ opt.costo_delta_v_ms }} m/s</em>
+                    <em v-if="opt.consume_ventana_comm">-1 Ventana</em>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 1: DEFINICIÓN DE LA MISIÓN -->
+          <div v-if="mission.etapa_actual === 1" class="stage-card">
+            <div class="stage-hero-row">
+              <PixelSprite
+                animacion="perro_interactuar"
+                :width="72"
+                :height="92"
+                :fps="8"
+                animo="sol"
+              />
+              <div>
+                <div class="stage-eyebrow">ETAPA 01 DE 10 · PLANIFICACIÓN</div>
+                <h2 class="stage-title">Definición de la Misión</h2>
+                <p class="serif-narrative stage-prose">
+                  Selecciona el destino de referencia para la expedición científica. La masa máxima
+                  de lanzamiento es fija ({{ mission.masa_lanzamiento_max_kg }} kg).
+                </p>
+              </div>
+            </div>
+
+            <div class="option-list">
+              <div
+                v-for="dest in catalog.destinos"
+                :key="dest.id"
+                class="option-tile"
+                :class="{ selected: mission.destino === dest.id }"
+                @click="executeDecision('seleccionar_destino', { destino: dest.id })"
+              >
+                <div class="option-tile-head">
+                  <span class="option-name">{{ dest.nombre }}</span>
+                  <span class="badge" style="color: var(--cyan)">{{ dest.id }}</span>
+                </div>
+                <p class="serif-narrative option-prose">{{ dest.descripcion }}</p>
+                <div class="spec-chips">
+                  <span>Δv mín: {{ dest.delta_v_total_minimo_ms }} m/s</span>
+                  <span>Tránsito: {{ dest.dias_transito_estandar }} d</span>
+                  <span>Operación: {{ dest.dias_operacion_destino }} d</span>
+                  <span>Eclipse: {{ Math.round(dest.fraccion_eclipse * 100) }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 2: NEGOCIACIÓN Y FINANCIACIÓN -->
+          <div v-if="mission.etapa_actual === 2" class="stage-card">
+            <div class="stage-hero-row">
+              <PixelSprite animacion="gato_hablar" :width="78" :height="78" :fps="7" />
+              <div>
+                <div class="stage-eyebrow">ETAPA 02 DE 10 · PATROCINIO</div>
+                <h2 class="stage-title">Negociación y Financiación</h2>
+                <p class="serif-narrative stage-prose">
+                  El presupuesto global actúa como límite duro tanto en el diseño como en los costes
+                  de ejecución en tiempo real.
+                </p>
+              </div>
+            </div>
+
+            <div class="option-list">
+              <div
+                v-for="acuerdo in catalog.acuerdos_financiacion"
+                :key="acuerdo.id"
+                class="option-tile"
+                :class="{ selected: mission.acuerdo_financiacion_id === acuerdo.id }"
+                @click="executeDecision('seleccionar_financiacion', { acuerdo_id: acuerdo.id })"
+              >
+                <div class="option-tile-head">
+                  <span class="option-name">{{ acuerdo.nombre }}</span>
+                  <span class="badge" style="color: var(--amber)">
+                    ${{ acuerdo.presupuesto_usd.toLocaleString() }} USD
+                  </span>
+                </div>
+                <p class="serif-narrative option-prose">{{ acuerdo.descripcion }}</p>
+                <div class="spec-chips">
+                  <span>Exigencia científica: {{ acuerdo.exigencia_ciencia }} pts</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 3: DISEÑO DE LA NAVE Y SELECCIÓN DE PERSONAL (CON SUB-PESTAÑAS LIMPIAS) -->
+          <div v-if="mission.etapa_actual === 3" class="stage-card">
+            <div class="stage-eyebrow">ETAPA 03 DE 10 · INGENIERÍA DE SISTEMAS</div>
+            <h2 class="stage-title">Diseño de Nave y Tripulación</h2>
+            <p class="serif-narrative stage-prose" style="margin-bottom: 10px">
+              Revisa cada ficha técnica antes de comprar. El catálogo no avisa de incompatibilidades
+              ni bloquea si superas la masa del lanzador.
+            </p>
+
+            <!-- Selector segmentado: Componentes vs Personal -->
+            <div class="segmented-control">
+              <button
+                class="seg-btn"
+                :class="{ active: stage3SubTab === 'hardware' }"
+                @click="stage3SubTab = 'hardware'"
+              >
+                🔧 1. Catálogo de Componentes
+              </button>
+              <button
+                class="seg-btn"
+                :class="{ active: stage3SubTab === 'crew' }"
+                @click="stage3SubTab = 'crew'"
+              >
+                👨‍🚀 2. Tripulación ({{ mission.tripulacion.length }}/4)
+              </button>
+            </div>
+
+            <!-- Sub-pestaña A: Catálogo de Componentes por categoría -->
+            <template v-if="stage3SubTab === 'hardware'">
+              <div class="category-pills">
+                <button
+                  v-for="cat in categories"
+                  :key="cat.id"
+                  class="cat-pill"
+                  :class="{ active: activeCategory === cat.id }"
+                  @click="activeCategory = cat.id"
+                >
+                  {{ cat.label }}
+                </button>
+              </div>
+
+              <div class="compact-catalog-list">
+                <div
+                  v-for="comp in filteredComponents"
+                  :key="comp.id"
+                  class="catalog-row-card"
+                  :class="{ installed: mission.componentes_instalados.includes(comp.id) }"
+                >
+                  <div class="cat-row-top">
+                    <span class="cat-item-name">{{ comp.nombre }}</span>
+                    <span class="cat-item-cost">${{ comp.costo_usd.toLocaleString() }} USD</span>
+                  </div>
+                  <p class="cat-item-desc">{{ comp.descripcion_ficha }}</p>
+                  <div class="cat-row-footer">
+                    <div class="spec-chips">
+                      <span>{{ comp.masa_kg }} kg</span>
+                      <span v-if="comp.consumo_w > 0">-{{ comp.consumo_w }} W</span>
+                      <span v-if="comp.generacion_w > 0">+{{ comp.generacion_w }} W</span>
+                      <span v-if="comp.capacidad_wh > 0">{{ comp.capacidad_wh }} Wh</span>
+                      <span v-if="comp.isp_s > 0">Isp {{ comp.isp_s }}s</span>
+                      <span v-if="comp.tasa_kbps > 0">{{ comp.tasa_kbps }} kbps</span>
+                      <span v-if="comp.dias_o2 > 0">{{ comp.dias_o2 }}d O₂</span>
+                      <span v-if="comp.puntos_ciencia_base > 0">+{{ comp.puntos_ciencia_base }} pts</span>
+                    </div>
+
+                    <button
+                      v-if="!mission.componentes_instalados.includes(comp.id)"
+                      class="btn-primary btn-sm"
+                      @click="executeDecision('instalar_componente', { componente_id: comp.id })"
                     >
-                      {{ chg.delta > 0 ? `+${chg.delta}` : chg.delta }} {{ chg.unidad }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      + Instalar
+                    </button>
+                    <button
+                      v-else-if="comp.categoria === 'instrumento' || comp.categoria === 'robot'"
+                      class="btn-sm"
+                      @click="executeDecision('remover_componente', { componente_id: comp.id })"
+                    >
+                      Retirar
+                    </button>
+                    <span v-else class="installed-badge">✓ ACTIVO</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Sub-pestaña B: Selección de Personal -->
+            <template v-else>
+              <div class="compact-catalog-list">
+                <div
+                  v-for="cand in catalog.candidatos_tripulacion"
+                  :key="cand.id"
+                  class="catalog-row-card"
+                  :class="{ installed: mission.tripulacion.some((t) => t.id === cand.id) }"
+                >
+                  <div class="crew-row-layout">
+                    <PixelSprite
+                      animacion="gato_caminar"
+                      :width="52"
+                      :height="52"
+                      :fps="7"
+                      :animo="cand.estado_animo"
+                    />
+                    <div style="flex: 1">
+                      <div class="cat-row-top">
+                        <span class="cat-item-name">{{ cand.nombre }}</span>
+                        <span class="cat-item-cost">-${{ cand.salario_usd.toLocaleString() }} USD</span>
+                      </div>
+                      <div class="spec-chips" style="margin: 3px 0">
+                        <span>{{ cand.rol }}</span>
+                        <span>Esp: {{ cand.especialidad.toUpperCase() }}</span>
+                        <span>Exp: {{ cand.experiencia }}/5</span>
+                      </div>
+                      <p class="cat-item-desc">{{ cand.biografia_corta }}</p>
+                    </div>
+                  </div>
+                  <div class="cat-row-footer" style="justify-content: flex-end">
+                    <button
+                      v-if="!mission.tripulacion.some((t) => t.id === cand.id)"
+                      class="btn-cyan btn-sm"
+                      :disabled="mission.tripulacion.length >= 4"
+                      @click="executeDecision('contratar_tripulante', { crew_id: cand.id })"
+                    >
+                      + Contratar Especialista
+                    </button>
+                    <button
+                      v-else
+                      class="btn-sm"
+                      @click="executeDecision('remover_tripulante', { crew_id: cand.id })"
+                    >
+                      Relevar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- ETAPA 4: PLANIFICACIÓN ORBITAL -->
+          <div v-if="mission.etapa_actual === 4" class="stage-card">
+            <div class="stage-eyebrow">ETAPA 04 DE 10 · MECÁNICA ORBITAL</div>
+            <h2 class="stage-title">Planificación de Trayectoria y Ventana</h2>
+            <p class="serif-narrative stage-prose">
+              Elige el perfil de transferencia hacia {{ mission.destino }}. Una ruta rápida consume
+              un +18% de Delta-v pero ahorra días de soporte vital.
+            </p>
+            <div class="option-list">
+              <div
+                class="option-tile"
+                :class="{ selected: mission.perfil_trayectoria === 'estandar' }"
+                @click="
+                  executeDecision('configurar_trayectoria', {
+                    perfil_trayectoria: 'estandar',
+                    ventana_lanzamiento: mission.ventana_lanzamiento,
+                  })
+                "
+              >
+                <div class="option-tile-head">
+                  <span class="option-name">Transferencia Hohmann Estándar</span>
+                  <span class="badge">Mínimo Δv</span>
+                </div>
+                <p class="serif-narrative option-prose">
+                  Requiere {{ currentDestinationInfo?.delta_v_total_minimo_ms }} m/s totales y
+                  {{ currentDestinationInfo?.dias_transito_estandar }} día(s) de tránsito.
+                </p>
+              </div>
+
+              <div
+                class="option-tile"
+                :class="{ selected: mission.perfil_trayectoria === 'rapida' }"
+                @click="
+                  executeDecision('configurar_trayectoria', {
+                    perfil_trayectoria: 'rapida',
+                    ventana_lanzamiento: mission.ventana_lanzamiento,
+                  })
+                "
+              >
+                <div class="option-tile-head">
+                  <span class="option-name">Transferencia Directa Rápida (+18% Δv)</span>
+                  <span class="badge" style="color: var(--amber)">Menor Tiempo</span>
+                </div>
+                <p class="serif-narrative option-prose">
+                  Reduce el viaje a {{ currentDestinationInfo?.dias_transito_rapido }} día(s) a
+                  cambio de mayor gasto de propelente.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 5: LANZAMIENTO -->
+          <div v-if="mission.etapa_actual === 5" class="stage-card">
+            <div class="stage-eyebrow">ETAPA 05 DE 10 · ASCENSO E INSERCIÓN</div>
+            <h2 class="stage-title">Verificación de Lanzamiento</h2>
+            <p class="serif-narrative stage-prose">
+              La nave está en la plataforma. Al confirmar el lanzamiento se verificará la
+              restricción física crítica de masa máxima ({{ mission.masa_total_kg }} /
+              {{ mission.masa_lanzamiento_max_kg }} kg) y el impulso de ascenso ({{
+                currentDestinationInfo?.delta_v_lanzamiento_ms
+              }}
+              m/s).
+            </p>
+          </div>
+
+          <!-- ETAPA 6: TRÁNSITO -->
+          <div v-if="mission.etapa_actual === 6" class="stage-card">
+            <div class="stage-eyebrow">ETAPA 06 DE 10 · NAVEGACIÓN</div>
+            <h2 class="stage-title">Tránsito hacia {{ mission.destino }}</h2>
+            <p class="serif-narrative stage-prose">
+              Supervisa las anomalías en ruta y gestiona la separación entre el presupuesto
+              financiero (soporte desde Tierra) y el presupuesto de energía a bordo (Wh).
+            </p>
+          </div>
+
+          <!-- ETAPAS 7, 8, 9: OPERACIONES EN DESTINO -->
+          <div v-if="mission.etapa_actual >= 7 && mission.etapa_actual <= 9" class="stage-card">
+            <div class="stage-eyebrow">ETAPA 0{{ mission.etapa_actual }} DE 10 · EN ÓRBITA / DESTINO</div>
+            <h2 class="stage-title">{{ mission.nombre_etapa }}</h2>
+            <p class="serif-narrative stage-prose">
+              Recorre las habitaciones en el visor 2D izquierdo usando <code>A</code>/<code>D</code>
+              y la tecla <code>E</code>, o ejecuta órdenes directas desde esta consola:
+            </p>
+
+            <div class="quick-ops-stack">
+              <button
+                class="btn-primary op-big-btn"
+                @click="executeDecision('operacion_cientifica', {})"
+              >
+                🔬 Operar Instrumentos del Laboratorio (+Ciencia / +Datos GB)
+              </button>
+              <button
+                class="btn-cyan op-big-btn"
+                @click="executeDecision('tarea_tripulacion', { subtipo: 'estabilizar_animo' })"
+              >
+                ☀ Estabilizar Estado de Ánimo en Módulo de Vida
+              </button>
+              <button
+                class="op-big-btn"
+                @click="executeDecision('tarea_tripulacion', { subtipo: 'mantenimiento_general' })"
+              >
+                🔧 Ejecutar Mantenimiento Común de Subsistemas
+              </button>
+              <button
+                class="btn-primary op-big-btn"
+                @click="executeDecision('usar_ventana_comm', {})"
+              >
+                📡 Transmitir Datos a Tierra ({{ mission.ventanas_comm_restantes }} ventanas disp.)
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </template>
+
+        <!-- PIE DE ACCIÓN PRIMARIA SIEMPRE VISIBLE (SIN HACER SCROLL) -->
+        <footer class="command-footer-dock">
+          <div class="footer-meta">
+            <span>ETAPA {{ mission.etapa_actual }}/10</span>
+            <span>TRIPULACIÓN: {{ mission.tripulacion.length }}/4</span>
+          </div>
+          <button
+            class="btn-primary advance-cta-btn"
+            :disabled="loading"
+            @click="advanceStage"
+          >
+            {{
+              mission.etapa_actual < 9
+                ? `Avanzar a Etapa ${mission.etapa_actual + 1} ►`
+                : 'Ejecutar Retorno e Informe Final ►'
+            }}
+          </button>
+        </footer>
+      </aside>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.zenit-shell {
-  max-width: 1380px;
-  margin: 0 auto;
-  padding: 18px 22px 40px;
+/* ========================================================================= */
+/* ARQUITECTURA DE ESTACIÓN DE VUELO (100VH EN ESCRITORIO, CERO FATIGA)      */
+/* ========================================================================= */
+.cockpit-layout {
+  min-height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  background: var(--void);
+  overflow: hidden;
 }
-.top-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+
+@media (max-width: 1080px) {
+  .cockpit-layout {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* 1. CINTA SUPERIOR */
+.top-ribbon {
+  height: 58px;
+  padding: 0 18px;
+  background: var(--void-deep);
   border-bottom: 1px solid var(--steel);
-  padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-shrink: 0;
 }
-.header-actions {
+
+@media (max-width: 1080px) {
+  .top-ribbon {
+    height: auto;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+  }
+}
+
+.brand-cluster {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.brand-title {
-  color: var(--gold);
-  font-size: 20px;
-  letter-spacing: 0.03em;
-}
-.brand-sub {
-  color: var(--mist);
-  font-size: 12px;
-}
-.stage-indicator {
-  background: var(--cabin);
+
+.brand-mark {
+  background: rgba(255, 176, 0, 0.16);
   border: 1px solid var(--amber);
-  border-radius: 5px;
-  padding: 6px 12px;
-  text-align: right;
-}
-.stage-step {
-  font-size: 10px;
-  color: var(--amber);
-  display: block;
+  color: var(--gold);
   font-weight: 700;
-}
-.stage-name {
   font-size: 13px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  letter-spacing: 0.08em;
+}
+
+.brand-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-main {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--bone);
-  font-weight: 600;
+  letter-spacing: 0.04em;
 }
-.stages-track {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 5px;
+
+.brand-stage-sub {
+  font-size: 11px;
+  color: var(--amber);
 }
-.stage-segment {
+
+.timeline-10 {
+  display: flex;
+  gap: 4px;
+}
+
+.timeline-node {
+  width: 24px;
   height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 10px;
   background: var(--void);
   border: 1px solid var(--steel);
   border-radius: 3px;
   color: var(--mist);
 }
-.stage-segment.done {
-  background: var(--cabin);
+
+.timeline-node.done {
   border-color: var(--cyan);
   color: var(--cyan);
+  background: rgba(79, 209, 197, 0.1);
 }
-.stage-segment.current {
+
+.timeline-node.current {
   background: var(--amber);
   border-color: var(--gold);
   color: var(--void);
   font-weight: 700;
 }
-.status-banner {
-  padding: 9px 14px;
-  border-radius: 5px;
-  font-size: 12px;
-  border-left: 4px solid var(--cyan);
+
+.telemetry-pills {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .telemetry-pills {
+    flex-wrap: wrap;
+  }
+}
+
+.tpill {
   background: var(--cabin);
+  border: 1px solid var(--steel);
+  border-radius: 4px;
+  padding: 4px 10px;
+  display: flex;
+  flex-direction: column;
+  min-width: 108px;
 }
-.banner-ok {
-  border-left-color: var(--cyan);
+
+.tpill-label {
+  font-size: 9px;
+  color: var(--mist);
 }
-.banner-warn {
-  border-left-color: var(--orange);
-  color: var(--gold);
+
+.tpill-val {
+  font-size: 12px;
+  color: var(--bone);
 }
-.banner-fail {
-  border-left-color: var(--red);
-  color: var(--red);
-}
-.main-workspace {
+
+/* 2. ESTACIÓN DIVIDIDA EN 2 COLUMNAS */
+.split-workstation {
+  flex: 1;
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: 1.38fr 1fr;
+  gap: 14px;
+  padding: 12px 18px;
+  min-height: 0;
 }
-@media (max-width: 1024px) {
-  .main-workspace {
+
+@media (max-width: 1080px) {
+  .split-workstation {
     grid-template-columns: 1fr;
   }
 }
-.left-column,
-.right-column {
+
+.final-report-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* COLUMNA IZQUIERDA: VISOR MULTIMODO */
+.left-viewport-column {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  min-height: 0;
 }
-.stage-character-banner {
+
+.viewport-switcher {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 6px;
+  flex-shrink: 0;
 }
-.stage-heading {
-  color: var(--amber);
-  font-size: 16px;
-  margin-bottom: 6px;
+
+.vtab-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--void-deep);
+  border: 1px solid var(--steel);
+  color: var(--mist);
 }
-.narrative-lead {
-  font-size: 15px;
-  color: var(--bone);
-  margin-bottom: 14px;
-  line-height: 1.6;
+
+.vtab-btn.active {
+  background: var(--cabin);
+  border-color: var(--amber);
+  color: var(--gold);
 }
-.cards-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+
+.viewport-stage-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.full-telemetry-sheet {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
-.choice-card {
+
+.sheet-title {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.sheet-sub {
+  font-size: 11px;
+  color: var(--mist);
+  margin-top: 2px;
+}
+
+.clean-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.clean-table th,
+.clean-table td {
+  border: 1px solid var(--steel);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.clean-table th {
+  background: var(--void);
+  color: var(--mist);
+}
+
+/* BARRA DE BITÁCORA Y CHIPS DE IMPACTO (Δ) */
+.live-delta-bar {
+  background: var(--cabin);
+  border: 1px solid var(--steel);
+  border-left: 4px solid var(--cyan);
+  border-radius: 5px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.live-delta-bar.bar-warn {
+  border-left-color: var(--orange);
+}
+
+.live-delta-bar.bar-fail {
+  border-left-color: var(--red);
+}
+
+.log-message-line {
+  font-size: 11px;
+  color: var(--bone);
+  display: flex;
+  gap: 6px;
+}
+
+.log-tag {
+  color: var(--amber);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.delta-chips-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.delta-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+.delta-chip {
+  font-size: 10px;
+  background: var(--void);
+  border: 1px solid var(--steel);
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--mist);
+}
+
+.delta-chip strong {
+  color: var(--bone);
+}
+
+/* COLUMNA DERECHA: CONSOLA DE DECISIONES */
+.right-command-column {
+  background: var(--cabin);
+  border: 1px solid var(--steel);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.command-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stage-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+}
+
+.stage-title {
+  font-size: 17px;
+  color: var(--gold);
+  margin: 2px 0 4px;
+}
+
+.stage-prose {
+  font-size: 14px;
+  color: var(--bone);
+  line-height: 1.55;
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-tile {
   background: var(--void);
   border: 1px solid var(--steel);
   border-radius: 6px;
-  padding: 12px;
+  padding: 11px 12px;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
 }
-.choice-card:hover {
+
+.option-tile:hover {
   border-color: var(--cyan);
 }
-.choice-card.selected {
+
+.option-tile.selected {
   border-color: var(--amber);
-  background: rgba(255, 176, 0, 0.08);
+  background: rgba(255, 176, 0, 0.09);
 }
-.choice-top {
+
+.option-tile-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
-.choice-title {
-  color: var(--gold);
+
+.option-name {
+  font-size: 13px;
   font-weight: 700;
-  font-size: 14px;
+  color: var(--gold);
 }
-.choice-desc {
-  font-size: 14px;
+
+.option-prose {
+  font-size: 13px;
   color: var(--bone);
   margin-bottom: 8px;
 }
-.tech-specs-mini {
+
+.spec-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 11px;
+  gap: 5px;
+}
+
+.spec-chips span {
+  font-size: 10px;
   color: var(--cyan);
+  background: rgba(27, 35, 64, 0.75);
+  border: 1px solid var(--steel);
+  padding: 1px 6px;
+  border-radius: 3px;
 }
-.cat-tabs {
+
+/* CONTROLES DE ETAPA 3 (CATÁLOGO Y PERSONAL) */
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--void-deep);
+  padding: 4px;
+  border-radius: 5px;
+  border: 1px solid var(--steel);
+}
+
+.seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--mist);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 8px;
+}
+
+.seg-btn.active {
+  background: var(--cabin);
+  color: var(--gold);
+  border: 1px solid var(--amber);
+}
+
+.category-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 5px;
 }
-.catalog-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 10px;
+
+.cat-pill {
+  padding: 4px 9px;
+  font-size: 11px;
+  background: var(--void);
 }
-.comp-card {
+
+.cat-pill.active {
+  border-color: var(--amber);
+  color: var(--gold);
+  background: rgba(255, 176, 0, 0.16);
+}
+
+.compact-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalog-row-card {
   background: var(--void);
   border: 1px solid var(--steel);
   border-radius: 5px;
@@ -846,158 +1223,171 @@ onMounted(() => {
   flex-direction: column;
   gap: 6px;
 }
-.comp-card.installed {
+
+.catalog-row-card.installed {
   border-color: var(--cyan);
 }
-.cand-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.comp-header {
+
+.cat-row-top {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cat-item-name {
   font-size: 12px;
   font-weight: 700;
-}
-.comp-title {
   color: var(--bone);
 }
-.comp-price {
+
+.cat-item-cost {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--amber);
+  white-space: nowrap;
 }
-.comp-desc {
+
+.cat-item-desc {
   font-size: 11px;
   color: var(--mist);
   line-height: 1.4;
 }
-.ficha-tecnica {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 10px;
-  color: var(--cyan);
-  background: rgba(27, 35, 64, 0.6);
-  padding: 6px;
-  border-radius: 4px;
-}
-.comp-actions {
-  margin-top: auto;
-  padding-top: 6px;
-}
-.installed-tag {
-  font-size: 11px;
-  color: var(--green);
-  font-weight: 700;
-}
-.crew-recruitment {
-  margin-top: 18px;
-  border-top: 1px solid var(--steel);
-  padding-top: 14px;
-}
-.sub-heading {
-  font-size: 13px;
-  color: var(--amber);
-  margin-bottom: 4px;
-}
-.events-panel {
-  border-color: var(--orange);
-}
-.event-heading {
-  color: var(--orange);
-  font-size: 13px;
-  margin-bottom: 10px;
-}
-.event-card {
-  background: var(--void);
-  border: 1px solid var(--orange);
-  border-radius: 5px;
-  padding: 12px;
-  margin-bottom: 10px;
-}
-.event-top {
+
+.cat-row-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-top: 2px;
 }
-.event-title {
-  color: var(--gold);
-  font-weight: 700;
-  font-size: 13px;
-}
-.event-alert {
-  font-size: 14px;
-  color: var(--bone);
-  margin-bottom: 10px;
-}
-.earth-feedback {
-  background: rgba(79, 209, 197, 0.12);
-  border-left: 3px solid var(--cyan);
-  padding: 8px;
+
+.btn-sm {
+  padding: 5px 10px;
   font-size: 11px;
-  color: var(--cyan);
-  margin-bottom: 10px;
+  white-space: nowrap;
 }
-.event-options {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+
+.installed-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+  white-space: nowrap;
 }
-.opt-btn {
-  text-align: left;
+
+.crew-row-layout {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 10px;
 }
-.opt-costs {
+
+/* EVENTOS ACTIVOS */
+.events-drawer {
+  background: rgba(255, 122, 61, 0.08);
+  border: 1px solid var(--orange);
+  border-radius: 6px;
+  padding: 10px;
   display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+.event-drawer-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.event-item {
+  background: var(--void);
+  border: 1px solid var(--steel);
+  border-radius: 5px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-item-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--gold);
+}
+
+.event-copy {
+  font-size: 13px;
+  color: var(--bone);
+}
+
+.earth-diag-box {
+  font-size: 11px;
+  color: var(--cyan);
+  background: rgba(79, 209, 197, 0.1);
+  border-left: 3px solid var(--cyan);
+  padding: 6px 8px;
+}
+
+.event-btn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.event-opt-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  font-size: 11px;
+  gap: 8px;
+}
+
+.opt-cost-pills {
+  display: flex;
+  gap: 6px;
   font-size: 10px;
   color: var(--amber);
   white-space: nowrap;
 }
-.stage-footer-bar {
+
+.opt-cost-pills em {
+  font-style: normal;
+}
+
+.quick-ops-stack {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
 }
-.advance-btn {
-  padding: 10px 18px;
-  font-size: 13px;
-}
-.label-amber {
-  color: var(--amber);
-  font-weight: 700;
-  font-size: 13px;
-}
-.var-note {
-  font-size: 11px;
-  color: var(--mist);
-  margin: 4px 0 10px;
-}
-.tech-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-.tech-table th,
-.tech-table td {
-  border: 1px solid var(--steel);
-  padding: 6px 8px;
+
+.op-big-btn {
   text-align: left;
+  padding: 10px 12px;
 }
-.tech-table th {
-  background: var(--void);
+
+/* PIE FIJO DE LA CONSOLA DERECHA */
+.command-footer-dock {
+  background: var(--void-deep);
+  border-top: 1px solid var(--steel);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.footer-meta {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
   color: var(--mist);
 }
-.delta-section {
-  margin-top: 12px;
-}
-.delta-title {
-  font-size: 11px;
-  color: var(--cyan);
-  font-weight: 700;
-  margin-bottom: 6px;
+
+.advance-cta-btn {
+  padding: 10px 16px;
+  font-size: 12px;
 }
 </style>
