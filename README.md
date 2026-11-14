@@ -1,6 +1,11 @@
 # Zenit
 
-Hola mundo. Proyecto base listo para desplegar en Vercel (multi-service).
+Simulador narrativo de misiones espaciales (juego serio educativo). Estado actual: MVP fase 0 (hello world).
+
+## Referencias
+- `docs/implementation-plan.md` — plan técnico completo.
+- `artboard.html` — dirección de arte (paleta y boceto).
+- `vercel.json` — infraestructura multi-service.
 
 ## Stack
 - Backend: FastAPI (Python)
