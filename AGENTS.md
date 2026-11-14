@@ -17,7 +17,8 @@ y evaluar una expedición científica. Experiencia principalmente textual/narrat
 por visualizaciones y pixel art de habitaciones.
 
 **Documentos de referencia obligatorios (leer antes de codear):**
-- `docs/implementation-plan.md` — arquitectura, interdependencias, eventos, evaluación, MVP por fases.
+- `docs/implementation-plan.md` — arquitectura técnica y plan de implementación.
+- `docs/game-design.md` — documento de diseño del juego (experiencia, sistemas, evaluación).
 - `artboard.html` — dirección de arte (paleta, tipografía, boceto de cabina).
 - `vercel.json` — infraestructura de despliegue multi-service.
 
