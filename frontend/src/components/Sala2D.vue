@@ -3,7 +3,10 @@
     <div class="titulo">{{ habitacion.nombre }}</div>
     <div class="escena">
       <div class="puerta izq" v-if="habitacion.puerta_izquierda" @click="emit('mover', habitacion.puerta_izquierda)">◀</div>
-      <div class="personaje" :style="{ left: pos + 'px' }">🧑</div>
+      <div class="personaje" :style="{ left: pos + 'px' }">
+        <span class="px-head"></span>
+        <span class="px-body"></span>
+      </div>
       <div class="terminal" v-if="cerca">
         <p>{{ habitacion.mensaje_terminal }}</p>
         <button @click="emit('interactuar', habitacion.id)">[E] Interactuar</button>
@@ -44,7 +47,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .puerta { position: absolute; top: 24px; color: #FFB000; cursor: pointer; font-size: 20px; }
 .puerta.izq { left: 8px; }
 .puerta.der { right: 8px; }
-.personaje { position: absolute; top: 24px; font-size: 24px; transition: left 0.1s; }
+.personaje { position: absolute; top: 24px; width: 16px; height: 24px; transition: left 0.1s; }
+.px-head { position: absolute; top: 0; left: 4px; width: 8px; height: 8px; background: #F5C84C; border: 1px solid #0B0E1A; }
+.px-body { position: absolute; top: 8px; left: 2px; width: 12px; height: 14px; background: #4FD1C5; border: 1px solid #0B0E1A; }
 .terminal { position: absolute; top: 4px; left: 90px; background: #1B2340; border: 1px solid #3A4666; padding: 6px; border-radius: 4px; font-size: 11px; color: #E8E4D8; max-width: 160px; }
 .terminal button { margin-top: 4px; cursor: pointer; }
 .alerta { margin-top: 8px; padding: 6px; border-radius: 4px; font-size: 12px; }

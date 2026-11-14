@@ -113,3 +113,81 @@ button:disabled {
 .blink-warning {
   animation: pulse-alert 1.6s infinite ease-in-out;
 }
+
+/* === Pulido visual (Dirección A: retrofuturismo de sala de control) === */
+
+body {
+  background:
+    radial-gradient(ellipse at top, #1a2240 0%, #0B0E1A 60%),
+    #0B0E1A;
+  background-attachment: fixed;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.018) 0px,
+    rgba(255, 255, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.panel-box,
+.choice-card,
+.comp-card,
+.event-card {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.choice-card:hover,
+.comp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 12px rgba(79, 209, 197, 0.12);
+}
+
+.brand-title {
+  text-shadow: 0 0 12px rgba(245, 211, 107, 0.35);
+}
+
+.stage-segment.current {
+  box-shadow: 0 0 14px rgba(255, 176, 0, 0.5);
+}
+
+button.btn-primary {
+  box-shadow: 0 0 10px rgba(255, 176, 0, 0.2);
+}
+
+button.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 16px rgba(255, 176, 0, 0.4);
+}
+
+.status-banner {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tech-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Tipografía: suavizar renderizado */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
