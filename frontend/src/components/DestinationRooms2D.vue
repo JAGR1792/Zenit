@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import type { EstadoMision } from '../services/api'
-import PixelSprite, { type AnimacionSprite } from './PixelSprite.vue'
+import PixelSprite, {
+  obtenerSpriteTripulante,
+  type AnimacionSprite,
+} from './PixelSprite.vue'
 
 const props = defineProps<{
   mission: EstadoMision
@@ -60,16 +63,23 @@ const roomCrewMembers = computed(() => {
   )
 })
 
+const pendingDataGb = computed(() => {
+  return Math.max(
+    0,
+    Number((props.mission.datos_generados_gb - props.mission.datos_transmitidos_gb).toFixed(2)),
+  )
+})
+
 function updatePhysicsLoop(): void {
   const left = keysHeld.has('ArrowLeft') || keysHeld.has('a') || keysHeld.has('A')
   const right = keysHeld.has('ArrowRight') || keysHeld.has('d') || keysHeld.has('D')
 
   if (left && !right) {
-    playerX.value = Math.max(8, playerX.value - 0.65)
+    playerX.value = Math.max(8, playerX.value - 0.35)
     facingLeft.value = true
     isMoving.value = true
   } else if (right && !left) {
-    playerX.value = Math.min(92, playerX.value + 0.65)
+    playerX.value = Math.min(92, playerX.value + 0.35)
     facingLeft.value = false
     isMoving.value = true
   } else {
@@ -136,17 +146,18 @@ function triggerInteractionE(): void {
       actionFeedback.value =
         'Telemetría primaria verificada en Cabina de Mando: lecturas exactas de Energía (Wh) y Δv.'
     } else if (currentRoom.value.id === 'laboratorio') {
-      actionFeedback.value = 'Ejecutando campaña de instrumentos científicos en el Laboratorio...'
+      actionFeedback.value =
+        '🔬 Recolectando datos científicos en el Laboratorio... ¡Luego ve a Sala de Sistemas para transmitirlos!'
       emit('runScience')
     } else if (currentRoom.value.id === 'soporte_vital') {
-      actionFeedback.value = 'Regulando soporte vital y estabilizando estado de ánimo...'
+      actionFeedback.value = '☀ Regulando soporte vital y estabilizando estado de ánimo...'
       emit('runCrewTask', 'estabilizar_animo')
     } else {
-      if (props.mission.etapa_actual === 9) {
-        actionFeedback.value = 'Transmitiendo paquete de datos por antena en ventana activa...'
+      if (pendingDataGb.value > 0 || props.mission.etapa_actual === 9) {
+        actionFeedback.value = '📡 Transmitiendo paquete de datos por antena hacia Tierra...'
         emit('useCommWindow')
       } else {
-        actionFeedback.value = 'Mantenimiento preventivo ejecutado en Sala de Sistemas...'
+        actionFeedback.value = '🔧 Mantenimiento preventivo ejecutado en Sala de Sistemas...'
         emit('runCrewTask', 'mantenimiento_general')
       }
     }
@@ -197,6 +208,22 @@ onUnmounted(() => {
         >
           <span class="room-idx">0{{ idx + 1 }}</span>
           <span>{{ room.nombre }}</span>
+          <span
+            v-if="
+              room.id === 'laboratorio' &&
+              mission.etapa_actual >= 7 &&
+              mission.datos_generados_gb === 0
+            "
+            class="step-hint-pill"
+          >
+            🔬 1º Recolectar
+          </span>
+          <span
+            v-if="room.id === 'sala_sistemas' && pendingDataGb > 0"
+            class="step-hint-pill tx-ready"
+          >
+            📡 2º Transmitir ({{ pendingDataGb }} GB)
+          </span>
           <span v-if="room.alerta_activa" class="blink-warning alert-triangle">▲</span>
         </button>
       </div>
@@ -262,9 +289,12 @@ onUnmounted(() => {
         >
           <div v-if="nearCenterStation" class="key-e-floating">
             <template v-if="currentRoom.id === 'cabina_mando'">[E] TELEMETRÍA</template>
-            <template v-else-if="currentRoom.id === 'laboratorio'">[E] INVESTIGAR</template>
-            <template v-else-if="currentRoom.id === 'soporte_vital'">[E] ESTABILIZAR</template>
-            <template v-else>[E] OPERAR SISTEMA</template>
+            <template v-else-if="currentRoom.id === 'laboratorio'">[E] 🔬 RECOLECTAR DATOS</template>
+            <template v-else-if="currentRoom.id === 'soporte_vital'">[E] ☀ ESTABILIZAR ÁNIMO</template>
+            <template v-else-if="pendingDataGb > 0">
+              [E] 📡 TRANSMITIR ({{ pendingDataGb }} GB)
+            </template>
+            <template v-else>[E] 🔧 OPERAR / TRANSMITIR</template>
           </div>
 
           <div class="console-screen">
@@ -305,7 +335,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Especialistas de la tripulación en la sala -->
+        <!-- Perros Especialistas de la tripulación en la sala (ELEMENTOS.zip) -->
         <div
           v-for="(member, idx) in roomCrewMembers"
           :key="member.id"
@@ -313,11 +343,11 @@ onUnmounted(() => {
           :style="{ left: `${npcOffsets[`npc_${idx % 2}`]?.x ?? 34 + idx * 22}%` }"
         >
           <PixelSprite
-            :animacion="isInteracting ? 'gato_hablar' : 'gato_caminar'"
+            :animacion="obtenerSpriteTripulante(member.especialidad, false)"
             :flip-x="(npcOffsets[`npc_${idx % 2}`]?.dir ?? 1) < 0"
-            :width="84"
-            :height="88"
-            :fps="7"
+            :width="78"
+            :height="96"
+            :fps="6"
             :animo="member.estado_animo"
             :etiqueta="`${member.nombre.split(' ')[1] || member.nombre} · ${member.especialidad.toUpperCase()}`"
           />
@@ -340,11 +370,11 @@ onUnmounted(() => {
       <!-- Barra de mando táctil / teclado -->
       <div class="stage-control-strip">
         <div class="dpad-group">
-          <button @click="stepWalk(-14)">◄ Izquierda [A]</button>
+          <button @click="stepWalk(-7)">◄ Izquierda [A]</button>
           <button class="btn-primary" @click="triggerInteractionE">
             [E] Interactuar / Abrir Compuerta
           </button>
-          <button @click="stepWalk(14)">Derecha [D] ►</button>
+          <button @click="stepWalk(7)">Derecha [D] ►</button>
         </div>
         <div class="feedback-line">{{ actionFeedback }}</div>
       </div>
@@ -498,6 +528,22 @@ onUnmounted(() => {
 .alert-triangle {
   color: var(--orange);
   font-size: 10px;
+}
+
+.step-hint-pill {
+  background: rgba(79, 209, 197, 0.18);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.step-hint-pill.tx-ready {
+  background: rgba(255, 176, 0, 0.22);
+  border-color: var(--amber);
+  color: var(--gold);
 }
 
 .pixel-stage-canvas {

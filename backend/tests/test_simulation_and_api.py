@@ -8,6 +8,7 @@ from app.schemas.mission import (
     CrearMisionRequest,
     DecisionRequest,
     DestinoId,
+    DificultadId,
     EstadoAnimo,
 )
 from app.services.mission_service import (
@@ -241,3 +242,36 @@ def test_flujo_completo_mision_api_rest() -> None:
     report = res_report.json()
     assert report["numero_final"] in (1, 2, 3, 4, 5)
     assert len(report["dimensiones"]) == 7
+
+
+def test_modo_facil_otorga_margen_presupuesto_e_instrumento_inicial() -> None:
+    """Verifica que la dificultad fácil otorgue mayor presupuesto, límite de masa y espectrómetro preinstalado."""
+    mision_facil = crear_nueva_mision(
+        CrearMisionRequest(
+            nombre_mision="Zenit Cadete",
+            destino=DestinoId.OTB,
+            dificultad=DificultadId.FACIL,
+            acuerdo_financiacion_id="estandar",
+        )
+    )
+    mision_normal = crear_nueva_mision(
+        CrearMisionRequest(
+            nombre_mision="Zenit Normal",
+            destino=DestinoId.OTB,
+            dificultad=DificultadId.NORMAL,
+            acuerdo_financiacion_id="estandar",
+        )
+    )
+    assert mision_facil.presupuesto_inicial_usd > mision_normal.presupuesto_inicial_usd
+    assert mision_facil.masa_lanzamiento_max_kg > mision_normal.masa_lanzamiento_max_kg
+    assert "inst_espectrometro" in mision_facil.componentes_instalados
+
+    # Si intenta transmitir antes de recolectar datos, no pierde ventanas de comunicación
+    ventanas_antes = mision_facil.ventanas_comm_restantes
+    res_tx = procesar_decision_mision(
+        mision_facil.id,
+        DecisionRequest(stage=7, decision="usar_ventana_comm", params={}),
+    )
+    assert res_tx is not None
+    assert res_tx.mission_state.ventanas_comm_restantes == ventanas_antes
+

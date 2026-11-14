@@ -8,6 +8,7 @@ from app.schemas.mission import (
     CategoriaComponente,
     ComponenteCatalogo,
     DestinoId,
+    DificultadId,
     EstadoAnimo,
     EstadoMision,
     TripulanteEstado,
@@ -269,6 +270,11 @@ def recalcular_subsistemas_mision(estado: EstadoMision) -> EstadoMision:
         destino=estado.destino,
         rendimiento_energia=estado.rendimiento_subsistemas.get("energia", 1.0),
     )
+    if estado.dificultad == DificultadId.FACIL:
+        cap_wh = round(cap_wh + 800.0, 1)
+        gen_w = round(gen_w + 80.0, 1)
+        bal_w = round(gen_w - cons_w, 1)
+
     estado.generacion_w = gen_w
     estado.consumo_w = cons_w
     estado.balance_potencia_w = bal_w
@@ -286,8 +292,9 @@ def recalcular_subsistemas_mision(estado: EstadoMision) -> EstadoMision:
             num_tripulantes=num_vivos,
             rendimiento_eclss=estado.rendimiento_subsistemas.get("soporte_vital", 1.0),
         )
-        estado.o2_dias_disponibles = o2_d
-        estado.comida_dias_disponibles = comida_d
+        bonus_vital = 6.0 if estado.dificultad == DificultadId.FACIL else 0.0
+        estado.o2_dias_disponibles = round(o2_d + bonus_vital, 1)
+        estado.comida_dias_disponibles = round(comida_d + bonus_vital, 1)
 
     # Telecomunicaciones y Robot
     tasa_kbps = 0.0
@@ -315,8 +322,12 @@ def recalcular_subsistemas_mision(estado: EstadoMision) -> EstadoMision:
     estado.tasa_transmision_kbps = round(tasa_kbps * rend_antena, 1)
     estado.ventanas_comm_por_dia = ventanas
     if estado.etapa_actual <= 4:
-        estado.ventanas_comm_restantes = ventanas * max(1, estado.dias_en_destino)
-    estado.probabilidad_enlace_comm = round(prob_enlace * rend_antena, 2)
+        bonus_ventanas = 3 if estado.dificultad == DificultadId.FACIL else 0
+        estado.ventanas_comm_restantes = ventanas * max(1, estado.dias_en_destino) + bonus_ventanas
+    estado.probabilidad_enlace_comm = round(
+        min(0.99, prob_enlace * rend_antena + (0.08 if estado.dificultad == DificultadId.FACIL else 0.0)),
+        2,
+    )
     estado.tiene_robot_autonomo = tiene_robot
 
     # Rendimiento determinista del equipo

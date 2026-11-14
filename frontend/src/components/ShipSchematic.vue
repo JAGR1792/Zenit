@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ComponenteCatalogo, EstadoMision } from '../services/api'
-import PixelSprite from './PixelSprite.vue'
+import PixelSprite, { obtenerSpriteTripulante } from './PixelSprite.vue'
 
 const props = defineProps<{
   mission: EstadoMision
@@ -189,9 +189,9 @@ const moodColor = (mood: string): string => {
       <div v-for="member in mission.tripulacion" :key="member.id" class="crew-card">
         <div class="crew-sprite-row">
           <PixelSprite
-            :animacion="member.es_jugador ? 'perro_caminar' : 'gato_hablar'"
+            :animacion="obtenerSpriteTripulante(member.especialidad, member.es_jugador)"
             :width="64"
-            :height="64"
+            :height="76"
             :fps="7"
             :animo="member.estado_animo"
           />

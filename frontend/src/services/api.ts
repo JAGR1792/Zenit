@@ -3,6 +3,7 @@
  */
 
 export type DestinoId = 'OTB' | 'LUNA'
+export type DificultadId = 'facil' | 'normal' | 'dificil'
 export type EstadoAnimo = 'sol' | 'nube' | 'lluvia'
 export type CategoriaComponente =
   | 'motor'
@@ -132,6 +133,7 @@ export interface EstadoMision {
   nombre_etapa: string
   estado_juego: 'en_curso' | 'completada' | 'fallo_inmediato' | 'perdida_mision'
   causa_fallo: string | null
+  dificultad: DificultadId
   destino: DestinoId
   acuerdo_financiacion_id: string
   presupuesto_inicial_usd: number
@@ -251,6 +253,7 @@ export const zenitApi = {
   createMission(payload: {
     nombre_mision: string
     destino: DestinoId
+    dificultad?: DificultadId
     acuerdo_financiacion_id: string
     especialidad_director: string
   }): Promise<EstadoMision> {

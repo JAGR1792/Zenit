@@ -17,6 +17,7 @@ from app.schemas.mission import (
     CrearMisionRequest,
     DecisionRequest,
     DecisionResponse,
+    DificultadId,
     EstadoAnimo,
     EstadoMision,
     EventoMision,
@@ -56,7 +57,17 @@ def crear_nueva_mision(req: CrearMisionRequest) -> EstadoMision:
     """
     acuerdos = {a["id"]: a for a in ACUERDOS_FINANCIACION}
     acuerdo = acuerdos.get(req.acuerdo_financiacion_id, ACUERDOS_FINANCIACION[1])
-    presupuesto_inicial = float(acuerdo["presupuesto_usd"])
+    factor_presupuesto = (
+        1.35
+        if req.dificultad == DificultadId.FACIL
+        else (0.90 if req.dificultad == DificultadId.DIFICIL else 1.0)
+    )
+    presupuesto_inicial = round(float(acuerdo["presupuesto_usd"]) * factor_presupuesto, 0)
+    masa_max_lanzador = (
+        1480.0
+        if req.dificultad == DificultadId.FACIL
+        else (1280.0 if req.dificultad == DificultadId.DIFICIL else 1300.0)
+    )
 
     director = TripulanteEstado(
         id="crew_director",
@@ -81,20 +92,26 @@ def crear_nueva_mision(req: CrearMisionRequest) -> EstadoMision:
     catalogo_map = {c.id: c for c in COMPONENTES_CATALOGO}
     costo_base = sum(catalogo_map[cid].costo_usd for cid in componentes_base)
 
+    # En dificultad Fácil incluimos el Espectrómetro de Masas preinstalado sin sobrecoste inicial
+    if req.dificultad == DificultadId.FACIL:
+        componentes_base.append("inst_espectrometro")
+
     estado = EstadoMision(
         id=f"zenit-{uuid.uuid4().hex[:8]}",
         nombre_mision=req.nombre_mision,
         etapa_actual=1,
         nombre_etapa=NOMBRES_ETAPAS[1],
+        dificultad=req.dificultad,
         destino=req.destino,
         acuerdo_financiacion_id=acuerdo["id"],
         presupuesto_inicial_usd=presupuesto_inicial,
         presupuesto_restante_usd=round(presupuesto_inicial - costo_base, 2),
+        masa_lanzamiento_max_kg=masa_max_lanzador,
         componentes_instalados=componentes_base,
         tripulacion=[director],
         habitaciones_2d=construir_habitaciones_iniciales(),
         bitacora_decisiones=[
-            f"Misión '{req.nombre_mision}' iniciada con destino {req.destino.value} y presupuesto {presupuesto_inicial:,.0f} USD."
+            f"Misión '{req.nombre_mision}' iniciada en modo '{req.dificultad.value.upper()}' con destino {req.destino.value} y presupuesto {presupuesto_inicial:,.0f} USD."
         ],
     )
     recalcular_subsistemas_mision(estado)

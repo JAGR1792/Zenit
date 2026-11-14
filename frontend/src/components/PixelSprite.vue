@@ -1,13 +1,40 @@
-<script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-
+<script lang="ts">
 export type AnimacionSprite =
   | 'perro_idle'
   | 'perro_caminar'
   | 'perro_interactuar'
+  | 'perro_cientifico'
+  | 'perro_ingeniero'
+  | 'perro_medico'
+  | 'perro_comunicaciones'
   | 'gato_idle'
   | 'gato_caminar'
   | 'gato_hablar'
+
+/**
+ * Devuelve el sprite de perro correspondiente a cada miembro de la tripulación.
+ * Regla de diseño de Zenit: Los perros son SIEMPRE la tripulación; el gato es SIEMPRE el Jefe.
+ */
+export function obtenerSpriteTripulante(
+  especialidad: string,
+  esJugador = false,
+): AnimacionSprite {
+  if (esJugador) return 'perro_caminar'
+  if (especialidad === 'geologia' || especialidad === 'astrobiologia') {
+    return 'perro_cientifico'
+  }
+  if (especialidad === 'ingenieria') {
+    return 'perro_ingeniero'
+  }
+  if (especialidad === 'medicina') {
+    return 'perro_medico'
+  }
+  return 'perro_comunicaciones'
+}
+</script>
+
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -37,7 +64,7 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 let timerId: number | null = null
 let frameIndex = 0
 
-// Caché de los 8 frames individuales del perro extraídos de PERRO1.zip
+// Caché de los 8 frames del Perro Director con casco (PERRO1.zip)
 const RUTAS_PERRO_DER = [
   '/sprites/perro/PerroDer1.png',
   '/sprites/perro/PerroDer2.png',
@@ -51,13 +78,45 @@ const RUTAS_PERRO_IZQ = [
   '/sprites/perro/PerroIzq4.png',
 ]
 
+// Caché de los Perros Especialistas de la Tripulación (ELEMENTOS.zip)
+const RUTAS_ESPECIALISTAS: Record<string, { der: string; izq: string }> = {
+  perro_cientifico: {
+    der: '/sprites/elementos/PerroC.png',
+    izq: '/sprites/elementos/PerroC_Izq.png',
+  },
+  perro_ingeniero: {
+    der: '/sprites/elementos/PerroI.png',
+    izq: '/sprites/elementos/PerroI_Izq.png',
+  },
+  perro_medico: {
+    der: '/sprites/elementos/PerroD.png',
+    izq: '/sprites/elementos/PerroD_Izq.png',
+  },
+  perro_comunicaciones: {
+    der: '/sprites/elementos/PerroCom.png',
+    izq: '/sprites/elementos/PerroCom_Izq.png',
+  },
+}
+
 let framesPerroDer: HTMLCanvasElement[] = []
 let framesPerroIzq: HTMLCanvasElement[] = []
-let processedCatSheet: HTMLCanvasElement | null = null
+const cacheEspecialistas: Record<
+  string,
+  { der: HTMLCanvasElement | null; izq: HTMLCanvasElement | null }
+> = {}
+let processedCatBossSheet: HTMLCanvasElement | null = null
 let assetsPromise: Promise<void> | null = null
 
-const COLS = 6
-const ROWS = 4
+// GATO.jpeg es una hoja de 3 columnas x 2 filas del Gato Jefe en traje ejecutivo
+const CAT_BOSS_COLS = 3
+const CAT_BOSS_ROWS = 2
+
+const rutaIconoAnimo = computed(() => {
+  if (!props.animo) return null
+  if (props.animo === 'sol') return '/sprites/elementos/Sol.png'
+  if (props.animo === 'nube') return '/sprites/elementos/Nube.png'
+  return '/sprites/elementos/Lluvia.png'
+})
 
 function limpiarFondoBlancoCanvas(img: HTMLImageElement): HTMLCanvasElement {
   const off = document.createElement('canvas')
@@ -75,10 +134,10 @@ function limpiarFondoBlancoCanvas(img: HTMLImageElement): HTMLCanvasElement {
       const g = data[i + 1]
       const b = data[i + 2]
       const a = data[i + 3]
-      if (a > 0 && r > 240 && g > 240 && b > 236) {
+      if (a > 0 && r > 238 && g > 238 && b > 234) {
         data[i + 3] = 0
-      } else if (a > 0 && r > 228 && g > 228 && b > 224) {
-        data[i + 3] = 55
+      } else if (a > 0 && r > 224 && g > 224 && b > 220) {
+        data[i + 3] = 45
       }
     }
     ctx.putImageData(imgData, 0, 0)
@@ -105,20 +164,54 @@ function cargarImagen(src: string): Promise<HTMLCanvasElement | null> {
 function inicializarAssetsSprites(): Promise<void> {
   if (assetsPromise) return assetsPromise
   assetsPromise = (async () => {
-    const [der, izq, catSheet] = await Promise.all([
+    const promesasEspecialistas = Object.entries(RUTAS_ESPECIALISTAS).map(
+      async ([key, rutas]) => {
+        const [derCanvas, izqCanvas] = await Promise.all([
+          cargarImagen(rutas.der),
+          cargarImagen(rutas.izq),
+        ])
+        cacheEspecialistas[key] = { der: derCanvas, izq: izqCanvas }
+      },
+    )
+
+    const [der, izq, catBoss] = await Promise.all([
       Promise.all(RUTAS_PERRO_DER.map(cargarImagen)),
       Promise.all(RUTAS_PERRO_IZQ.map(cargarImagen)),
-      cargarImagen('/sprites/Sprites1.jpg'),
+      cargarImagen('/sprites/GATO.jpeg'),
+      ...promesasEspecialistas,
     ])
     framesPerroDer = der.filter((c): c is HTMLCanvasElement => c !== null)
     framesPerroIzq = izq.filter((c): c is HTMLCanvasElement => c !== null)
-    processedCatSheet = catSheet
+    processedCatBossSheet = catBoss
   })()
   return assetsPromise
 }
 
-function esAnimacionPerro(anim: AnimacionSprite): boolean {
+function esAnimacionPerroDirector(anim: AnimacionSprite): boolean {
   return anim === 'perro_idle' || anim === 'perro_caminar' || anim === 'perro_interactuar'
+}
+
+function esAnimacionPerroEspecialista(anim: AnimacionSprite): boolean {
+  return (
+    anim === 'perro_cientifico' ||
+    anim === 'perro_ingeniero' ||
+    anim === 'perro_medico' ||
+    anim === 'perro_comunicaciones'
+  )
+}
+
+function dibujarCanvasCentrado(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  source: HTMLCanvasElement,
+  bobOffsetY = 0,
+): void {
+  const scale = Math.min(canvas.width / source.width, (canvas.height - 4) / source.height)
+  const dw = Math.round(source.width * scale)
+  const dh = Math.round(source.height * scale)
+  const dx = Math.round((canvas.width - dw) / 2)
+  const dy = Math.round(canvas.height - dh + bobOffsetY)
+  ctx.drawImage(source, 0, 0, source.width, source.height, dx, dy, dw, dh)
 }
 
 function dibujarFrame(): void {
@@ -130,8 +223,8 @@ function dibujarFrame(): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.imageSmoothingEnabled = false
 
-  // 1. Renderizar Perro Astronauta usando los PNG dedicados de PERRO1.zip (PerroDer1..4 y PerroIzq1..4)
-  if (esAnimacionPerro(props.animacion)) {
+  // 1. Perro Astronauta del Director (PERRO1.zip: PerroDer1..4 y PerroIzq1..4)
+  if (esAnimacionPerroDirector(props.animacion)) {
     const banco = props.flipX ? framesPerroIzq : framesPerroDer
     if (banco.length > 0) {
       let idx = 0
@@ -143,46 +236,64 @@ function dibujarFrame(): void {
       } else {
         idx = 0
       }
-      const frameCanvas = banco[idx]
-      // Conservar proporción original (~130x166) centrada en el canvas
-      const scale = Math.min(canvas.width / frameCanvas.width, canvas.height / frameCanvas.height)
-      const dw = Math.round(frameCanvas.width * scale)
-      const dh = Math.round(frameCanvas.height * scale)
-      const dx = Math.round((canvas.width - dw) / 2)
-      const dy = Math.round(canvas.height - dh)
-      ctx.drawImage(frameCanvas, 0, 0, frameCanvas.width, frameCanvas.height, dx, dy, dw, dh)
+      dibujarCanvasCentrado(ctx, canvas, banco[idx])
       return
     }
   }
 
-  // 2. Renderizar Gato Especialista / Jefe desde Sprites1.jpg
-  if (!processedCatSheet) return
-  const row = props.animacion === 'gato_caminar' ? 2 : 3
+  // 2. Perros Especialistas de la Tripulación (ELEMENTOS.zip: Científico, Ingeniero, Médico, Comunicaciones)
+  if (esAnimacionPerroEspecialista(props.animacion)) {
+    const par = cacheEspecialistas[props.animacion]
+    const spriteCanvas = props.flipX ? par?.izq : par?.der
+    if (spriteCanvas) {
+      const bobY = props.animar ? (frameIndex % 2 === 0 ? 0 : -2) : 0
+      dibujarCanvasCentrado(ctx, canvas, spriteCanvas, bobY)
+      return
+    }
+  }
+
+  // 3. Gato Jefe (SIEMPRE y EXCLUSIVAMENTE el Jefe, desde GATO.jpeg 3x2)
+  if (!processedCatBossSheet) return
+  const row = props.animacion === 'gato_caminar' ? 0 : 1
   const frames =
     props.animacion === 'gato_caminar'
-      ? [0, 1, 2, 3, 4, 5]
+      ? [0, 1, 2, 1]
       : props.animacion === 'gato_hablar'
-        ? [1, 2, 3, 4, 5]
+        ? [0, 1, 2, 1]
         : [0, 1]
   const col = frames[frameIndex % frames.length]
 
-  const cellW = processedCatSheet.width / COLS
-  const cellH = processedCatSheet.height / ROWS
+  const cellW = processedCatBossSheet.width / CAT_BOSS_COLS
+  const cellH = processedCatBossSheet.height / CAT_BOSS_ROWS
   const sx = col * cellW
   const sy = row * cellH
+
+  // Recorte con ligero margen interno para evitar bordes entre celdas
+  const padX = cellW * 0.04
+  const padY = cellH * 0.03
 
   ctx.save()
   if (props.flipX) {
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
   }
-  ctx.drawImage(processedCatSheet, sx, sy, cellW, cellH, 0, 0, canvas.width, canvas.height)
+  ctx.drawImage(
+    processedCatBossSheet,
+    sx + padX,
+    sy + padY,
+    cellW - padX * 2,
+    cellH - padY * 2,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  )
   ctx.restore()
 }
 
 function iniciarBucleAnimacion(): void {
   if (timerId !== null) window.clearInterval(timerId)
-  const intervalMs = Math.max(70, Math.round(1000 / props.fps))
+  const intervalMs = Math.max(90, Math.round(1000 / props.fps))
   timerId = window.setInterval(() => {
     frameIndex = (frameIndex + 1) % 12
     dibujarFrame()
@@ -200,10 +311,8 @@ watch(
 watch(
   () => props.paso,
   () => {
-    if (props.animacion === 'perro_caminar' || props.animacion === 'gato_caminar') {
-      frameIndex = (frameIndex + 1) % 6
-      dibujarFrame()
-    }
+    frameIndex = (frameIndex + 1) % 6
+    dibujarFrame()
   },
 )
 
@@ -211,7 +320,10 @@ watch(
   () => props.animar,
   (v) => {
     if (v) iniciarBucleAnimacion()
-    else if (timerId !== null) { window.clearInterval(timerId); timerId = null }
+    else if (timerId !== null) {
+      window.clearInterval(timerId)
+      timerId = null
+    }
   },
 )
 
@@ -228,11 +340,9 @@ onUnmounted(() => {
 
 <template>
   <div class="pixel-sprite-container" :style="{ width: `${width}px` }">
-    <!-- Efecto de estado de ánimo flotante sobre la cabeza (Sol, Nube, Lluvia) -->
-    <div v-if="animo" class="animo-widget" :class="`animo-${animo}`">
-      <span v-if="animo === 'sol'" class="animo-icon">☀</span>
-      <span v-else-if="animo === 'nube'" class="animo-icon">☁</span>
-      <span v-else class="animo-icon">🌧</span>
+    <!-- Efecto de estado de ánimo en Pixel Art oficial (Sol.png, Nube.png, Lluvia.png) -->
+    <div v-if="animo && rutaIconoAnimo" class="animo-widget" :class="`animo-${animo}`">
+      <img :src="rutaIconoAnimo" :alt="`Estado de ánimo: ${animo}`" class="animo-pixel-img" />
     </div>
 
     <canvas
@@ -264,14 +374,24 @@ onUnmounted(() => {
 
 .animo-widget {
   position: absolute;
-  top: -18px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 13px;
-  background: rgba(11, 14, 26, 0.85);
+  top: -22px;
+  padding: 2px 5px;
+  border-radius: 8px;
+  background: rgba(11, 14, 26, 0.88);
   border: 1px solid var(--steel);
   animation: float-bob 1.5s infinite ease-in-out;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.animo-pixel-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: block;
 }
 
 .animo-sol {
@@ -291,7 +411,7 @@ onUnmounted(() => {
 .sprite-nameplate {
   margin-top: -2px;
   padding: 1px 6px;
-  background: rgba(11, 14, 26, 0.88);
+  background: rgba(11, 14, 26, 0.9);
   border: 1px solid var(--steel);
   border-radius: 3px;
   font-size: 9px;

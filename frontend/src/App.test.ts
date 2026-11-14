@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { obtenerSpriteTripulante } from './components/PixelSprite.vue'
 import ShipSchematic from './components/ShipSchematic.vue'
 import type { ComponenteCatalogo, EstadoMision } from './services/api'
 
 describe('Esquemático y componentes visuales de Zenit', () => {
+  it('asigna siempre sprites de perro a toda la tripulación según su especialidad', () => {
+    expect(obtenerSpriteTripulante('comando', true)).toBe('perro_caminar')
+    expect(obtenerSpriteTripulante('geologia', false)).toBe('perro_cientifico')
+    expect(obtenerSpriteTripulante('astrobiologia', false)).toBe('perro_cientifico')
+    expect(obtenerSpriteTripulante('ingenieria', false)).toBe('perro_ingeniero')
+    expect(obtenerSpriteTripulante('medicina', false)).toBe('perro_medico')
+    expect(obtenerSpriteTripulante('comando', false)).toBe('perro_comunicaciones')
+  })
+
   it('renderiza el esquemático de la nave y el estado de ánimo de la tripulación', () => {
     const misionMock: EstadoMision = {
       id: 'zenit-test',
@@ -12,6 +22,7 @@ describe('Esquemático y componentes visuales de Zenit', () => {
       nombre_etapa: '3. Diseño de la nave y selección de personal',
       estado_juego: 'en_curso',
       causa_fallo: null,
+      dificultad: 'facil',
       destino: 'OTB',
       acuerdo_financiacion_id: 'estandar',
       presupuesto_inicial_usd: 125000,

@@ -8,6 +8,7 @@ from app.repositories.seed import COMPONENTES_CATALOGO
 from app.schemas.mission import (
     CategoriaComponente,
     DestinoId,
+    DificultadId,
     EstadoAnimo,
     EstadoMision,
     EventoMision,
@@ -34,14 +35,19 @@ def actualizar_estados_animo_aleatorios(
 
     # Presión por aislamiento (ej. misión en solitario o con baja dotación) o déficit de recursos
     presion_aislamiento = (
-        0.28 if len(vivos) == 1 else (0.12 if len(vivos) == 2 else 0.05)
+        0.22 if len(vivos) == 1 else (0.10 if len(vivos) == 2 else 0.04)
     )
     presion_recursos = (
-        0.22
+        0.20
         if (estado.balance_potencia_w < 0 or estado.o2_dias_disponibles < 3.0)
         else 0.0
     )
-    prob_deterioro = min(0.75, 0.14 + presion_aislamiento + presion_recursos)
+    base_deterioro = (
+        0.06
+        if estado.dificultad == DificultadId.FACIL
+        else (0.18 if estado.dificultad == DificultadId.DIFICIL else 0.12)
+    )
+    prob_deterioro = min(0.70, base_deterioro + presion_aislamiento + presion_recursos)
 
     for miembro in vivos:
         if len(vivos) == 1:

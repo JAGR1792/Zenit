@@ -15,6 +15,7 @@ from app.schemas.mission import (
     CambioVariable,
     CategoriaComponente,
     DestinoId,
+    DificultadId,
     EstadoAnimo,
     EstadoMision,
 )
@@ -155,16 +156,22 @@ def aplicar_decision(
     elif decision == "seleccionar_financiacion":
         acuerdo_id = params["acuerdo_id"]
         acuerdo = next(a for a in ACUERDOS_FINANCIACION if a["id"] == acuerdo_id)
+        factor_pres = (
+            1.35
+            if estado.dificultad == DificultadId.FACIL
+            else (0.90 if estado.dificultad == DificultadId.DIFICIL else 1.0)
+        )
+        nuevo_inicial = round(float(acuerdo["presupuesto_usd"]) * factor_pres, 0)
         gasto_acumulado = (
             estado.presupuesto_inicial_usd - estado.presupuesto_restante_usd
         )
         estado.acuerdo_financiacion_id = acuerdo_id
-        estado.presupuesto_inicial_usd = acuerdo["presupuesto_usd"]
+        estado.presupuesto_inicial_usd = nuevo_inicial
         estado.presupuesto_restante_usd = max(
-            0.0, acuerdo["presupuesto_usd"] - gasto_acumulado
+            0.0, round(nuevo_inicial - gasto_acumulado, 2)
         )
         recalcular_subsistemas_mision(estado)
-        resumen = f"Acuerdo '{acuerdo['nombre']}' firmado. Presupuesto global: {acuerdo['presupuesto_usd']:,.0f} USD."
+        resumen = f"Acuerdo '{acuerdo['nombre']}' firmado. Presupuesto global ajustado: {nuevo_inicial:,.0f} USD."
         estado.bitacora_decisiones.append(resumen)
 
     elif decision == "instalar_componente":
@@ -261,7 +268,7 @@ def aplicar_decision(
             resumen = f"[Tecla E] Compuerta abierta. Te has desplazado a: {nombre_hab}."
 
     elif decision == "operacion_cientifica":
-        # Etapa 7: Ejecutar campaña científica con los instrumentos instalados
+        # Etapa 7+: Ejecutar campaña científica con los instrumentos instalados (o sensores base si no compró extras)
         instrumentos = [
             catalogo[cid]
             for cid in estado.componentes_instalados
@@ -270,7 +277,34 @@ def aplicar_decision(
             in (CategoriaComponente.INSTRUMENTO, CategoriaComponente.ROBOT)
         ]
         if not instrumentos:
-            resumen = "No hay instrumentos científicos ni sondas instalados para recolectar datos."
+            # Sensores orbitales base integrados en el laboratorio para que el jugador nunca quede bloqueado con 0 GB
+            _, cal_base = calcular_rendimiento_tripulacion(
+                estado.tripulacion,
+                especialidad_requerida=None,
+                es_tarea_comun=True,
+            )
+            rend_sub = estado.rendimiento_subsistemas.get("cientifico", 1.0)
+            puntos_totales = round(14.0 * cal_base * rend_sub, 1)
+            datos_totales = round(2.4 * rend_sub, 2)
+            energia_consumida = 90.0
+            estado.puntos_ciencia_generados = round(
+                estado.puntos_ciencia_generados + puntos_totales, 1
+            )
+            estado.datos_generados_gb = round(
+                estado.datos_generados_gb + datos_totales, 2
+            )
+            estado.bateria_actual_wh = round(
+                max(0.0, estado.bateria_actual_wh - energia_consumida), 1
+            )
+            estado.calidad_datos_promedio = round(
+                min(100.0, estado.calidad_tarea_equipo * 88.0), 1
+            )
+            resumen = (
+                f"Campaña ejecutada con Sensores Base del Laboratorio: +{puntos_totales:.1f} pts de ciencia, "
+                f"+{datos_totales:.2f} GB en memoria (-{energia_consumida:.0f} Wh). "
+                "Ahora puedes transmitirlos a Tierra con la antena."
+            )
+            estado.bitacora_decisiones.append(resumen)
         else:
             puntos_totales = 0.0
             datos_totales = 0.0
@@ -294,7 +328,7 @@ def aplicar_decision(
                 )
                 puntos_totales += pts
                 datos_totales += gb
-                energia_consumida += inst.consumo_w * 1.5
+                energia_consumida += inst.consumo_w * 1.2
 
             estado.puntos_ciencia_generados = round(
                 estado.puntos_ciencia_generados + puntos_totales, 1
@@ -306,9 +340,9 @@ def aplicar_decision(
                 max(0.0, estado.bateria_actual_wh - energia_consumida), 1
             )
             estado.calidad_datos_promedio = round(
-                min(100.0, estado.calidad_tarea_equipo * 90.0), 1
+                min(100.0, estado.calidad_tarea_equipo * 92.0), 1
             )
-            if estado.datos_generados_gb > (estado.ventanas_comm_restantes * 2.5):
+            if estado.datos_generados_gb > (estado.ventanas_comm_restantes * 3.0):
                 if (
                     "exceso_datos_cuello_botella"
                     not in estado.banderas_penalizacion_diferida
@@ -318,7 +352,8 @@ def aplicar_decision(
                     )
             resumen = (
                 f"Operación en Laboratorio completada: +{puntos_totales:.1f} pts de ciencia, "
-                f"+{datos_totales:.1f} GB de datos almacenados (-{energia_consumida:.0f} Wh de batería)."
+                f"+{datos_totales:.1f} GB de datos almacenados (-{energia_consumida:.0f} Wh). "
+                "¡Listos para transmitir a Tierra!"
             )
             estado.bitacora_decisiones.append(resumen)
 
@@ -358,35 +393,49 @@ def aplicar_decision(
         estado.bitacora_decisiones.append(resumen)
 
     elif decision == "usar_ventana_comm":
-        # Etapa 9: Transmitir datos científicos a Tierra
-        if estado.ventanas_comm_restantes <= 0:
+        # Etapa 7 a 9: Transmitir datos científicos a Tierra
+        pendientes = round(
+            max(0.0, estado.datos_generados_gb - estado.datos_transmitidos_gb), 2
+        )
+        if estado.datos_generados_gb <= 0:
+            resumen = (
+                "Aún no tienes datos científicos en memoria (0 GB). "
+                "Paso 1: Pulsa '🔬 Recolectar Datos en Laboratorio' (o usa [E] en el Laboratorio) antes de transmitir."
+            )
+        elif pendientes <= 0:
+            resumen = (
+                f"¡Todos los datos en memoria ({estado.datos_transmitidos_gb} GB) ya fueron transmitidos a Tierra! "
+                "No se consumió ninguna ventana adicional."
+            )
+        elif estado.ventanas_comm_restantes <= 0:
             resumen = (
                 "No quedan ventanas de comunicación disponibles en esta órbita/ciclo."
             )
-        elif estado.bateria_actual_wh < 90.0:
+        elif estado.bateria_actual_wh < 80.0:
             resumen = "Energía en baterías insuficiente para alimentar el amplificador de transmisión."
         else:
             estado.ventanas_comm_restantes -= 1
             estado.bateria_actual_wh = round(
-                max(0.0, estado.bateria_actual_wh - 120.0), 1
+                max(0.0, estado.bateria_actual_wh - 100.0), 1
             )
-            # Capacidad por ventana según tasa_transmision_kbps (~1 GB por cada 1000 kbps por ventana)
-            gb_por_ventana = round(
-                (estado.tasa_transmision_kbps / 1000.0)
-                * estado.probabilidad_enlace_comm
-                * 1.4,
-                2,
-            )
-            pendientes = max(
-                0.0, estado.datos_generados_gb - estado.datos_transmitidos_gb
+            # Capacidad por ventana calibrada para transmitir de forma clara y fluida
+            gb_por_ventana = max(
+                2.5,
+                round(
+                    (estado.tasa_transmision_kbps / 1000.0)
+                    * estado.probabilidad_enlace_comm
+                    * 2.2,
+                    2,
+                ),
             )
             transmitido_ahora = round(min(pendientes, gb_por_ventana), 2)
             estado.datos_transmitidos_gb = round(
                 estado.datos_transmitidos_gb + transmitido_ahora, 2
             )
             resumen = (
-                f"Ventana de comunicación ejecutada (Prob. enlace: {estado.probabilidad_enlace_comm * 100:.0f}%): "
-                f"{transmitido_ahora} GB transmitidos a Tierra ({estado.datos_transmitidos_gb}/{estado.datos_generados_gb} GB totales)."
+                f"📡 Transmisión exitosa a Tierra: +{transmitido_ahora} GB enviados "
+                f"(Total transmitido: {estado.datos_transmitidos_gb} / {estado.datos_generados_gb} GB · "
+                f"Quedan {estado.ventanas_comm_restantes} ventanas)."
             )
             estado.bitacora_decisiones.append(resumen)
 
@@ -566,8 +615,11 @@ def avanzar_etapa_mision(
         estado.comida_dias_disponibles = round(
             max(0.0, estado.comida_dias_disponibles - estado.dias_transito), 1
         )
-        # Coste operativo en tiempo real durante el tránsito
-        costo_ops_transito = estado.dias_transito * 1200.0
+        # Coste operativo en tiempo real durante el tránsito (reducido en modo Fácil)
+        tarifa_dia_transito = (
+            600.0 if estado.dificultad == DificultadId.FACIL else 1100.0
+        )
+        costo_ops_transito = estado.dias_transito * tarifa_dia_transito
         estado.presupuesto_restante_usd = round(
             max(0.0, estado.presupuesto_restante_usd - costo_ops_transito), 2
         )
@@ -579,14 +631,20 @@ def avanzar_etapa_mision(
     elif estado.etapa_actual in (7, 8, 9):
         # Coste diario operativo y degradación progresiva si faltan recursos operativos
         estado.dias_transcurridos += 1
+        consumo_diario_vital = (
+            0.7 if estado.dificultad == DificultadId.FACIL else 1.0
+        )
         estado.o2_dias_disponibles = round(
-            max(0.0, estado.o2_dias_disponibles - 1.0), 1
+            max(0.0, estado.o2_dias_disponibles - consumo_diario_vital), 1
         )
         estado.comida_dias_disponibles = round(
-            max(0.0, estado.comida_dias_disponibles - 1.0), 1
+            max(0.0, estado.comida_dias_disponibles - consumo_diario_vital), 1
+        )
+        costo_diario_ops = (
+            450.0 if estado.dificultad == DificultadId.FACIL else 850.0
         )
         estado.presupuesto_restante_usd = round(
-            max(0.0, estado.presupuesto_restante_usd - 900.0), 2
+            max(0.0, estado.presupuesto_restante_usd - costo_diario_ops), 2
         )
 
         if estado.balance_potencia_w < 0:

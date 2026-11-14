@@ -14,6 +14,14 @@ class DestinoId(str, Enum):
     LUNA = "LUNA"
 
 
+class DificultadId(str, Enum):
+    """Niveles de dificultad para equilibrar el aprendizaje y el margen operativo."""
+
+    FACIL = "facil"
+    NORMAL = "normal"
+    DIFICIL = "dificil"
+
+
 class EstadoAnimo(str, Enum):
     """Estados de ánimo visibles sobre cada tripulante."""
 
@@ -229,7 +237,8 @@ class EstadoMision(BaseModel):
     ] = "en_curso"
     causa_fallo: str | None = None
 
-    # Etapa 1 y 2: Destino y Financiación
+    # Etapa 1 y 2: Destino, Dificultad y Financiación
+    dificultad: DificultadId = DificultadId.NORMAL
     destino: DestinoId = DestinoId.OTB
     acuerdo_financiacion_id: str = "estandar"
     presupuesto_inicial_usd: float = 120000.0
@@ -308,6 +317,7 @@ class CrearMisionRequest(BaseModel):
 
     nombre_mision: str = "Expedición Zenit-1"
     destino: DestinoId = DestinoId.OTB
+    dificultad: DificultadId = DificultadId.NORMAL
     acuerdo_financiacion_id: str = "estandar"
     especialidad_director: Literal[
         "ingenieria", "geologia", "astrobiologia", "medicina", "comando"
