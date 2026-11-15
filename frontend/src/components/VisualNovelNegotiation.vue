@@ -838,6 +838,10 @@ const escenariosPermitidos = computed<EscenarioId[]>(() => {
 function selectScenario(id: EscenarioId): void {
   if (roundsTaken.value > 0 || negotiationCompleted.value) return
   if (!escenariosPermitidos.value.includes(id)) return
+
+  // Si ya está seleccionado, no reiniciar el estado del diálogo.
+  if (selectedScenarioId.value === id) return
+
   selectedScenarioId.value = id
   if (!ES_TEST_VN) dialogueReady.value = false
 }
