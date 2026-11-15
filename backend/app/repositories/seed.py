@@ -57,7 +57,10 @@ DESTINOS_CATALOGO: dict[DestinoId, ParametrosDestino] = {
         dias_transito_rapido=2,
         dias_operacion_destino=5,
         fraccion_eclipse=0.25,
-        entorno_riesgo="Regolito lunar helado resbaladizo para sistemas robóticos, radiación profunda y ocultación de señal.",
+        entorno_riesgo=(
+            "Regolito lunar helado resbaladizo para sistemas robóticos, radiación profunda y ocultación de señal. "
+            "El interior de Shackleton está en sombra permanente (NASA/LRO): la energía solar solo es viable en el borde."
+        ),
         descripcion=(
             "Expedición científica cislunar y de prospección polar. Exige al menos 3.100 m/s de delta-v de misión, "
             "antena de largo alcance y reservas críticas de soporte vital."
@@ -102,56 +105,64 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
     # --- MOTORES (PROPULSIÓN) ---
     ComponenteCatalogo(
         id="motor_monoprop_basico",
-        nombre="Propulsor Hidracina M-280",
+        nombre="Propulsor Monopropelente de Hidracina",
         categoria=CategoriaComponente.MOTOR,
         costo_usd=18000.0,
         masa_kg=65.0,
         consumo_w=40.0,
-        isp_s=285.0,
+        # NASA (State-of-the-Art of Small Spacecraft Technology, cap. 4): los propulsores de
+        # hidracina de clase >= 1 N rinden típicamente 200-235 s. Ver docs/fuentes-nasa.md.
+        isp_s=225.0,
         combustible_kg=650.0,
         fiabilidad_nominal=0.88,
         slot_visual="tobera_compacta",
         descripcion_ficha=(
-            "Motor químico económico de monopropelente. Isp: 285 s | Combustible integrado: 650 kg. "
-            "Suficiente para maniobras en OTB, pero muy ajustado para transferencia lunar pesada."
+            "Motor químico económico de monopropelente (hidracina). Isp: 225 s | Combustible integrado: 650 kg. "
+            "Cubre OTB solo con dotación reducida y masa seca contenida; no alcanza la transferencia lunar."
         ),
     ),
     ComponenteCatalogo(
         id="motor_biprop_estandar",
-        nombre="Tobera Bipropelente Hyper-320",
+        nombre="Motor Bipropelente MMH/MON-3 (clase OMS-E)",
         categoria=CategoriaComponente.MOTOR,
         costo_usd=28000.0,
         masa_kg=80.0,
         consumo_w=55.0,
-        isp_s=320.0,
+        # NASA (Artemis I Engine Performance, NTRS 20240003648): OMS-E del módulo de servicio
+        # de Orión, 26,7 kN y Isp 315,1 s con MMH/MON-3.
+        isp_s=315.0,
         combustible_kg=795.0,
         fiabilidad_nominal=0.94,
         slot_visual="tobera_campana",
         descripcion_ficha=(
-            "Motor hipergólico de referencia aeroespacial. Isp: 320 s | Combustible: 795 kg (~3.400 m/s base). "
-            "Permite alcanzar los 3.100+ m/s requeridos para la Luna si se controla la masa seca."
+            "Motor hipergólico MMH/MON-3 de la clase del OMS-E de Orión (26,7 kN, Isp 315 s según NASA) | "
+            "Combustible: 795 kg (≈3.100-3.500 m/s según tripulación). "
+            "Permite alcanzar los 3.100 m/s de la Luna solo si se controla la masa seca."
         ),
     ),
     ComponenteCatalogo(
         id="motor_crio_avanzado",
-        nombre="Cámara Criogénica Methalox Z-360",
+        nombre="Motor Criogénico LH2/LOX (clase RL10)",
         categoria=CategoriaComponente.MOTOR,
         costo_usd=42000.0,
         masa_kg=95.0,
         consumo_w=85.0,
-        isp_s=360.0,
+        # NASA (Centaur RL10A-3-3A, NTRS 20140011176): Isp de vacío 444,4 +/- 2,5 s y
+        # 16.500 lbf (73 kN) con LH2/LOX. Masa del conjunto: valor de juego (escala 1,3 t).
+        isp_s=444.0,
         combustible_kg=810.0,
         fiabilidad_nominal=0.96,
         slot_visual="tobera_expansiva",
         descripcion_ficha=(
-            "Propulsión criogénica de alto impulso específico (360 s) y 810 kg de propelente. "
-            "Alto coste financiero y mayor demanda eléctrica de criostatos."
+            "Propulsión criogénica LH2/LOX de la clase RL10 (Isp de vacío 444 s medida por NASA, ≈73 kN) "
+            "y 810 kg de propelente. Máximo delta-v del catálogo; alto coste financiero y "
+            "mayor demanda eléctrica de la criogenia."
         ),
     ),
     # --- ENERGÍA ---
     ComponenteCatalogo(
         id="energia_solar_compacto",
-        nombre="Paneles Desplegables Si-380",
+        nombre="Paneles Desplegables Si-420",
         categoria=CategoriaComponente.ENERGIA,
         costo_usd=11000.0,
         masa_kg=30.0,
@@ -181,23 +192,26 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
     ),
     ComponenteCatalogo(
         id="energia_hibrida_rtg",
-        nombre="Matriz Solar + Auxiliar Isotópico P-780",
+        nombre="Matriz Solar GaAs + MMRTG",
         categoria=CategoriaComponente.ENERGIA,
         costo_usd=31000.0,
-        masa_kg=85.0,
-        generacion_w=780.0,
+        # Matriz GaAs-550 (45 kg, 550 W) + 1 MMRTG. NASA (hoja técnica MMRTG): 110 W eléctricos
+        # al inicio de vida y 45 kg => 660 W y 90 kg en total.
+        masa_kg=90.0,
+        generacion_w=660.0,
         capacidad_wh=3400.0,
         fiabilidad_nominal=0.98,
         slot_visual="paneles_rtg",
         descripcion_ficha=(
-            "Sistema energético de alta capacidad (780 W / 3.400 Wh) inmune a sombras prolongadas. "
-            "Añade 85 kg de masa seca a la estructura."
+            "Matriz solar GaAs (550 W) más un MMRTG (110 W eléctricos al inicio de vida, 45 kg, según NASA): "
+            "660 W / 3.400 Wh. La parte isotópica no depende del Sol; la solar sigue sufriendo eclipses. "
+            "Añade 90 kg de masa seca a la estructura."
         ),
     ),
     # --- TELECOMUNICACIONES ---
     ComponenteCatalogo(
         id="antena_uhf_basica",
-        nombre="Antena Omnidireccional Banda-S",
+        nombre="Antena de Baja Ganancia Banda-S",
         categoria=CategoriaComponente.ANTENA,
         costo_usd=7500.0,
         masa_kg=15.0,
@@ -209,13 +223,13 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         fiabilidad_nominal=0.90,
         slot_visual="antena_dipolo",
         descripcion_ficha=(
-            "Enlace de corto alcance (1.500 km), 2 ventanas/día y 72% de disponibilidad probabilística. "
-            "Adecuada para OTB; insuficiente en caudal y ganancia para grandes volúmenes lunares."
+            "Enlace de corto alcance (1.500 km) en banda S de baja ganancia, 2 ventanas/día y 72% de "
+            "disponibilidad probabilística. Adecuada para OTB; sin ganancia ni caudal para volúmenes lunares."
         ),
     ),
     ComponenteCatalogo(
         id="antena_parabolica_x",
-        nombre="Plato Direccional Banda-X 2Mbps",
+        nombre="Plato Direccional Banda-X (2 Mbps)",
         categoria=CategoriaComponente.ANTENA,
         costo_usd=15000.0,
         masa_kg=25.0,
@@ -227,13 +241,13 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         fiabilidad_nominal=0.94,
         slot_visual="antena_plato",
         descripcion_ficha=(
-            "Antena parabólica de espacio cislunar (420.000 km). Tasa: 2.000 kbps (~2 GB/ventana), "
+            "Antena parabólica de espacio cislunar (420.000 km). Tasa: 2.000 kbps (≈0,9 GB por hora de enlace), "
             "3 ventanas/día con 86% de probabilidad de enlace."
         ),
     ),
     ComponenteCatalogo(
         id="antena_laser_ka",
-        nombre="Transceptor Óptico Banda-Ka DeepLink",
+        nombre="Terminal de Comunicaciones Ópticas (láser infrarrojo)",
         categoria=CategoriaComponente.ANTENA,
         costo_usd=24000.0,
         masa_kg=40.0,
@@ -245,8 +259,8 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         fiabilidad_nominal=0.96,
         slot_visual="antena_laser",
         descripcion_ficha=(
-            "Comunicación óptica de alta velocidad (4.500 kbps, 4 ventanas/día, 95% disponibilidad). "
-            "Ideal cuando se instalan múltiples instrumentos científicos."
+            "Comunicación óptica por láser infrarrojo de alta velocidad (4.500 kbps, 4 ventanas/día, "
+            "95% disponibilidad). Ideal cuando se instalan múltiples instrumentos científicos."
         ),
     ),
     # --- SOPORTE VITAL (ECLSS) ---

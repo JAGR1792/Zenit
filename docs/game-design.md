@@ -53,11 +53,11 @@ Documento de diseño del juego serio educativo. Complementa `docs/implementation
 Decisión: añadir un espectrómetro (+50 kg, +120 W, +8.000 USD, +15 pts ciencia).
 
 1. **Masa:** 1.200 → 1.250 kg. Si `mass_launch_max` = 1.300 kg, sigue dentro. Si fuera 1.240 kg, fallo inmediato.
-2. **Propulsión:** delta-v disponible baja de 3.400 a 3.150 m/s.
-3. **Trayectoria:** la Luna requiere 3.100 m/s → margen de 50 m/s (crítico).
+2. **Propulsión:** con el motor MMH/MON-3 (Isp 315 s, clase OMS-E de Orión) y un tripulante, delta-v disponible baja de ≈3.490 a ≈3.230 m/s.
+3. **Trayectoria:** la Luna requiere 3.100 m/s en el modelo de juego → margen de ≈130 m/s (ajustado).
 4. **Energía:** consumo 480 → 600 W; generación 550 W → déficit de 50 W → degradación progresiva.
 5. **Científico:** +15 pts ciencia, pero +2 GB de datos/día a transmitir.
-6. **Telecomunicaciones:** antena de 2 Mbps → 2 GB en ~17 min/ventana; con 2 ventanas/día se acumulan datos.
+6. **Telecomunicaciones:** antena de 2 Mbps → 2 GB en ≈133 min (≈2,2 h) de enlace continuo; con 2 ventanas/día se acumulan datos.
 7. **Presupuesto:** saldo −8.000 USD; si quedan 3.000 USD, la decisión se bloquea por presupuesto.
 8. **Visual:** la nave gana un módulo lateral (espectrómetro) con indicador de consumo.
 

@@ -61,11 +61,11 @@ Complementa `vercel.json` (infraestructura) y `artboard.html` (dirección de art
 Decisión del jugador: añadir un espectrómetro (+50 kg, +120 W consumo, +8.000 USD, +15 puntos ciencia).
 
 1. **Masa**: 1.200 kg → 1.250 kg. Si `mass_launch_max` = 1.300 kg, sigue dentro (sin fallo). Si fuera 1.240 kg, fallo inmediato.
-2. **Propulsión**: con motor de impulso específico 320 s, delta-v disponible baja de 3.400 m/s a 3.150 m/s.
-3. **Trayectoria**: la Luna requiere 3.100 m/s de delta-v de transferencia → margen queda en 50 m/s (crítico).
+2. **Propulsión**: con el motor MMH/MON-3 de impulso específico 315 s (clase OMS-E de Orión, fuente NASA) y un tripulante, delta-v disponible baja de ≈3.490 m/s a ≈3.230 m/s (Tsiolkovsky).
+3. **Trayectoria**: la Luna requiere 3.100 m/s de delta-v en el modelo de juego → margen queda en ≈130 m/s (ajustado). Ver `docs/fuentes-nasa.md` para el presupuesto real (≈5.100 m/s desde OTB).
 4. **Energía**: consumo pasa de 480 W a 600 W; generación 550 W → déficit de 50 W → baterías se descargan → degradación progresiva de sistemas.
 5. **Científico**: +15 puntos ciencia, pero genera +2 GB de datos/día que deben transmitirse.
-6. **Telecomunicaciones**: antena de 2 Mbps → puede transmitir 2 GB en ~17 min por ventana; si solo hay 2 ventanas/día, se acumulan datos.
+6. **Telecomunicaciones**: antena de 2 Mbps → transmitir 2 GB exige ≈133 min (≈2,2 h) de enlace continuo (2 GB × 8 / 2 Mbps); si solo hay 2 ventanas/día, se acumulan datos.
 7. **Presupuesto**: saldo −8.000 USD; si quedan 3.000 USD, queda negativo → decisión bloqueada por presupuesto.
 8. **Visual**: la nave en pantalla gana un módulo lateral (espectrómetro) con indicador de consumo.
 

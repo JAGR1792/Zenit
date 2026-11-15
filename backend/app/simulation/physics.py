@@ -14,7 +14,11 @@ from app.schemas.mission import (
     TripulanteEstado,
 )
 
+# Gravedad estándar (NASA NSSDC, Earth Fact Sheet: 9,80665 m/s², valor exacto CODATA 2018).
 G0_MS2: float = 9.80665
+
+# Decisión de diseño: los tripulantes son perritos ligeramente antropomórficos (~25 kg).
+# NASA usa 82 kg para astronautas humanos (Logistics Beyond LEO, ASCEND 2023).
 MASA_POR_TRIPULANTE_KG: float = 25.0
 
 
