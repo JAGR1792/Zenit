@@ -22,7 +22,9 @@ import type {
   TripulanteEstado,
 } from './api'
 
+// Gravedad estándar (NASA NSSDC, Earth Fact Sheet: 9,80665 m/s²).
 const G0_MS2 = 9.80665
+// Decisión de diseño: tripulantes perrunos (~25 kg). NASA usa 82 kg para astronautas humanos.
 const MASA_POR_TRIPULANTE_KG = 25.0
 
 export const NOMBRES_ETAPAS_LOCAL: Record<string, string> = {
@@ -68,7 +70,7 @@ export const DESTINOS_LOCAL: Record<DestinoId, ParametrosDestino> = {
     dias_operacion_destino: 5,
     fraccion_eclipse: 0.25,
     entorno_riesgo:
-      'Regolito lunar helado resbaladizo para sistemas robóticos, radiación profunda y ocultación de señal.',
+      'Regolito lunar helado resbaladizo para sistemas robóticos, radiación profunda y ocultación de señal. El interior de Shackleton está en sombra permanente (NASA/LRO): la energía solar solo es viable en el borde.',
     descripcion:
       'Expedición científica cislunar y de prospección polar. Exige al menos 3.100 m/s de delta-v de misión, antena de largo alcance y reservas críticas de soporte vital.',
   },
@@ -104,14 +106,15 @@ export const ACUERDOS_LOCAL: AcuerdoFinanciacion[] = [
 export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
   {
     id: 'motor_monoprop_basico',
-    nombre: 'Propulsor Hidracina M-280',
+    nombre: 'Propulsor Monopropelente de Hidracina',
     categoria: 'motor',
     costo_usd: 18000,
     masa_kg: 65,
     consumo_w: 40,
     generacion_w: 0,
     capacidad_wh: 0,
-    isp_s: 285,
+    // NASA (State-of-the-Art of Small Spacecraft Technology, cap. 4): 200-235 s típico. Ver docs/fuentes-nasa.md.
+    isp_s: 225,
     combustible_kg: 650,
     alcance_km: 0,
     tasa_kbps: 0,
@@ -125,18 +128,19 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.88,
     slot_visual: 'tobera_compacta',
     descripcion_ficha:
-      'Motor químico económico de monopropelente. Isp: 285 s | Combustible integrado: 650 kg. Suficiente para maniobras en OTB, pero muy ajustado para transferencia lunar pesada.',
+      'Motor químico económico de monopropelente (hidracina). Isp: 225 s | Combustible integrado: 650 kg. Cubre OTB solo con dotación reducida y masa seca contenida; no alcanza la transferencia lunar.',
   },
   {
     id: 'motor_biprop_estandar',
-    nombre: 'Tobera Bipropelente Hyper-320',
+    nombre: 'Motor Bipropelente MMH/MON-3 (clase OMS-E)',
     categoria: 'motor',
     costo_usd: 28000,
     masa_kg: 80,
     consumo_w: 55,
     generacion_w: 0,
     capacidad_wh: 0,
-    isp_s: 320,
+    // NASA (Artemis I Engine Performance, NTRS 20240003648): OMS-E, 26,7 kN, Isp 315,1 s.
+    isp_s: 315,
     combustible_kg: 795,
     alcance_km: 0,
     tasa_kbps: 0,
@@ -150,18 +154,19 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.94,
     slot_visual: 'tobera_campana',
     descripcion_ficha:
-      'Motor hipergólico de referencia aeroespacial. Isp: 320 s | Combustible: 795 kg (~3.400 m/s base). Permite alcanzar los 3.100+ m/s requeridos para la Luna si se controla la masa seca.',
+      'Motor hipergólico MMH/MON-3 de la clase del OMS-E de Orión (26,7 kN, Isp 315 s según NASA) | Combustible: 795 kg (≈3.100-3.500 m/s según tripulación). Permite alcanzar los 3.100 m/s de la Luna solo si se controla la masa seca.',
   },
   {
     id: 'motor_crio_avanzado',
-    nombre: 'Cámara Criogénica Methalox Z-360',
+    nombre: 'Motor Criogénico LH2/LOX (clase RL10)',
     categoria: 'motor',
     costo_usd: 42000,
     masa_kg: 95,
     consumo_w: 85,
     generacion_w: 0,
     capacidad_wh: 0,
-    isp_s: 360,
+    // NASA (Centaur RL10A-3-3A, NTRS 20140011176): Isp de vacío 444,4 s, 16.500 lbf (73 kN).
+    isp_s: 444,
     combustible_kg: 810,
     alcance_km: 0,
     tasa_kbps: 0,
@@ -175,11 +180,11 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.96,
     slot_visual: 'tobera_expansiva',
     descripcion_ficha:
-      'Propulsión criogénica de alto impulso específico (360 s) y 810 kg de propelente. Alto coste financiero y mayor demanda eléctrica de criostatos.',
+      'Propulsión criogénica LH2/LOX de la clase RL10 (Isp de vacío 444 s medida por NASA, ≈73 kN) y 810 kg de propelente. Máximo delta-v del catálogo; alto coste financiero y mayor demanda eléctrica de la criogenia.',
   },
   {
     id: 'energia_solar_compacto',
-    nombre: 'Paneles Desplegables Si-380',
+    nombre: 'Paneles Desplegables Si-420',
     categoria: 'energia',
     costo_usd: 11000,
     masa_kg: 30,
@@ -229,12 +234,13 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
   },
   {
     id: 'energia_hibrida_rtg',
-    nombre: 'Matriz Solar + Auxiliar Isotópico P-780',
+    nombre: 'Matriz Solar GaAs + MMRTG',
     categoria: 'energia',
     costo_usd: 31000,
-    masa_kg: 85,
+    // Matriz GaAs-550 (45 kg, 550 W) + 1 MMRTG (NASA: 110 W al inicio de vida, 45 kg).
+    masa_kg: 90,
     consumo_w: 0,
-    generacion_w: 780,
+    generacion_w: 660,
     capacidad_wh: 3400,
     isp_s: 0,
     combustible_kg: 0,
@@ -250,11 +256,11 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.98,
     slot_visual: 'paneles_rtg',
     descripcion_ficha:
-      'Sistema energético de alta capacidad (780 W / 3.400 Wh) inmune a sombras prolongadas. Añade 85 kg de masa seca a la estructura.',
+      'Matriz solar GaAs (550 W) más un MMRTG (110 W eléctricos al inicio de vida, 45 kg, según NASA): 660 W / 3.400 Wh. La parte isotópica no depende del Sol; la solar sigue sufriendo eclipses. Añade 90 kg de masa seca a la estructura.',
   },
   {
     id: 'antena_uhf_basica',
-    nombre: 'Antena Omnidireccional Banda-S',
+    nombre: 'Antena de Baja Ganancia Banda-S',
     categoria: 'antena',
     costo_usd: 7500,
     masa_kg: 15,
@@ -275,11 +281,11 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.9,
     slot_visual: 'antena_dipolo',
     descripcion_ficha:
-      'Enlace de corto alcance (1.500 km), 2 ventanas/día y 72% de disponibilidad probabilística. Adecuada para OTB; insuficiente en caudal y ganancia para grandes volúmenes lunares.',
+      'Enlace de corto alcance (1.500 km) en banda S de baja ganancia, 2 ventanas/día y 72% de disponibilidad probabilística. Adecuada para OTB; sin ganancia ni caudal para volúmenes lunares.',
   },
   {
     id: 'antena_parabolica_x',
-    nombre: 'Plato Direccional Banda-X 2Mbps',
+    nombre: 'Plato Direccional Banda-X (2 Mbps)',
     categoria: 'antena',
     costo_usd: 15000,
     masa_kg: 25,
@@ -300,11 +306,11 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.94,
     slot_visual: 'antena_plato',
     descripcion_ficha:
-      'Antena parabólica de espacio cislunar (420.000 km). Tasa: 2.000 kbps (~2 GB/ventana), 3 ventanas/día con 86% de probabilidad de enlace.',
+      'Antena parabólica de espacio cislunar (420.000 km). Tasa: 2.000 kbps (≈0,9 GB por hora de enlace), 3 ventanas/día con 86% de probabilidad de enlace.',
   },
   {
     id: 'antena_laser_ka',
-    nombre: 'Transceptor Óptico Banda-Ka DeepLink',
+    nombre: 'Terminal de Comunicaciones Ópticas (láser infrarrojo)',
     categoria: 'antena',
     costo_usd: 24000,
     masa_kg: 40,
@@ -325,7 +331,7 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.96,
     slot_visual: 'antena_laser',
     descripcion_ficha:
-      'Comunicación óptica de alta velocidad (4.500 kbps, 4 ventanas/día, 95% disponibilidad). Ideal cuando se instalan múltiples instrumentos científicos.',
+      'Comunicación óptica por láser infrarrojo de alta velocidad (4.500 kbps, 4 ventanas/día, 95% disponibilidad). Ideal cuando se instalan múltiples instrumentos científicos.',
   },
   {
     id: 'eclss_abierto_ligero',

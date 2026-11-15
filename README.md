@@ -5,6 +5,7 @@ Simulador narrativo de misiones espaciales (juego serio educativo). Estado actua
 ## Referencias
 - `docs/implementation-plan.md` — plan técnico completo.
 - `docs/game-design.md` — documento de diseño del juego.
+- `docs/fuentes-nasa.md` — fuentes NASA de cada valor físico, correcciones aplicadas y pendientes de decisión.
 - `artboard.html` — dirección de arte (paleta y boceto).
 - `vercel.json` — infraestructura multi-service.
 

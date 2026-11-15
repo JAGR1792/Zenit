@@ -92,14 +92,14 @@ describe('Esquemático y componentes visuales de Zenit', () => {
     const catalogoMock: ComponenteCatalogo[] = [
       {
         id: 'motor_biprop_estandar',
-        nombre: 'Tobera Bipropelente Hyper-320',
+        nombre: 'Motor Bipropelente MMH/MON-3 (clase OMS-E)',
         categoria: 'motor',
         costo_usd: 28000,
         masa_kg: 80,
         consumo_w: 55,
         generacion_w: 0,
         capacidad_wh: 0,
-        isp_s: 320,
+        isp_s: 315,
         combustible_kg: 795,
         alcance_km: 0,
         tasa_kbps: 0,

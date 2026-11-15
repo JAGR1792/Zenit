@@ -89,7 +89,7 @@ const moodColor = (mood: string): string => {
         <g v-if="installedSlots.has('paneles_cortos')">
           <rect x="285" y="28" width="55" height="48" fill="#1B2340" stroke="#4FD1C5" stroke-width="2" />
           <rect x="285" y="174" width="55" height="48" fill="#1B2340" stroke="#4FD1C5" stroke-width="2" />
-          <text x="290" y="22" fill="#4FD1C5" font-size="9">PANEL Si-380</text>
+          <text x="290" y="22" fill="#4FD1C5" font-size="9">PANEL Si-420</text>
         </g>
         <g v-else-if="installedSlots.has('paneles_dobles')">
           <rect x="265" y="14" width="95" height="62" fill="#1B2340" stroke="#4FD1C5" stroke-width="2" />
@@ -102,22 +102,22 @@ const moodColor = (mood: string): string => {
           <rect x="255" y="10" width="115" height="66" fill="#1B2340" stroke="#FFB000" stroke-width="2" />
           <rect x="255" y="174" width="115" height="66" fill="#1B2340" stroke="#FFB000" stroke-width="2" />
           <circle cx="235" cy="82" r="10" fill="#FF7A3D" stroke="#F5D36B" stroke-width="2" />
-          <text x="256" y="9" fill="#FFB000" font-size="9">MATRIZ + RTG 780W</text>
+          <text x="256" y="9" fill="#FFB000" font-size="9">MATRIZ + MMRTG 660W</text>
         </g>
 
         <!-- TOBERA / MOTOR (IZQUIERDA - POPA) -->
         <g v-if="installedSlots.has('tobera_compacta')">
           <polygon points="155,102 190,110 190,140 155,148" fill="#3A4666" stroke="#FFB000" stroke-width="2" />
-          <text x="95" y="128" fill="#FFB000" font-size="9">M-280 (285s)</text>
+          <text x="95" y="128" fill="#FFB000" font-size="9">HIDRACINA (225s)</text>
         </g>
         <g v-else-if="installedSlots.has('tobera_campana')">
           <polygon points="135,92 190,106 190,144 135,158" fill="#3A4666" stroke="#FFB000" stroke-width="2" />
-          <text x="68" y="128" fill="#FFB000" font-size="9">HYPER-320 (320s)</text>
+          <text x="68" y="128" fill="#FFB000" font-size="9">MMH/MON-3 (315s)</text>
         </g>
         <g v-else-if="installedSlots.has('tobera_expansiva')">
           <polygon points="115,82 190,104 190,146 115,168" fill="#1B2340" stroke="#F5D36B" stroke-width="2.5" />
           <ellipse cx="115" cy="125" rx="6" ry="43" fill="none" stroke="#4FD1C5" stroke-width="1.5" />
-          <text x="40" y="128" fill="#F5D36B" font-size="9">METHALOX (360s)</text>
+          <text x="40" y="128" fill="#F5D36B" font-size="9">LH2/LOX (444s)</text>
         </g>
 
         <!-- CUERPO CENTRAL DE LA NAVE (4 HABITACIONES CONTIGUAS) -->
@@ -161,7 +161,7 @@ const moodColor = (mood: string): string => {
         <g v-else-if="installedSlots.has('antena_laser')">
           <rect x="448" y="52" width="26" height="18" fill="#1B2340" stroke="#F5D36B" stroke-width="2" />
           <line x1="474" y1="61" x2="525" y2="42" stroke="#4FD1C5" stroke-width="1.5" stroke-dasharray="3 2" />
-          <text x="485" y="68" fill="#F5D36B" font-size="9">Óptica Ka</text>
+          <text x="485" y="68" fill="#F5D36B" font-size="9">Óptica láser</text>
         </g>
 
         <!-- PAYLOADS CIENTÍFICOS Y ROBOT ACOPLADOS -->
