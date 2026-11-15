@@ -30,10 +30,10 @@ const tribunalQuotes = computed(() => ({
     icon: '/sprites/iconos/icono_gato_jefe.png',
     mood:
       props.report.puntuacion_global >= 75
-        ? '/sprites/animo/Sol.png'
+        ? '/sprites/elementos/Sol.png'
         : props.report.puntuacion_global >= 45
-          ? '/sprites/animo/Nube.png'
-          : '/sprites/animo/Lluvia.png',
+          ? '/sprites/elementos/Nube.png'
+          : '/sprites/elementos/Lluvia.png',
     text: props.report.dialogo_jefe_apertura,
   },
   asistente_blanco: {
@@ -42,10 +42,10 @@ const tribunalQuotes = computed(() => ({
     icon: '/sprites/iconos/icono_gato_asistente_blanco.png',
     mood:
       (finDim.value?.puntuacion ?? 50) >= 70
-        ? '/sprites/animo/Sol.png'
+        ? '/sprites/elementos/Sol.png'
         : (finDim.value?.puntuacion ?? 50) >= 40
-          ? '/sprites/animo/Nube.png'
-          : '/sprites/animo/Lluvia.png',
+          ? '/sprites/elementos/Nube.png'
+          : '/sprites/elementos/Lluvia.png',
     text: `«${finDim.value?.comentario_jefe ?? ''} (${finDim.value?.explicacion_tecnica ?? ''})»`,
   },
   asistente_negro: {
@@ -54,8 +54,8 @@ const tribunalQuotes = computed(() => ({
     icon: '/sprites/iconos/icono_gato_asistente_negro.png',
     mood:
       (sciDim.value?.puntuacion ?? 50) >= 70 && !props.report.hubo_muertes_tripulacion
-        ? '/sprites/animo/Sol.png'
-        : '/sprites/animo/Lluvia.png',
+        ? '/sprites/elementos/Sol.png'
+        : '/sprites/elementos/Lluvia.png',
     text: `«${sciDim.value?.comentario_jefe ?? ''} ${crewDim.value?.comentario_jefe ?? ''}»`,
   },
 }))
@@ -196,10 +196,10 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
           <img
             :src="
               report.puntuacion_global >= 65
-                ? '/sprites/animo/Sol.png'
+                ? '/sprites/elementos/Sol.png'
                 : report.puntuacion_global >= 40
-                  ? '/sprites/animo/Nube.png'
-                  : '/sprites/animo/Lluvia.png'
+                  ? '/sprites/elementos/Nube.png'
+                  : '/sprites/elementos/Lluvia.png'
             "
             alt="Ánimo"
             class="tplayer-sun"

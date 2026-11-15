@@ -45,16 +45,29 @@ const playerAnimation = computed<AnimacionSprite>(() => {
   return 'perro_idle'
 })
 
-// Fondos pixel art por habitación (carpeta public/sprites/escenarios/nave)
-const FONDOS_HABITACION: Record<string, string> = {
-  cabina_mando: '/sprites/escenarios/nave/cabina_mando.jpg',
-  laboratorio: '/sprites/escenarios/nave/laboratorio.jpg',
-  soporte_vital: '/sprites/escenarios/nave/sala_soporte_vital.jpg',
-  sala_sistemas: '/sprites/escenarios/nave/cabina_v2.jpg',
+// Fondos pixel art por habitación (public/sprites/escenarios/nave).
+// ar = proporción ancho/alto de la imagen; piso = altura (en % desde abajo) donde apoyan los pies.
+interface FondoHabitacion {
+  src: string
+  ar: number
+  piso: number
+  ventana?: boolean
 }
-const fondoHabitacion = computed(() =>
+const FONDOS_HABITACION: Record<string, FondoHabitacion> = {
+  cabina_mando: { src: '/sprites/escenarios/nave/cabina_mando.jpg', ar: 1364 / 768, piso: 12 },
+  laboratorio: { src: '/sprites/escenarios/nave/laboratorio.jpg', ar: 1326 / 544, piso: 5 },
+  soporte_vital: { src: '/sprites/escenarios/nave/sala_soporte_vital.jpg', ar: 1227 / 544, piso: 5 },
+  sala_sistemas: {
+    src: '/sprites/escenarios/nave/cabina_v2.png',
+    ar: 752 / 544,
+    piso: 6,
+    ventana: true,
+  },
+}
+const fondoActual = computed(() =>
   currentRoom.value ? (FONDOS_HABITACION[currentRoom.value.id] ?? null) : null,
 )
+const fondoHabitacion = computed(() => fondoActual.value?.src ?? null)
 
 // Vista exterior (Tierra/Luna): órbita alta durante el tránsito, órbita baja al llegar al destino
 const vistaExterior = computed(() => {
@@ -243,6 +256,21 @@ onUnmounted(() => {
 
     <!-- 2. Escenario 2D Pixel Art amplio y despejado -->
     <div class="pixel-stage-canvas" :class="{ 'con-fondo': !!fondoHabitacion }">
+      <div
+        class="scene-box"
+        :class="{ 'scene-plain': !fondoActual }"
+        :style="
+          fondoActual
+            ? { '--ar': fondoActual.ar, '--piso': `${fondoActual.piso}%` }
+            : undefined
+        "
+      >
+      <img
+        v-if="fondoActual?.ventana"
+        :src="vistaExterior"
+        alt=""
+        class="room-bg-img room-window-view"
+      />
       <img
         v-if="fondoHabitacion"
         :key="fondoHabitacion"
@@ -250,7 +278,7 @@ onUnmounted(() => {
         alt=""
         class="room-bg-img"
       />
-      <div class="vista-orbital" :title="`Vista exterior: ${mission.destino === 'LUNA' ? 'Luna' : 'Tierra'}`">
+      <div v-if="!fondoActual?.ventana" class="vista-orbital" :title="`Vista exterior: ${mission.destino === 'LUNA' ? 'Luna' : 'Tierra'}`">
         <img :src="vistaExterior" alt="Vista exterior" class="vista-orbital-img" />
         <span class="vista-orbital-tag">
           {{ mission.destino === 'LUNA' ? 'LUNA' : 'TIERRA' }} ·
@@ -391,6 +419,8 @@ onUnmounted(() => {
             etiqueta="DIRECTOR [TÚ]"
           />
         </div>
+      </div>
+
       </div>
 
       <!-- Barra de mando táctil / teclado -->
@@ -602,8 +632,8 @@ onUnmounted(() => {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 170px;
-  z-index: 3;
+  width: 150px;
+  z-index: 4;
   border: 2px solid #d6c59a;
   border-radius: 4px;
   background: #060810;
@@ -656,25 +686,139 @@ onUnmounted(() => {
   z-index: 0;
 }
 
-.pixel-stage-canvas.con-fondo::after {
+.scene-box {
+  position: relative;
+  width: min(100%, calc(52vh * var(--ar, 2)));
+  aspect-ratio: var(--ar, 2);
+  margin: 0 auto;
+  overflow: hidden;
+  background: #060810;
+}
+
+.scene-box.scene-plain {
+  display: contents;
+}
+
+.room-window-view {
+  z-index: 0;
+  object-fit: cover;
+}
+
+.scene-box::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(8, 11, 20, 0.35), rgba(8, 11, 20, 0.15) 50%, rgba(8, 11, 20, 0.55));
-  z-index: 0;
+  background: linear-gradient(180deg, rgba(8, 11, 20, 0.3), rgba(8, 11, 20, 0) 45%, rgba(8, 11, 20, 0.35));
+  z-index: 1;
   pointer-events: none;
 }
 
-.pixel-stage-canvas.con-fondo > .backdrop-layer,
-.pixel-stage-canvas.con-fondo > .deck-floor {
-  position: relative;
+.scene-box > .room-bg-img:not(.room-window-view) {
   z-index: 1;
-  background: transparent;
-  border-color: transparent;
 }
 
-.pixel-stage-canvas.con-fondo .observation-window {
+.scene-box > .backdrop-layer {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.scene-box > .backdrop-layer .pixel-stars,
+.scene-box > .backdrop-layer .observation-window {
   display: none;
+}
+
+.scene-box > .deck-floor {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  z-index: 3;
+}
+
+/* Compuertas: zonas sensibles transparentes en los extremos (las puertas ya están dibujadas en el fondo) */
+.scene-box .airlock-door {
+  position: absolute;
+  bottom: var(--piso, 6%);
+  width: 12%;
+  height: 62%;
+  background: transparent;
+  border: 2px dashed transparent;
+  border-radius: 6px;
+}
+
+.scene-box .airlock-door.left {
+  left: 0.5%;
+  background: transparent;
+}
+
+.scene-box .airlock-door.right {
+  right: 0.5%;
+  background: transparent;
+}
+
+.scene-box .airlock-door.active {
+  border-color: var(--amber);
+  background: rgba(255, 176, 0, 0.1);
+  box-shadow: 0 0 14px rgba(255, 176, 0, 0.45);
+}
+
+.scene-box .airlock-door.sealed {
+  display: none;
+}
+
+.scene-box .airlock-door .door-arch {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  white-space: nowrap;
+  font-size: 8px;
+}
+
+.scene-box .airlock-door .key-e-floating {
+  top: -26px;
+}
+
+/* Consola informativa compacta, arriba al centro, para no tapar al perro */
+.scene-box .room-workstation {
+  position: absolute;
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(250px, 34%);
+  height: auto;
+  margin: 0;
+  padding: 5px 9px;
+  background: rgba(8, 11, 20, 0.78);
+}
+
+.scene-box .room-workstation .key-e-floating {
+  top: auto;
+  bottom: -26px;
+}
+
+.scene-box .character-actor {
+  bottom: var(--piso, 6%);
+}
+
+.pixel-stage-canvas.con-fondo {
+  background: #060810;
+}
+
+.vista-orbital {
+  display: none;
+}
+
+.scene-box > .vista-orbital {
+  display: block;
 }
 
 .backdrop-layer {

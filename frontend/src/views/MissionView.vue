@@ -72,8 +72,8 @@ const difficultyOptions: Array<{
 ]
 
 // Modos del visor izquierdo y sub-pestañas de la Etapa 3
-// En Etapas 1 y 2 inicia en 'office_vn' (Oficina de Planificación con los 3 gatos); en 3-5 pasa a 'schematic' (Hangar); en 6+ a 'rooms2d'
-const activeViewportTab = ref<'office_vn' | 'rooms2d' | 'schematic' | 'telemetry'>('office_vn')
+// La negociación ('office_vn') solo aparece en la Etapa 2; Etapas 1 y 3-5 usan 'schematic' (Hangar); 6+ usa 'rooms2d'
+const activeViewportTab = ref<'office_vn' | 'rooms2d' | 'schematic' | 'telemetry'>('schematic')
 const stage3SubTab = ref<'hardware' | 'crew'>('hardware')
 const activeCategory = ref<string>('instrumento')
 
@@ -272,18 +272,18 @@ const currentStageGuide = computed(() => {
 })
 
 // Cambiar automáticamente al visor correspondiente según la etapa:
-// Etapas 1-2: Oficina de Planificación (Novela Visual con los 3 gatos)
-// Etapas 3-5: Hangar en Tierra (Esquemático de Nave y Perros)
+// Etapa 2: Oficina de Planificación (negociación novela visual con los 3 gatos); solo en esta etapa
+// Etapas 1 y 3-5: Hangar en Tierra (Esquemático de Nave y Perros)
 // Etapas 6+: Cubierta 2D en Vuelo
 watch(
   () => mission.value?.etapa_actual,
   (etapa) => {
-    if (etapa && etapa <= 2) {
+    if (etapa === 2) {
       activeViewportTab.value = 'office_vn'
-    } else if (etapa && etapa <= 5) {
-      activeViewportTab.value = 'schematic'
     } else if (etapa && etapa >= 6) {
       activeViewportTab.value = 'rooms2d'
+    } else {
+      activeViewportTab.value = 'schematic'
     }
   },
 )
@@ -312,7 +312,7 @@ async function startNewMission(fromMenu = false): Promise<void> {
       acuerdo_financiacion_id: 'estandar',
       especialidad_director: 'comando',
     })
-    activeViewportTab.value = 'office_vn'
+    activeViewportTab.value = 'schematic'
     if (fromMenu) {
       showMainMenu.value = false
     }
@@ -726,6 +726,7 @@ onMounted(async () => {
         <!-- Conmutador de Vista Principal -->
         <div class="viewport-switcher">
           <button
+            v-if="mission.etapa_actual === 2"
             class="vtab-btn"
             :class="{ active: activeViewportTab === 'office_vn' }"
             @click="activeViewportTab = 'office_vn'"
@@ -768,10 +769,10 @@ onMounted(async () => {
         <!-- Contenido del Visor Activo -->
         <div class="viewport-stage-body">
           <VisualNovelNegotiation
-            v-if="activeViewportTab === 'office_vn'"
+            v-if="activeViewportTab === 'office_vn' && mission.etapa_actual === 2"
             :mission="mission"
             @negotiate="(payload) => executeDecision('negociar_presupuesto', payload)"
-            @advance="advanceStage"
+            @finish-negotiation="advanceStage"
           />
 
           <DestinationRooms2D
