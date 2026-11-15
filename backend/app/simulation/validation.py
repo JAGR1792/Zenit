@@ -11,6 +11,7 @@ from app.repositories.seed import (
     DESTINOS_CATALOGO,
 )
 from app.schemas.mission import EstadoMision, PoliticaConsecuencia
+from app.simulation.physics import calcular_delta_v_transito_ms
 
 
 @dataclass
@@ -37,9 +38,9 @@ def validar_decision(
     - Durante el diseño (Etapa 3), NO se bloquean configuraciones pesadas, deficitarias en
       energía ni incompatibles: el jugador lee la ficha técnica y la tabla de variables sin
       que el juego le advierta de qué desastre ocurrirá.
-    - Las restricciones físicas críticas (como superar `masa_lanzamiento_max_kg` o carecer de
-      motor/delta-v en el lanzamiento) producen fallo inmediato en el momento de ejecutar la
-      maniobra física (Etapa 5+).
+    - Las restricciones físicas críticas (superar `masa_lanzamiento_max_kg` en el lanzamiento o
+      carecer de delta-v para la inserción orbital en el tránsito) producen fallo inmediato en el
+      momento de ejecutar la maniobra física (Etapa 5+). El ascenso lo aporta el lanzador externo.
 
     Args:
         estado: Estado actual de la misión.
@@ -135,7 +136,7 @@ def validar_decision(
     if decision == "instalar_componente":
         comp_id = params.get("componente_id")
         catalogo = {c.id: c for c in COMPONENTES_CATALOGO}
-        comp = catalogo.get(comp_id)
+        comp = catalogo.get(str(comp_id))
         if not comp:
             return ResultadoValidacion(
                 allowed=False,
@@ -192,7 +193,7 @@ def validar_decision(
     if decision == "contratar_tripulante":
         crew_id = params.get("crew_id")
         candidatos = {c.id: c for c in CANDIDATOS_TRIPULACION}
-        cand = candidatos.get(crew_id)
+        cand = candidatos.get(str(crew_id))
         if not cand:
             return ResultadoValidacion(
                 allowed=False,
@@ -315,8 +316,8 @@ def validar_avance_etapa(estado: EstadoMision) -> ResultadoValidacion:
     """Evalúa qué ocurre al avanzar de etapa aplicando las políticas de consecuencias.
 
     Políticas:
-    1. Restricciones físicas críticas (Etapa 5 Lanzamiento: masa > masa_lanzamiento_max_kg
-       o sin motor/delta-v de ascenso): FALLO INMEDIATO.
+    1. Restricciones físicas críticas (Etapa 5 Lanzamiento: masa > masa_lanzamiento_max_kg;
+       Etapa 6 Tránsito: sin delta-v para la inserción orbital): FALLO INMEDIATO.
     2. Recursos operativos (energía negativa, escasez de O2/comida): DEGRADACIÓN PROGRESIVA.
     3. Decisiones estratégicas (exceso de datos frente a antena, trayectoria ineficiente):
        PENALIZACIÓN DIFERIDA.
@@ -343,21 +344,11 @@ def validar_avance_etapa(estado: EstadoMision) -> ResultadoValidacion:
                     "Aborto estructural en la rampa."
                 ),
             )
-        if estado.delta_v_disponible_ms < params_destino.delta_v_lanzamiento_ms:
-            return ResultadoValidacion(
-                allowed=True,
-                status="fail",
-                policy=PoliticaConsecuencia.FALLO_INMEDIATO,
-                message=(
-                    f"FALLO FÍSICO INMEDIATO EN INSERCIÓN: Delta-v disponible ({estado.delta_v_disponible_ms} m/s) "
-                    f"insuficiente para alcanzar la velocidad orbital inicial ({params_destino.delta_v_lanzamiento_ms} m/s)."
-                ),
-            )
 
-    # En Tránsito (Etapa 6): verificar delta-v de transferencia e inicio de degradación
+    # En Tránsito (Etapa 6): verificar delta-v de inserción orbital e inicio de degradación
     if estado.etapa_actual == 6:
-        dv_transito = params_destino.delta_v_transito_insercion_ms * (
-            1.18 if estado.perfil_trayectoria == "rapida" else 1.0
+        dv_transito = calcular_delta_v_transito_ms(
+            params_destino, estado.perfil_trayectoria, estado.ventana_lanzamiento
         )
         if estado.delta_v_disponible_ms < dv_transito:
             return ResultadoValidacion(

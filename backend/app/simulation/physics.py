@@ -11,6 +11,7 @@ from app.schemas.mission import (
     DificultadId,
     EstadoAnimo,
     EstadoMision,
+    ParametrosDestino,
     TripulanteEstado,
 )
 
@@ -20,6 +21,106 @@ G0_MS2: float = 9.80665
 # Decisión de diseño: los tripulantes son perritos ligeramente antropomórficos (~25 kg).
 # NASA usa 82 kg para astronautas humanos (Logistics Beyond LEO, ASCEND 2023).
 MASA_POR_TRIPULANTE_KG: float = 25.0
+
+
+# Duración supuesta de una ventana de comunicación (valor de juego; ver docs/fuentes-nasa.md §3).
+# Un paso de la Red de Espacio Profundo dura varias horas; 2 h es una abstracción conservadora.
+DURACION_VENTANA_COMM_H: float = 2.0
+
+# Potencia que NO depende del Sol y sigue disponible durante un eclipse.
+# MMRTG: 110 W eléctricos al inicio de vida (NASA, hoja técnica del MMRTG).
+GENERACION_NO_SOLAR_W: dict[str, float] = {"energia_hibrida_rtg": 110.0}
+
+# Factores de juego sobre el delta-v de inserción (no provienen de una fuente NASA).
+FACTOR_TRAYECTORIA_RAPIDA: float = 1.18
+FACTOR_VENTANA_SECUNDARIA: float = 1.10
+
+
+def calcular_delta_v_transito_ms(
+    params_destino: ParametrosDestino, perfil_trayectoria: str, ventana_lanzamiento: str
+) -> float:
+    """Delta-v que la nave gasta en tránsito/inserción orbital (el lanzador pone el resto).
+
+    Args:
+        params_destino: Parámetros del destino.
+        perfil_trayectoria: "estandar" o "rapida" (la rápida llega con más velocidad y exige más frenado).
+        ventana_lanzamiento: "optima" o "secundaria".
+
+    Returns:
+        float: Delta-v de tránsito/inserción en m/s.
+    """
+    factor = FACTOR_TRAYECTORIA_RAPIDA if perfil_trayectoria == "rapida" else 1.0
+    if ventana_lanzamiento == "secundaria":
+        factor *= FACTOR_VENTANA_SECUNDARIA
+    return round(params_destino.delta_v_transito_insercion_ms * factor, 1)
+
+
+def calcular_delta_v_requerido_total_ms(
+    params_destino: ParametrosDestino, perfil_trayectoria: str, ventana_lanzamiento: str
+) -> float:
+    """Delta-v total que la nave necesita: lanzamiento propio + tránsito/inserción + retorno."""
+    return round(
+        params_destino.delta_v_lanzamiento_ms
+        + calcular_delta_v_transito_ms(
+            params_destino, perfil_trayectoria, ventana_lanzamiento
+        )
+        + params_destino.delta_v_retorno_ms,
+        1,
+    )
+
+
+def calcular_gb_por_ventana(
+    tasa_kbps: float,
+    probabilidad_enlace: float,
+    duracion_h: float = DURACION_VENTANA_COMM_H,
+) -> float:
+    """Convierte la tasa del enlace en gigabytes (decimales) transmitidos en una ventana.
+
+    GB = kbps × 1000 [bit/kbit] × (horas × 3600) [s] ÷ 8 [bit/byte] ÷ 10⁹ [byte/GB].
+    La probabilidad de enlace se aplica como valor esperado.
+
+    Args:
+        tasa_kbps: Tasa del enlace en kilobits por segundo.
+        probabilidad_enlace: Disponibilidad esperada del enlace (0 a 1).
+        duracion_h: Duración de la ventana en horas.
+
+    Returns:
+        float: GB esperados por ventana (0 si no hay antena).
+    """
+    if tasa_kbps <= 0 or duracion_h <= 0:
+        return 0.0
+    bits = tasa_kbps * 1000.0 * duracion_h * 3600.0
+    return round(bits / 8.0 / 1e9 * max(0.0, probabilidad_enlace), 2)
+
+
+def calcular_potencia_eclipse_w(
+    componentes_ids: list[str],
+    consumo_total_w: float,
+    rendimiento_energia: float = 1.0,
+) -> float:
+    """Potencia neta que debe suministrar la batería cuando los paneles no generan.
+
+    Durante un eclipse la carga completa recae en la batería (menos lo que aporte una fuente
+    no solar como el MMRTG). No se escala por la fracción de eclipse: esa fracción dice cuánto
+    dura la sombra en cada órbita, no cuánta potencia se demanda mientras dura.
+
+    Args:
+        componentes_ids: Componentes instalados.
+        consumo_total_w: Consumo eléctrico total de la nave en W.
+        rendimiento_energia: Factor de integridad del sistema eléctrico.
+
+    Returns:
+        float: Potencia neta en W (nunca negativa).
+    """
+    no_solar = sum(GENERACION_NO_SOLAR_W.get(cid, 0.0) for cid in componentes_ids)
+    return max(0.0, consumo_total_w - no_solar * max(0.1, rendimiento_energia))
+
+
+def calcular_autonomia_eclipse_h(
+    capacidad_wh: float, potencia_eclipse_w: float
+) -> float:
+    """Horas que la batería sostiene la potencia neta de un eclipse continuo (tope 999,9 h)."""
+    return min(999.9, round(capacidad_wh / max(potencia_eclipse_w, 1.0), 1))
 
 
 def obtener_mapa_catalogo() -> dict[str, ComponenteCatalogo]:
@@ -83,11 +184,12 @@ def calcular_balance_energetico(
     rendimiento_energia: float = 1.0,
     consumo_base_avionica_w: float = 110.0,
 ) -> tuple[float, float, float, float, float]:
-    """Calcula el balance eléctrico en Watts y la autonomía de baterías en Wh.
+    """Calcula el balance eléctrico en W (con Sol) y la autonomía de la batería en un eclipse (h).
 
     Args:
         componentes_ids: Lista de IDs de componentes instalados.
-        destino: Destino seleccionado (afecta la fracción de eclipse).
+        destino: Destino seleccionado (se conserva por compatibilidad: la autonomía en eclipse
+            depende de la potencia neta y la batería, no de la fracción de eclipse).
         rendimiento_energia: Factor de integridad del sistema eléctrico (1.0 nominal).
         consumo_base_avionica_w: Consumo base de la cabina de mando en W.
 
@@ -96,7 +198,6 @@ def calcular_balance_energetico(
             (generacion_w, consumo_w, balance_neto_w, capacidad_wh, autonomia_eclipse_h).
     """
     catalogo = obtener_mapa_catalogo()
-    params_destino = DESTINOS_CATALOGO[destino]
 
     generacion_bruta = 0.0
     consumo_total = consumo_base_avionica_w
@@ -114,8 +215,10 @@ def calcular_balance_energetico(
     consumo_total = round(consumo_total, 1)
     balance_neto = round(generacion_efectiva - consumo_total, 1)
 
-    demanda_eclipse = max(50.0, consumo_total * params_destino.fraccion_eclipse)
-    autonomia_h = round(capacidad_wh / demanda_eclipse, 1)
+    potencia_eclipse = calcular_potencia_eclipse_w(
+        componentes_ids, consumo_total, rendimiento_energia
+    )
+    autonomia_h = calcular_autonomia_eclipse_h(capacidad_wh, potencia_eclipse)
 
     return (
         generacion_efectiva,
@@ -255,11 +358,9 @@ def recalcular_subsistemas_mision(estado: EstadoMision) -> EstadoMision:
         estado.delta_v_inicial_ms = dv_total
         estado.delta_v_disponible_ms = dv_total
 
-    # Requerimiento orbital según destino y perfil de trayectoria
-    factor_trayectoria = 1.18 if estado.perfil_trayectoria == "rapida" else 1.0
-    factor_ventana = 1.10 if estado.ventana_lanzamiento == "secundaria" else 1.0
-    estado.delta_v_requerido_total_ms = round(
-        params_destino.delta_v_total_minimo_ms * factor_trayectoria * factor_ventana, 1
+    # Delta-v propio de la nave: el lanzamiento (ascenso) lo aporta el lanzador externo.
+    estado.delta_v_requerido_total_ms = calcular_delta_v_requerido_total_ms(
+        params_destino, estado.perfil_trayectoria, estado.ventana_lanzamiento
     )
     estado.dias_transito = (
         params_destino.dias_transito_rapido
@@ -278,6 +379,14 @@ def recalcular_subsistemas_mision(estado: EstadoMision) -> EstadoMision:
         cap_wh = round(cap_wh + 800.0, 1)
         gen_w = round(gen_w + 80.0, 1)
         bal_w = round(gen_w - cons_w, 1)
+        aut_h = calcular_autonomia_eclipse_h(
+            cap_wh,
+            calcular_potencia_eclipse_w(
+                estado.componentes_instalados,
+                cons_w,
+                estado.rendimiento_subsistemas.get("energia", 1.0),
+            ),
+        )
 
     estado.generacion_w = gen_w
     estado.consumo_w = cons_w

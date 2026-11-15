@@ -27,6 +27,40 @@ const G0_MS2 = 9.80665
 // Decisión de diseño: tripulantes perrunos (~25 kg). NASA usa 82 kg para astronautas humanos.
 const MASA_POR_TRIPULANTE_KG = 25.0
 
+// Duración supuesta de una ventana de comunicación (valor de juego; docs/fuentes-nasa.md §3).
+const DURACION_VENTANA_COMM_H = 2.0
+// Potencia que no depende del Sol: MMRTG, 110 W eléctricos (NASA, hoja técnica del MMRTG).
+const GENERACION_NO_SOLAR_W: Record<string, number> = { energia_hibrida_rtg: 110.0 }
+
+function calcularDeltaVTransito(
+  params: ParametrosDestino,
+  perfil: string,
+  ventana: string,
+): number {
+  let factor = perfil === 'rapida' ? 1.18 : 1.0
+  if (ventana === 'secundaria') factor *= 1.1
+  return Math.round(params.delta_v_transito_insercion_ms * factor * 10) / 10
+}
+
+// GB = kbps × 1000 × (h × 3600) ÷ 8 ÷ 10⁹; la probabilidad de enlace actúa como valor esperado.
+function calcularGbPorVentana(tasaKbps: number, probEnlace: number): number {
+  if (tasaKbps <= 0) return 0
+  const bits = tasaKbps * 1000 * DURACION_VENTANA_COMM_H * 3600
+  return Math.round((bits / 8 / 1e9) * Math.max(0, probEnlace) * 100) / 100
+}
+
+// Durante un eclipse la batería cubre toda la carga, menos lo que aporte una fuente no solar.
+function calcularAutonomiaEclipse(
+  componentes: string[],
+  consumoW: number,
+  rendEnergia: number,
+  capacidadWh: number,
+): number {
+  const noSolar = componentes.reduce((acc, cid) => acc + (GENERACION_NO_SOLAR_W[cid] ?? 0), 0)
+  const potencia = Math.max(0, consumoW - noSolar * Math.max(0.1, rendEnergia))
+  return Math.min(999.9, Math.round((capacidadWh / Math.max(potencia, 1)) * 10) / 10)
+}
+
 export const NOMBRES_ETAPAS_LOCAL: Record<string, string> = {
   '1': '1. Definición de la misión',
   '2': '2. Negociación y financiación',
@@ -45,34 +79,37 @@ export const DESTINOS_LOCAL: Record<DestinoId, ParametrosDestino> = {
     id: 'OTB',
     nombre: 'Órbita Terrestre Baja (OTB - 400 km)',
     distancia_km: 400,
-    delta_v_lanzamiento_ms: 1450,
-    delta_v_transito_insercion_ms: 350,
-    delta_v_retorno_ms: 300,
-    delta_v_total_minimo_ms: 2100,
+    // El ascenso lo paga el lanzador externo, no la nave (docs/fuentes-nasa.md §4).
+    delta_v_lanzamiento_ms: 0,
+    delta_v_transito_insercion_ms: 100,
+    delta_v_retorno_ms: 102,
+    delta_v_total_minimo_ms: 202,
     dias_transito_estandar: 1,
     dias_transito_rapido: 1,
     dias_operacion_destino: 4,
     fraccion_eclipse: 0.38,
     entorno_riesgo: 'Ciclado térmico orbital rápido y micro-escombros en órbita baja.',
     descripcion:
-      'Misión de observación atmosférica y microgravedad en órbita terrestre baja. Menor exigencia de delta-v y enlace de corta distancia, pero eclipses frecuentes cada 90 minutos.',
+      'Misión de observación atmosférica y microgravedad en órbita terrestre baja. El lanzador externo entrega la nave en OTB, por lo que la exigencia de delta-v de la nave es mínima; el enlace es de corta distancia y hay eclipses frecuentes cada 90 minutos.',
   },
   LUNA: {
     id: 'LUNA',
-    nombre: 'Órbita y Superficie Lunar (Cráter Shackleton - 384.400 km)',
+    nombre: 'Órbita Lunar Polar (observación del Cráter Shackleton - 384.400 km)',
     distancia_km: 384400,
-    delta_v_lanzamiento_ms: 1450,
-    delta_v_transito_insercion_ms: 1050,
-    delta_v_retorno_ms: 600,
-    delta_v_total_minimo_ms: 3100,
+    // La TLI la hace la etapa superior del lanzador; la nave paga LOI (913,5 + 41,1 m/s) y TEI (1.072,6 m/s)
+    // según el Apolo 8 (NASA).
+    delta_v_lanzamiento_ms: 0,
+    delta_v_transito_insercion_ms: 955,
+    delta_v_retorno_ms: 1073,
+    delta_v_total_minimo_ms: 2028,
     dias_transito_estandar: 4,
-    dias_transito_rapido: 2,
+    dias_transito_rapido: 3,
     dias_operacion_destino: 5,
     fraccion_eclipse: 0.25,
     entorno_riesgo:
-      'Regolito lunar helado resbaladizo para sistemas robóticos, radiación profunda y ocultación de señal. El interior de Shackleton está en sombra permanente (NASA/LRO): la energía solar solo es viable en el borde.',
+      'Radiación profunda, ocultación de señal al pasar por la cara oculta y ciclos térmicos en órbita lunar. El interior de Shackleton está en sombra permanente (NASA/LRO), por eso se observa desde órbita.',
     descripcion:
-      'Expedición científica cislunar y de prospección polar. Exige al menos 3.100 m/s de delta-v de misión, antena de largo alcance y reservas críticas de soporte vital.',
+      'Misión orbital de cartografía y prospección polar: la nave llega en trayectoria translunar gracias al lanzador, se inserta en órbita lunar y regresa. Exige ≈2.030 m/s de delta-v propio, antena de largo alcance y reservas de soporte vital. No incluye descenso ni ascenso.',
   },
 }
 
@@ -128,7 +165,7 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.88,
     slot_visual: 'tobera_compacta',
     descripcion_ficha:
-      'Motor químico económico de monopropelente (hidracina). Isp: 225 s | Combustible integrado: 650 kg. Cubre OTB solo con dotación reducida y masa seca contenida; no alcanza la transferencia lunar.',
+      'Motor químico económico de monopropelente (hidracina). Isp: 225 s | Combustible integrado: 650 kg. Cubre OTB con holgura; para la órbita lunar (≈2.030 m/s) queda justo o corto según la masa seca.',
   },
   {
     id: 'motor_biprop_estandar',
@@ -154,7 +191,7 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.94,
     slot_visual: 'tobera_campana',
     descripcion_ficha:
-      'Motor hipergólico MMH/MON-3 de la clase del OMS-E de Orión (26,7 kN, Isp 315 s según NASA) | Combustible: 795 kg (≈3.100-3.500 m/s según tripulación). Permite alcanzar los 3.100 m/s de la Luna solo si se controla la masa seca.',
+      'Motor hipergólico MMH/MON-3 de la clase del OMS-E de Orión (26,7 kN, Isp 315 s según NASA) | Combustible: 795 kg (≈2.900-3.200 m/s según tripulación y carga). Cubre con margen los ≈2.030 m/s de la órbita lunar si se controla la masa seca.',
   },
   {
     id: 'motor_crio_avanzado',
@@ -506,7 +543,7 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.88,
     slot_visual: 'modulo_robot',
     descripcion_ficha:
-      'Robot autónomo determinista (+55 kg, +90 W). No consume O2 ni comida y no sufre estado de ánimo, pero puede resbalar o atascarse en terreno lunar helado.',
+      'Robot autónomo determinista (+55 kg, +90 W). No consume O2 ni comida y no sufre estado de ánimo. Abstracción del MVP: representa una sonda desplegable; no se simula descenso ni ascenso lunar.',
   },
 ]
 
@@ -797,10 +834,10 @@ export function recalcularSubsistemasLocal(estado: EstadoMision): EstadoMision {
     estado.delta_v_disponible_ms = dvTotal
   }
 
-  const factorTray = estado.perfil_trayectoria === 'rapida' ? 1.18 : 1.0
-  const factorVent = estado.ventana_lanzamiento === 'secundaria' ? 1.1 : 1.0
   estado.delta_v_requerido_total_ms = round(
-    paramsDestino.delta_v_total_minimo_ms * factorTray * factorVent,
+    paramsDestino.delta_v_lanzamiento_ms +
+      calcularDeltaVTransito(paramsDestino, estado.perfil_trayectoria, estado.ventana_lanzamiento) +
+      paramsDestino.delta_v_retorno_ms,
     1,
   )
   estado.dias_transito =
@@ -817,7 +854,6 @@ export function recalcularSubsistemasLocal(estado: EstadoMision): EstadoMision {
     genEf = round(genEf + 80, 1)
   }
   const balW = round(genEf - consTotal, 1)
-  const demandaEclipse = Math.max(50, consTotal * paramsDestino.fraccion_eclipse)
 
   estado.generacion_w = genEf
   estado.consumo_w = consTotal
@@ -828,7 +864,12 @@ export function recalcularSubsistemasLocal(estado: EstadoMision): EstadoMision {
   } else {
     estado.bateria_actual_wh = Math.min(estado.bateria_actual_wh, estado.bateria_capacidad_wh)
   }
-  estado.autonomia_eclipse_h = round(capWh / demandaEclipse, 1)
+  estado.autonomia_eclipse_h = calcularAutonomiaEclipse(
+    estado.componentes_instalados,
+    consTotal,
+    rendEnergia,
+    capWh,
+  )
 
   if (estado.etapa_actual <= 4) {
     const rendEclss = estado.rendimiento_subsistemas.soporte_vital ?? 1.0
@@ -1341,12 +1382,14 @@ export function sendDecisionLocal(
       resumen = `¡Todos los datos en memoria (${estado.datos_transmitidos_gb} GB) ya fueron transmitidos a Tierra! No se consumió ninguna ventana adicional.`
     } else if (estado.ventanas_comm_restantes <= 0) {
       resumen = 'No quedan ventanas de comunicación disponibles en esta órbita/ciclo.'
+    } else if (estado.tasa_transmision_kbps <= 0) {
+      resumen = 'No hay antena operativa: instala o repara una antena para transmitir a Tierra.'
     } else {
       estado.ventanas_comm_restantes -= 1
       estado.bateria_actual_wh = round(Math.max(0, estado.bateria_actual_wh - 100), 1)
-      const gbPorVentana = Math.max(
-        2.5,
-        round((estado.tasa_transmision_kbps / 1000) * estado.probabilidad_enlace_comm * 2.2, 2),
+      const gbPorVentana = calcularGbPorVentana(
+        estado.tasa_transmision_kbps,
+        estado.probabilidad_enlace_comm,
       )
       const txAhora = round(Math.min(pendientes, gbPorVentana), 2)
       estado.datos_transmitidos_gb = round(estado.datos_transmitidos_gb + txAhora, 2)
@@ -1400,16 +1443,16 @@ export function advanceStageLocal(missionId: string): DecisionResponse {
         mission_state: estado,
       }
     }
-    estado.delta_v_disponible_ms = round(
-      estado.delta_v_disponible_ms - paramsDestino.delta_v_lanzamiento_ms,
-      1,
-    )
-    narrativa = `Ascenso orbital completado. Se consumieron ${paramsDestino.delta_v_lanzamiento_ms} m/s de Delta-v.`
+    // El ascenso lo realiza el lanzador externo: el delta-v de la nave no se descuenta aquí.
+    narrativa =
+      estado.destino === 'LUNA'
+        ? `Lanzamiento completado: el lanzador externo puso la nave en trayectoria translunar. Delta-v propio intacto: ${Math.round(estado.delta_v_disponible_ms)} m/s.`
+        : `Lanzamiento completado: el lanzador externo entregó la nave en órbita terrestre baja. Delta-v propio intacto: ${Math.round(estado.delta_v_disponible_ms)} m/s.`
   } else if (estado.etapa_actual === 6) {
-    const dvTransito = round(
-      paramsDestino.delta_v_transito_insercion_ms *
-        (estado.perfil_trayectoria === 'rapida' ? 1.18 : 1.0),
-      1,
+    const dvTransito = calcularDeltaVTransito(
+      paramsDestino,
+      estado.perfil_trayectoria,
+      estado.ventana_lanzamiento,
     )
     estado.delta_v_disponible_ms = round(Math.max(0, estado.delta_v_disponible_ms - dvTransito), 1)
     estado.dias_transcurridos += estado.dias_transito
@@ -1427,7 +1470,7 @@ export function advanceStageLocal(missionId: string): DecisionResponse {
       Math.max(0, estado.presupuesto_restante_usd - costoOps),
       2,
     )
-    narrativa = `Tránsito a ${estado.destino} completado en ${estado.dias_transito} día(s). Coste de seguimiento: -${costoOps.toLocaleString()} CZ.`
+    narrativa = `Tránsito a ${estado.destino} completado en ${estado.dias_transito} día(s); maniobra de inserción orbital: ${Math.round(dvTransito)} m/s. Coste de seguimiento: -${costoOps.toLocaleString()} CZ.`
   } else if ([7, 8, 9].includes(estado.etapa_actual)) {
     estado.dias_transcurridos += 1
     const consVital = estado.dificultad === 'facil' ? 0.7 : 1.0

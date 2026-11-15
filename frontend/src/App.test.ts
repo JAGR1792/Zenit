@@ -37,7 +37,7 @@ describe('Esquemático y componentes visuales de Zenit', () => {
       isp_efectivo_s: 320,
       delta_v_inicial_ms: 3408,
       delta_v_disponible_ms: 3408,
-      delta_v_requerido_total_ms: 2100,
+      delta_v_requerido_total_ms: 202,
       perfil_trayectoria: 'estandar',
       ventana_lanzamiento: 'optima',
       dias_transito: 1,

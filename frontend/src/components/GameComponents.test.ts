@@ -1,5 +1,6 @@
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
+import type { VueWrapper } from '@vue/test-utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import BossReportScene from './BossReportScene.vue'
 import DestinationRooms2D from './DestinationRooms2D.vue'
@@ -9,6 +10,7 @@ import TutorialOverlay from './TutorialOverlay.vue'
 import VisualNovelNegotiation from './VisualNovelNegotiation.vue'
 import type { InformeFinal, TripulanteEstado } from '../services/api'
 import { createMissionLocal, sendDecisionLocal } from '../services/localSimulationFallback'
+import TypewriterText from './TypewriterText.vue'
 
 beforeAll(() => {
   // jsdom no implementa canvas 2D nativo; evitamos advertencias al montar PixelSprite
@@ -62,6 +64,18 @@ function crearInformePrueba(): InformeFinal {
   }
 }
 
+async function saltarDialogo(wrapper: VueWrapper) {
+  const dialogo = wrapper
+    .findAllComponents(TypewriterText)
+    .find((componente) => componente.props('skipHint') === '(clic para saltar)')
+
+  if (!dialogo) {
+    throw new Error('No se encontró el diálogo principal')
+  }
+
+  await dialogo.find('.typewriter-text').trigger('click')
+}
+
 describe('Componentes principales del simulador Zenit', () => {
   it('VisualNovelNegotiation oculta montos en opciones, permite ganar o perder presupuesto y cambia escenarios', async () => {
     const mision = createMissionLocal({
@@ -98,10 +112,13 @@ describe('Componentes principales del simulador Zenit', () => {
     expect(opcionesTexto).not.toContain('-$')
 
     // Ronda 1: elegir ceder reservas (penaliza presupuesto -> bono negativo)
+    await saltarDialogo(wrapper)
     await wrapper.find('.vn-choice-line').trigger('click')
     // Ronda 2: primera opción (justificar especialistas -> bono positivo)
+    await saltarDialogo(wrapper)
     await wrapper.find('.vn-choice-line').trigger('click')
     // Ronda 3: tercera opción (arquitectura integral -> bono positivo)
+    await saltarDialogo(wrapper)
     const opcionesR3 = wrapper.findAll('.vn-choice-line')
     await opcionesR3[opcionesR3.length - 1].trigger('click')
 
