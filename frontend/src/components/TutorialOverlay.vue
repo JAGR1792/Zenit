@@ -21,8 +21,20 @@ const emit = defineEmits<{
 const indice = ref(0)
 const rect = ref<{ top: number; left: number; width: number; height: number } | null>(null)
 const tooltipPos = ref<{ top: number; left: number }>({ top: 0, left: 0 })
+const pasosFiltrados = ref<PasoTutorial[]>([])
 
-const pasoActual = computed(() => props.pasos[indice.value] ?? null)
+const pasoActual = computed(() => pasosFiltrados.value[indice.value] ?? null)
+
+function filtrarPasos(): void {
+  pasosFiltrados.value = props.pasos.filter((p) => {
+    try {
+      return !!document.querySelector(p.selector)
+    } catch {
+      return false
+    }
+  })
+  if (pasosFiltrados.value.length === 0) pasosFiltrados.value = props.pasos
+}
 
 function actualizarRect(): void {
   if (!pasoActual.value) {
@@ -32,12 +44,11 @@ function actualizarRect(): void {
   const el = document.querySelector(pasoActual.value.selector) as HTMLElement | null
   if (!el) {
     rect.value = null
-    tooltipPos.value = { top: window.innerHeight / 2, left: window.innerWidth / 2 }
+    tooltipPos.value = { top: window.innerHeight / 2 - 80, left: window.innerWidth / 2 - 160 }
     return
   }
   const r = el.getBoundingClientRect()
   rect.value = { top: r.top, left: r.left, width: r.width, height: r.height }
-  // Posicionar tooltip debajo del elemento por defecto
   tooltipPos.value = {
     top: r.bottom + 12,
     left: Math.max(12, Math.min(window.innerWidth - 340, r.left)),
@@ -45,12 +56,22 @@ function actualizarRect(): void {
   if (pasoActual.value.posicion === 'top') {
     tooltipPos.value = { top: Math.max(12, r.top - 180), left: tooltipPos.value.left }
   }
+  // Si el tooltip queda fuera de pantalla, ponerlo arriba
+  if (tooltipPos.value.top + 200 > window.innerHeight) {
+    tooltipPos.value.top = Math.max(12, r.top - 200)
+  }
 }
 
 function siguiente(): void {
-  if (indice.value < props.pasos.length - 1) {
-    indice.value += 1
-    actualizarRect()
+  let next = indice.value + 1
+  while (next < pasosFiltrados.value.length) {
+    const sel = pasosFiltrados.value[next]?.selector
+    if (!sel || document.querySelector(sel)) break
+    next += 1
+  }
+  if (next < pasosFiltrados.value.length) {
+    indice.value = next
+    setTimeout(actualizarRect, 50)
   } else {
     finalizar()
   }
@@ -73,21 +94,45 @@ function saltar(): void {
 
 watch(() => props.activo, (v) => {
   if (v) {
+    filtrarPasos()
     indice.value = 0
-    setTimeout(actualizarRect, 50)
+    setTimeout(actualizarRect, 100)
   }
 })
 
 watch(() => indice.value, () => actualizarRect())
 
+function manejarTeclado(ev: KeyboardEvent): void {
+  if (!props.activo) return
+  if (ev.key === 'Escape') {
+    ev.preventDefault()
+    saltar()
+  } else if (ev.key === 'ArrowRight' || ev.key === 'Enter') {
+    ev.preventDefault()
+    siguiente()
+  } else if (ev.key === 'ArrowLeft') {
+    ev.preventDefault()
+    anterior()
+  }
+}
+
+let observador: MutationObserver | null = null
+
 onMounted(() => {
   window.addEventListener('resize', actualizarRect)
   window.addEventListener('scroll', actualizarRect, true)
+  window.addEventListener('keydown', manejarTeclado)
+  observador = new MutationObserver(() => {
+    if (props.activo) actualizarRect()
+  })
+  observador.observe(document.body, { childList: true, subtree: true, attributes: true })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', actualizarRect)
   window.removeEventListener('scroll', actualizarRect, true)
+  window.removeEventListener('keydown', manejarTeclado)
+  if (observador) observador.disconnect()
 })
 </script>
 

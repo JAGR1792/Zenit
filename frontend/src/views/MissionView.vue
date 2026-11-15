@@ -300,6 +300,30 @@ function iniciarTutorial(): void {
       descripcion:
         'Muestra el último mensaje y los cambios (Δ) en variables. Un buen Delta-v y margen de masa ayudan a un final exitoso.',
     },
+    {
+      selector: '.vn-choice-line',
+      titulo: 'Opciones de negociación',
+      descripcion:
+        'En la Oficina (Etapa 2) eliges argumentos. No revelan montos; un buen argumento técnico puede subir el presupuesto, uno malo lo recorta.',
+    },
+    {
+      selector: '.catalog-row-card',
+      titulo: 'Catálogo de componentes',
+      descripcion:
+        'Cada componente suma masa y coste. Lee la ficha técnica: Isp, consumo W, masa. Equilibrar masa y energía es clave.',
+    },
+    {
+      selector: '.rpg-dialogue-box',
+      titulo: 'Diálogos en la cubierta',
+      descripcion:
+        'En vuelo (Etapa 6+) camina con A/D y pulsa E para hablar con la tripulación o usar consolas. Primero recolecta datos en el Laboratorio, luego transmítelos en Sala de Sistemas.',
+    },
+    {
+      selector: '.vn-finish-btn',
+      titulo: 'Cerrar acuerdo',
+      descripcion:
+        'Al firmar el presupuesto pasas al Hangar. Un buen cierre (reserva de Delta-v y O₂) mejora el final.',
+    },
   ]
   tutorialActivo.value = true
 }
