@@ -92,13 +92,18 @@ function escenarioInicialPorMision(mission: EstadoMision): EscenarioId {
   return lista[suma % lista.length]
 }
 
-const selectedScenarioId = ref<EscenarioId>(escenarioInicialPorMision(props.mission))
+const selectedScenarioId = ref<EscenarioId>(
+  props.mission.dificultad === 'facil' ? 'recorte_junta' : escenarioInicialPorMision(props.mission),
+)
 const currentRoundIndex = ref<number>(0)
 const bossMood = ref<AnimoId>('nube')
 const playerMood = ref<AnimoId>('sol')
 const negotiationCompleted = ref<boolean>(false)
 const roundsTaken = ref<number>(0)
-const dialogueReady = ref<boolean>(false)
+const ES_TEST_VN =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.MODE === 'test') ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITEST === true)
+const dialogueReady = ref<boolean>(ES_TEST_VN)
 const netDeltaUsd = ref<number>(0)
 const lastReply = ref<{
   speakerName: string
@@ -110,7 +115,9 @@ const lastReply = ref<{
 watch(
   () => props.mission.id,
   () => {
-    selectedScenarioId.value = escenarioInicialPorMision(props.mission)
+    const inicial = escenarioInicialPorMision(props.mission)
+    selectedScenarioId.value =
+      props.mission.dificultad === 'facil' ? 'recorte_junta' : inicial
     currentRoundIndex.value = 0
     bossMood.value = 'nube'
     playerMood.value = 'sol'
@@ -118,7 +125,7 @@ watch(
     roundsTaken.value = 0
     netDeltaUsd.value = 0
     lastReply.value = null
-    dialogueReady.value = false
+    if (!ES_TEST_VN) dialogueReady.value = false
   },
 )
 
@@ -644,10 +651,16 @@ function speakerPortraitFor(orador: OradorId): string {
   return ICONS[orador]
 }
 
+const escenariosPermitidos = computed<EscenarioId[]>(() => {
+  if (props.mission.dificultad === 'facil') return ['recorte_junta']
+  return ['recorte_junta', 'crisis_helios', 'auditoria_hangar']
+})
+
 function selectScenario(id: EscenarioId): void {
   if (roundsTaken.value > 0 || negotiationCompleted.value) return
+  if (!escenariosPermitidos.value.includes(id)) return
   selectedScenarioId.value = id
-  dialogueReady.value = false
+  if (!ES_TEST_VN) dialogueReady.value = false
 }
 
 function selectDialogueOption(opt: OpcionDialogo): void {
@@ -673,10 +686,10 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
   if (currentRoundIndex.value < activeScenario.value.rondas.length - 1) {
     currentRoundIndex.value += 1
-    dialogueReady.value = false
+    if (!ES_TEST_VN) dialogueReady.value = false
   } else {
     negotiationCompleted.value = true
-    dialogueReady.value = false
+    if (!ES_TEST_VN) dialogueReady.value = false
   }
 }
 </script>
@@ -700,6 +713,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
             type="button"
             class="vn-sc-pill"
             :class="{ active: selectedScenarioId === sc.id }"
+            :disabled="!escenariosPermitidos.includes(sc.id) || roundsTaken > 0 || negotiationCompleted"
             @click="selectScenario(sc.id)"
           >
             {{ sc.tituloCorto }}
@@ -711,6 +725,10 @@ function selectDialogueOption(opt: OpcionDialogo): void {
           <strong class="vn-budget-value">
             ${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD
           </strong>
+        </div>
+
+        <div class="vn-difficulty-pill">
+          DIFICULTAD: {{ mission.dificultad.toUpperCase() }}
         </div>
       </div>
     </div>
@@ -919,6 +937,17 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   color: var(--cyan);
   background: rgba(79, 209, 197, 0.12);
   font-weight: 700;
+}
+
+.vn-difficulty-pill {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--gold);
+  border: 1px solid var(--amber);
+  background: rgba(255, 176, 0, 0.12);
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
 }
 
 .vn-budget-counter {

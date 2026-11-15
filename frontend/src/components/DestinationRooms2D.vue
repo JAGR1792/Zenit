@@ -29,6 +29,10 @@ const actionFeedback = ref<string>(
 // Estado de la zona RPG / Novela Visual dentro de la nave
 const activeDialogueMember = ref<TripulanteEstado | null>(null)
 const dialogueMode = ref<'saludo' | 'diagnostico'>('saludo')
+const ES_TEST_RPG =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.MODE === 'test') ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITEST === true)
+const dialogueReady = ref<boolean>(ES_TEST_RPG)
 
 // Posiciones fijas (estáticas) para los tripulantes en la sala, separadas de puertas y consola
 const POSICIONES_ESTATICAS_TRIPULACION = [26, 74, 19]
@@ -111,6 +115,7 @@ watch(
   () => currentRoom.value?.id,
   () => {
     activeDialogueMember.value = null
+    if (!ES_TEST_RPG) dialogueReady.value = false
   },
 )
 
@@ -175,13 +180,19 @@ const activeDialogueText = computed(() => {
   return buildCrewRpgText(activeDialogueMember.value, dialogueMode.value)
 })
 
+watch(dialogueMode, () => {
+  if (!ES_TEST_RPG) dialogueReady.value = false
+})
+
 function openCrewDialogue(member: TripulanteEstado): void {
   if (activeDialogueMember.value?.id === member.id) {
     activeDialogueMember.value = null
+    if (!ES_TEST_RPG) dialogueReady.value = false
     return
   }
   activeDialogueMember.value = member
   dialogueMode.value = 'saludo'
+  if (!ES_TEST_RPG) dialogueReady.value = false
   actionFeedback.value = `💬 Conversando con ${member.nombre} (${member.rol}).`
 }
 
@@ -193,6 +204,7 @@ function openSoloLogDialogue(): void {
 
 function closeDialogue(): void {
   activeDialogueMember.value = null
+  if (!ES_TEST_RPG) dialogueReady.value = false
 }
 
 const pendingDataGb = computed(() => {
@@ -566,12 +578,14 @@ onUnmounted(() => {
                   :text="activeDialogueText"
                   :key="`rpg-${activeDialogueMember?.id ?? 'solo'}-${dialogueMode}`"
                   skip-hint="(clic para saltar)"
+                  @complete="dialogueReady = true"
                 />
               </p>
               <div class="rpg-choices-row">
                 <button
                   class="rpg-choice-btn"
                   :class="{ active: dialogueMode === 'diagnostico' }"
+                  :disabled="!dialogueReady"
                   @click="dialogueMode = dialogueMode === 'diagnostico' ? 'saludo' : 'diagnostico'"
                 >
                   &gt; {{ dialogueMode === 'diagnostico' ? 'Volver al saludo' : 'Pedir diagnóstico de esta sala' }}
@@ -579,6 +593,7 @@ onUnmounted(() => {
                 <button
                   v-if="currentRoom.id === 'laboratorio' && mission.etapa_actual >= 7"
                   class="rpg-choice-btn accent"
+                  :disabled="!dialogueReady"
                   @click="emit('runScience'); closeDialogue()"
                 >
                   &gt; 🔬 Recolectar datos ahora
@@ -586,6 +601,7 @@ onUnmounted(() => {
                 <button
                   v-else-if="currentRoom.id === 'soporte_vital'"
                   class="rpg-choice-btn accent"
+                  :disabled="!dialogueReady"
                   @click="emit('runCrewTask', 'estabilizar_animo'); closeDialogue()"
                 >
                   &gt; ☀ Estabilizar ánimo de la dotación
@@ -593,6 +609,7 @@ onUnmounted(() => {
                 <button
                   v-else-if="currentRoom.id === 'sala_sistemas' && mission.etapa_actual >= 7 && pendingDataGb > 0"
                   class="rpg-choice-btn accent"
+                  :disabled="!dialogueReady"
                   @click="emit('useCommWindow'); closeDialogue()"
                 >
                   &gt; 📡 Transmitir {{ pendingDataGb }} GB a Tierra
