@@ -27,8 +27,78 @@ const loading = ref<boolean>(false)
 
 // Menú de Inicio y control de decisiones explícitas sin preselecciones visibles
 const showMainMenu = ref<boolean>(true)
-const tutorialActivo = ref<boolean>(false)
-const pasosTutorial = ref<PasoTutorial[]>([])
+const tutorialActivo = ref<boolean>(localStorage.getItem('zenit_tutorial_activo') === '1')
+const tutorialVisible = ref<boolean>(tutorialActivo.value)
+const tutorialPaso = ref<number>(0)
+
+const hitosTutorial: PasoTutorial[] = [
+  {
+    selector: '[data-tutorial="menu"]',
+    titulo: 'Bienvenido a Zenit',
+    descripcion:
+      'Configura tu expedición: nombre, destino (OTB más accesible, Luna más exigente) y dificultad. Luego pulsa “Despegar”.',
+  },
+  {
+    selector: '[data-tutorial="timeline"]',
+    titulo: 'Etapa 1 · Elige destino',
+    descripcion:
+      'Selecciona el destino científico. El Delta-v requerido y los días de tránsito cambian según el destino.',
+  },
+  {
+    selector: '[data-tutorial="telemetry"]',
+    titulo: 'Etapa 2 · Negocia presupuesto',
+    descripcion:
+      'Vigila CZ, masa y Delta-v. En la Oficina argumenta ante el Comité; un buen argumento técnico puede subir el presupuesto.',
+  },
+  {
+    selector: '[data-tutorial="viewport"]',
+    titulo: 'Etapa 3 · Diseña la nave',
+    descripcion:
+      'Instala componentes y contrata tripulación. Lee la ficha técnica: masa, consumo W, Isp. Equilibra masa (≤1.300 kg) y energía.',
+  },
+  {
+    selector: '[data-tutorial="telemetry"]',
+    titulo: 'Etapa 4 · Planifica trayectoria',
+    descripcion:
+      'Elige perfil de trayectoria y ventana. El Delta-v requerido aumenta con trayectoria rápida o ventana secundaria.',
+  },
+  {
+    selector: '[data-tutorial="timeline"]',
+    titulo: 'Etapa 5 · Lanzamiento',
+    descripcion:
+      'Si la masa supera el límite, la misión falla. Si el Delta-v es insuficiente, no alcanzas la órbita.',
+  },
+  {
+    selector: '[data-tutorial="viewport"]',
+    titulo: 'Etapa 6 · Tránsito',
+    descripcion:
+      'Resuelve alertas de subsistemas. Usa tripulación, batería o dinero. No dejes alertas sin atender.',
+  },
+  {
+    selector: '[data-tutorial="viewport"]',
+    titulo: 'Etapa 7 · Recolecta datos',
+    descripcion:
+      'Ve al Laboratorio Científico y pulsa E para recolectar. Primero datos, luego transmisión.',
+  },
+  {
+    selector: '[data-tutorial="viewport"]',
+    titulo: 'Etapa 8 · Tripulación',
+    descripcion:
+      'Estabiliza el ánimo en el Módulo de Vida. Una tripulación en “Sol” rinde más.',
+  },
+  {
+    selector: '[data-tutorial="viewport"]',
+    titulo: 'Etapa 9 · Transmite',
+    descripcion:
+      'En Sala de Sistemas usa la antena para enviar datos a Tierra. Sin transmisión, el informe final será pobre.',
+  },
+  {
+    selector: '[data-tutorial="deltabar"]',
+    titulo: 'Etapa 10 · Veredicto',
+    descripcion:
+      'El Comité evalúa ciencia, finanzas y supervivencia. Un buen Delta-v, masa controlada y datos transmitidos dan un final exitoso.',
+    },
+  ]
 const selectedDifficulty = ref<DificultadId>('facil')
 const selectedInitialDest = ref<DestinoId>('OTB')
 const customMissionName = ref<string>('Expedición Zenit-1')
@@ -269,64 +339,34 @@ async function handleMenuStart(payload: {
 }
 
 function iniciarTutorial(): void {
-  pasosTutorial.value = [
-    {
-      selector: '[data-tutorial="timeline"]',
-      titulo: 'Progreso de la misión',
-      descripcion:
-        'Aquí ves las 10 etapas. Avanza solo cuando completes la actual; un Delta-v bajo o masa excesiva puede bloquear el despegue.',
-    },
-    {
-      selector: '[data-tutorial="telemetry"]',
-      titulo: 'Telemetría clave',
-      descripcion:
-        'Vigila presupuesto (CZ), masa (máx. 1.300 kg), Delta-v (debe alcanzar el destino) y datos transmitidos. Mucha masa reduce el Delta-v disponible.',
-    },
-    {
-      selector: '[data-tutorial="viewport"]',
-      titulo: 'Visor principal',
-      descripcion:
-        'Cambia entre Oficina (negociación), Hangar (diseño), Cubierta 2D (operaciones) y Variables. Cada uno muestra un aspecto del sistema.',
-    },
-    {
-      selector: '[data-tutorial="story"]',
-      titulo: 'Crónica de la trama',
-      descripcion:
-        'Contexto narrativo de la misión Helios-9. No afecta números, pero orienta las decisiones.',
-    },
-    {
-      selector: '[data-tutorial="deltabar"]',
-      titulo: 'Bitácora e impacto',
-      descripcion:
-        'Muestra el último mensaje y los cambios (Δ) en variables. Un buen Delta-v y margen de masa ayudan a un final exitoso.',
-    },
-    {
-      selector: '.vn-choice-line',
-      titulo: 'Opciones de negociación',
-      descripcion:
-        'En la Oficina (Etapa 2) eliges argumentos. No revelan montos; un buen argumento técnico puede subir el presupuesto, uno malo lo recorta.',
-    },
-    {
-      selector: '.catalog-row-card',
-      titulo: 'Catálogo de componentes',
-      descripcion:
-        'Cada componente suma masa y coste. Lee la ficha técnica: Isp, consumo W, masa. Equilibrar masa y energía es clave.',
-    },
-    {
-      selector: '.rpg-dialogue-box',
-      titulo: 'Diálogos en la cubierta',
-      descripcion:
-        'En vuelo (Etapa 6+) camina con A/D y pulsa E para hablar con la tripulación o usar consolas. Primero recolecta datos en el Laboratorio, luego transmítelos en Sala de Sistemas.',
-    },
-    {
-      selector: '.vn-finish-btn',
-      titulo: 'Cerrar acuerdo',
-      descripcion:
-        'Al firmar el presupuesto pasas al Hangar. Un buen cierre (reserva de Delta-v y O₂) mejora el final.',
-    },
-  ]
   tutorialActivo.value = true
+  tutorialVisible.value = true
+  localStorage.setItem('zenit_tutorial_activo', '1')
+  sincronizarTutorial()
 }
+
+function sincronizarTutorial(): void {
+  if (!tutorialActivo.value) return
+  if (showMainMenu.value) {
+    tutorialPaso.value = 0
+  } else if (mission.value) {
+    tutorialPaso.value = Math.min(mission.value.etapa_actual, hitosTutorial.length - 1)
+  }
+  tutorialVisible.value = true
+}
+
+function desactivarTutorial(): void {
+  tutorialActivo.value = false
+  tutorialVisible.value = false
+  try {
+    localStorage.removeItem('zenit_tutorial_activo')
+  } catch {
+    // Ignorar entornos sin localStorage.
+  }
+}
+
+watch(showMainMenu, () => sincronizarTutorial())
+watch(() => mission.value?.etapa_actual, () => sincronizarTutorial(), { immediate: true })
 
 async function startNewMission(fromMenu = false): Promise<void> {
   loading.value = true
@@ -430,6 +470,7 @@ onMounted(async () => {
     <!-- ======================================================================= -->
     <GameMainMenu
       v-if="showMainMenu"
+      data-tutorial="menu"
       :loading="loading"
       :has-active-mission="Boolean(mission)"
       :error-message="lastStatusType === 'fail' ? statusMessage : null"
@@ -1267,10 +1308,10 @@ onMounted(async () => {
     </main>
 
     <TutorialOverlay
-      :pasos="pasosTutorial"
-      :activo="tutorialActivo"
-      @finish="tutorialActivo = false"
-      @skip="tutorialActivo = false"
+      :pasos="[hitosTutorial[tutorialPaso]]"
+      :activo="tutorialVisible"
+      @finish="tutorialVisible = false"
+      @skip="desactivarTutorial()"
     />
   </div>
 </template>
