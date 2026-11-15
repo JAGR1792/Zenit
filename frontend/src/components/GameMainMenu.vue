@@ -353,6 +353,8 @@ function handleStart(): void {
                   src="/sprites/iconos/icono_gato_jefe_naranja.jpg"
                   alt="Gato Jefe"
                   class="cat-badge-img"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <span>GATO JEFE</span>
               </div>
@@ -361,6 +363,8 @@ function handleStart(): void {
                   src="/sprites/iconos/icono_gato_asistente_blanco.png"
                   alt="Auditora Blanca"
                   class="cat-badge-img"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <span>FINANZAS</span>
               </div>
@@ -369,6 +373,8 @@ function handleStart(): void {
                   src="/sprites/iconos/icono_gato_asistente_negro.png"
                   alt="Asesor Negro"
                   class="cat-badge-img"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <span>RIESGO</span>
               </div>
