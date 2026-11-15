@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import BossReportScene from './BossReportScene.vue'
 import DestinationRooms2D from './DestinationRooms2D.vue'
+import ShipSchematic from './ShipSchematic.vue'
 import VisualNovelNegotiation from './VisualNovelNegotiation.vue'
 import type { InformeFinal, TripulanteEstado } from '../services/api'
 import { createMissionLocal, sendDecisionLocal } from '../services/localSimulationFallback'
@@ -153,14 +154,14 @@ describe('Componentes principales del simulador Zenit', () => {
     const escenarioLab = wrapper.find('.scene-box')
     expect(escenarioLab.attributes('style')).toContain('--piso: 1%')
 
-    // Cambia a soporte_vital (1%), sala_sistemas (2%) y cabina_mando (12%)
+    // Cambia a soporte_vital (1%), sala_sistemas (1%) y cabina_mando (12%)
     mision.habitacion_jugador = 'soporte_vital'
     await wrapper.setProps({ mission: { ...mision } })
     expect(wrapper.find('.scene-box').attributes('style')).toContain('--piso: 1%')
 
     mision.habitacion_jugador = 'sala_sistemas'
     await wrapper.setProps({ mission: { ...mision } })
-    expect(wrapper.find('.scene-box').attributes('style')).toContain('--piso: 2%')
+    expect(wrapper.find('.scene-box').attributes('style')).toContain('--piso: 1%')
 
     // Vuelve a laboratorio y abre diálogo RPG con tripulante estático de la sala
     mision.habitacion_jugador = 'laboratorio'
@@ -203,6 +204,14 @@ describe('Componentes principales del simulador Zenit', () => {
     expect(wrapper.text()).toContain('Final 1 — Éxito Científico Sobresaliente')
     expect(wrapper.text()).toContain('91 / 100')
     expect(wrapper.text()).toContain(informe.monologo_cuarta_pared!)
+    expect(wrapper.find('.tribunal-bg-img').attributes('src')).toBe('/sprites/escenas/escena_final.jpg')
+
+    const btnSalaJuicio = wrapper.findAll('button').find((b) => b.text().includes('Sala de Juicio'))
+    expect(btnSalaJuicio).toBeTruthy()
+    await btnSalaJuicio!.trigger('click')
+    expect(wrapper.find('.tribunal-bg-img').attributes('src')).toBe(
+      '/sprites/escenas/sala_juicio_tribunal_wide.jpg',
+    )
 
     const btnFinanzas = wrapper
       .findAll('button')
@@ -219,6 +228,21 @@ describe('Componentes principales del simulador Zenit', () => {
     await btnCiencia!.trigger('click')
     expect(wrapper.text()).toContain('ASESOR NEGRO')
     expect(wrapper.text()).toContain('Cobertura completa del paquete experimental.')
+  })
+
+  it('ShipSchematic renderiza el corte transversal oficial nave.png', () => {
+    const mision = createMissionLocal({
+      nombre_mision: 'Zenit Nave Test',
+      destino: 'OTB',
+      dificultad: 'normal',
+      acuerdo_financiacion_id: 'estandar',
+      especialidad_director: 'ingenieria',
+    })
+    const wrapper = mount(ShipSchematic, {
+      props: { mission: mision },
+    })
+    const imgNave = wrapper.find('image[href="/sprites/escenarios/nave/nave.png"]')
+    expect(imgNave.exists()).toBe(true)
   })
 
   it('localSimulationFallback bloquea operaciones antes de etapa 6 y limita negociaciones a 3 rondas', () => {

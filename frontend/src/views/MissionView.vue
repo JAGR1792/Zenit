@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import TypewriterText from '../components/TypewriterText.vue'
 import BossReportScene from '../components/BossReportScene.vue'
 import DestinationRooms2D from '../components/DestinationRooms2D.vue'
 import PixelSprite, { obtenerSpriteTripulante } from '../components/PixelSprite.vue'
@@ -909,7 +910,9 @@ onMounted(async () => {
                 :alt="currentStoryBeat.speaker"
                 class="story-speaker-icon"
               />
-              <p class="serif-narrative story-quote">{{ currentStoryBeat.quote }}</p>
+              <p class="serif-narrative story-quote">
+                <TypewriterText :text="currentStoryBeat.quote" :key="`story-${mission?.etapa_actual}-${mission?.destino}`" skip-hint="(clic para saltar)" />
+              </p>
             </div>
           </div>
 

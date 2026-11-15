@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import TypewriterText from './TypewriterText.vue'
 import type { EstadoMision } from '../services/api'
 
 const props = defineProps<{
@@ -57,6 +58,25 @@ const ICONS: Record<OradorId, string> = {
   negro: '/sprites/iconos/icono_gato_asistente_negro.png',
 }
 
+// Secuencia de parpadeo del Gato Jefe naranja oficial (gatoJefe1..5.png)
+const BLINK_SEQUENCE = [1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 1]
+const blinkStep = ref<number>(0)
+let blinkTimer: number | null = null
+
+onMounted(() => {
+  blinkTimer = window.setInterval(() => {
+    blinkStep.value = (blinkStep.value + 1) % BLINK_SEQUENCE.length
+  }, 240)
+})
+
+onUnmounted(() => {
+  if (blinkTimer !== null) window.clearInterval(blinkTimer)
+})
+
+const animatedOrangeBossSrc = computed(
+  () => `/sprites/gato/gatoJefe${BLINK_SEQUENCE[blinkStep.value]}.png`,
+)
+
 function moodToImg(mood: AnimoId): string {
   if (mood === 'sol') return '/sprites/elementos/Sol.png'
   if (mood === 'nube') return '/sprites/elementos/Nube.png'
@@ -78,6 +98,7 @@ const bossMood = ref<AnimoId>('nube')
 const playerMood = ref<AnimoId>('sol')
 const negotiationCompleted = ref<boolean>(false)
 const roundsTaken = ref<number>(0)
+const dialogueReady = ref<boolean>(false)
 const netDeltaUsd = ref<number>(0)
 const lastReply = ref<{
   speakerName: string
@@ -97,6 +118,7 @@ watch(
     roundsTaken.value = 0
     netDeltaUsd.value = 0
     lastReply.value = null
+    dialogueReady.value = false
   },
 )
 
@@ -113,7 +135,7 @@ const scenarios = computed<Record<EscenarioId, EscenarioNegociacion>>(() => {
       id: 'recorte_junta',
       tituloCorto: 'Recorte de la Junta',
       subtituloEscena: 'OFICINA DE PLANIFICACIÓN · RECORTE PREVENTIVO',
-      fondoSrc: '/sprites/escenas/negociacion_oficina_jefe.jpg',
+      fondoSrc: '/sprites/escenas/escena_inicial.jpg',
       rondas: [
         {
           numero: 1,
@@ -611,12 +633,21 @@ const scenarios = computed<Record<EscenarioId, EscenarioNegociacion>>(() => {
 
 const activeScenario = computed(() => scenarios.value[selectedScenarioId.value])
 const activeRound = computed(() => activeScenario.value.rondas[currentRoundIndex.value])
+const isOfficialOfficeScene = computed(() => selectedScenarioId.value === 'recorte_junta')
 const bossMoodImg = computed(() => moodToImg(bossMood.value))
 const playerMoodImg = computed(() => moodToImg(playerMood.value))
+
+function speakerPortraitFor(orador: OradorId): string {
+  if (orador === 'jefe' && isOfficialOfficeScene.value) {
+    return animatedOrangeBossSrc.value
+  }
+  return ICONS[orador]
+}
 
 function selectScenario(id: EscenarioId): void {
   if (roundsTaken.value > 0 || negotiationCompleted.value) return
   selectedScenarioId.value = id
+  dialogueReady.value = false
 }
 
 function selectDialogueOption(opt: OpcionDialogo): void {
@@ -629,7 +660,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
   lastReply.value = {
     speakerName: opt.respuestaNombre,
-    speakerIcon: opt.respuestaIcono,
+    speakerIcon: speakerPortraitFor(opt.respuestaOrador),
     text: opt.respuestaTexto,
     wasPositive: opt.bonoUsd >= 0,
   }
@@ -642,8 +673,10 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
   if (currentRoundIndex.value < activeScenario.value.rondas.length - 1) {
     currentRoundIndex.value += 1
+    dialogueReady.value = false
   } else {
     negotiationCompleted.value = true
+    dialogueReady.value = false
   }
 }
 </script>
@@ -691,26 +724,35 @@ function selectDialogueOption(opt: OpcionDialogo): void {
       />
       <div class="vn-bg-vignette"></div>
 
-      <!-- Icono de ánimo flotando sobre el Gato Jefe (a la izquierda en las 3 escenas) -->
-      <div class="vn-boss-mood-badge" title="Ánimo del Comité">
+      <!-- Icono de ánimo flotando sobre el Gato Jefe -->
+      <div
+        class="vn-boss-mood-badge"
+        :class="{ 'center-boss': isOfficialOfficeScene }"
+        title="Ánimo del Comité"
+      >
         <img :src="bossMoodImg" alt="Ánimo del Gato Jefe" class="vn-mood-img" />
       </div>
 
-      <!-- Globo de diálogo en zona superior derecha (estilo cómic / novela visual) -->
-      <div class="vn-speech-cluster">
+      <!-- Globo de diálogo (zona inferior integrada en escena oficial o superior derecha en fondos alternos) -->
+      <div class="vn-speech-cluster" :class="{ 'bottom-anchor': isOfficialOfficeScene }">
         <div class="vn-npc-speech-bubble">
-          <div class="vn-bubble-tail"></div>
+          <div v-if="!isOfficialOfficeScene" class="vn-bubble-tail"></div>
 
           <div v-if="lastReply" class="vn-last-reply-banner" :class="{ negative: !lastReply.wasPositive }">
             <img :src="lastReply.speakerIcon" alt="Respuesta" class="vn-mini-icon" />
             <div class="vn-reply-copy">
-              <strong>{{ lastReply.speakerName }}:</strong> {{ lastReply.text }}
+              <strong>{{ lastReply.speakerName }}:</strong>
+              <TypewriterText :text="lastReply.text" :key="`reply-${lastReply.text}`" />
             </div>
           </div>
 
           <div class="vn-speaker-main-row">
             <img
-              :src="negotiationCompleted ? ICONS.jefe : activeRound.iconoOrador"
+              :src="
+                negotiationCompleted
+                  ? speakerPortraitFor('jefe')
+                  : speakerPortraitFor(activeRound.orador)
+              "
               :alt="activeRound.nombreOrador"
               class="vn-speaker-framed-icon"
             />
@@ -734,13 +776,20 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
               <p class="vn-dialogue-text">
                 <template v-if="!negotiationCompleted">
-                  {{ activeRound.dialogoInicial }}
+                  <TypewriterText
+                    :text="activeRound.dialogoInicial"
+                    :key="`vn-${selectedScenarioId}-${currentRoundIndex}`"
+                    skip-hint="(clic para saltar)"
+                    @complete="dialogueReady = true"
+                  />
                 </template>
                 <template v-else>
-                  «Tres rondas concluidas, Capitán. Tu presupuesto definitivo de misión queda cerrado en
-                  <strong>${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD</strong>
-                  (saldo disponible tras chasis base:
-                  <strong>${{ mission.presupuesto_restante_usd.toLocaleString() }} USD</strong>). Pasa al Hangar en la Etapa 3.»
+                  <TypewriterText
+                    :text="`«Tres rondas concluidas, Capitán. Tu presupuesto definitivo de misión queda cerrado en $${mission.presupuesto_inicial_usd.toLocaleString()} USD (saldo disponible tras chasis base: $${mission.presupuesto_restante_usd.toLocaleString()} USD). Pasa al Hangar en la Etapa 3.»`"
+                    :key="`vn-final-${mission.id}`"
+                    skip-hint="(clic para saltar)"
+                    @complete="dialogueReady = true"
+                  />
                 </template>
               </p>
             </div>
@@ -762,7 +811,8 @@ function selectDialogueOption(opt: OpcionDialogo): void {
             :key="opt.id"
             type="button"
             class="vn-choice-line"
-            :disabled="loading"
+            :disabled="loading || !dialogueReady"
+            :class="{ 'vn-choice-locked': !dialogueReady }"
             @click="selectDialogueOption(opt)"
           >
             <span class="vn-choice-arrow">&gt;</span>
@@ -775,6 +825,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
             <button
               type="button"
               class="btn-primary vn-finish-btn"
+              :disabled="loading || !dialogueReady"
               @click="emit('finishNegotiation')"
             >
               ✓ FIRMAR PRESUPUESTO (${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD) Y AVANZAR A ETAPA 3 ►
@@ -941,6 +992,12 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
 }
 
+.vn-boss-mood-badge.center-boss {
+  top: 32%;
+  left: 48%;
+  transform: translateX(-50%);
+}
+
 .vn-mood-img {
   width: 22px;
   height: 22px;
@@ -953,6 +1010,12 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   z-index: 2;
   align-self: flex-end;
   width: min(62%, 560px);
+}
+
+.vn-speech-cluster.bottom-anchor {
+  align-self: stretch;
+  width: 100%;
+  margin-top: auto;
 }
 
 .vn-npc-speech-bubble {
@@ -1099,6 +1162,15 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 .vn-choice-line:hover {
   border-color: var(--amber);
   background: rgba(255, 176, 0, 0.14);
+}
+
+.vn-choice-line:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.vn-choice-line.vn-choice-locked {
+  opacity: 0.4;
 }
 
 .vn-choice-arrow {

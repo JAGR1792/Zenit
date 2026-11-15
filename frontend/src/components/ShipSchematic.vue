@@ -3,10 +3,15 @@ import { computed } from 'vue'
 import type { ComponenteCatalogo, EstadoMision } from '../services/api'
 import PixelSprite, { obtenerSpriteTripulante } from './PixelSprite.vue'
 
-const props = defineProps<{
-  mission: EstadoMision
-  catalog: ComponenteCatalogo[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    mission: EstadoMision
+    catalog?: ComponenteCatalogo[]
+  }>(),
+  {
+    catalog: () => [],
+  },
+)
 
 const installedSlots = computed(() => {
   const map = new Set<string>()
@@ -120,32 +125,27 @@ const moodColor = (mood: string): string => {
           <text x="40" y="128" fill="#F5D36B" font-size="9">LH2/LOX (444s)</text>
         </g>
 
-        <!-- CUERPO CENTRAL DE LA NAVE (4 HABITACIONES CONTIGUAS) -->
-        <rect x="190" y="80" width="75" height="90" fill="#1B2340" stroke="#3A4666" stroke-width="2" />
-        <text x="198" y="96" fill="#8FA3BF" font-size="8">SISTEMAS</text>
-
+        <!-- CUERPO CENTRAL DE LA NAVE EN PIXEL ART (4 HABITACIONES CONTIGUAS: SISTEMAS | VIDA | LAB | CABINA) -->
+        <image
+          href="/sprites/escenarios/nave/nave.png"
+          x="185"
+          y="85"
+          width="320"
+          height="80"
+          preserveAspectRatio="xMidYMid meet"
+        />
         <rect
-          x="265"
-          y="80"
-          width="75"
-          height="90"
-          fill="#1B2340"
-          :stroke="installedSlots.has('eclss_blindado') ? '#7BD88F' : '#3A4666'"
+          v-if="installedSlots.has('eclss_blindado')"
+          x="261"
+          y="86"
+          width="66"
+          height="78"
+          fill="none"
+          stroke="#7BD88F"
           stroke-width="2"
+          stroke-dasharray="4 2"
+          rx="2"
         />
-        <text x="275" y="96" fill="#7BD88F" font-size="8">VIDA / O2</text>
-
-        <rect x="340" y="80" width="80" height="90" fill="#1B2340" stroke="#3A4666" stroke-width="2" />
-        <text x="348" y="96" fill="#4FD1C5" font-size="8">LABORATORIO</text>
-
-        <polygon
-          points="420,80 485,96 485,154 420,170"
-          fill="#1B2340"
-          stroke="#FFB000"
-          stroke-width="2"
-        />
-        <rect x="445" y="108" width="24" height="34" fill="#2E6FD8" opacity="0.65" rx="3" />
-        <text x="425" y="96" fill="#FFB000" font-size="8">CABINA</text>
 
         <!-- ANTENA (PROA SUPERIOR) -->
         <g v-if="installedSlots.has('antena_dipolo')">

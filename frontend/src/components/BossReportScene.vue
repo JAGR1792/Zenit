@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import TypewriterText from './TypewriterText.vue'
 import type { InformeFinal } from '../services/api'
 
 const props = defineProps<{
@@ -10,8 +11,48 @@ const emit = defineEmits<{
   (e: 'restart'): void
 }>()
 
-// Selector de orador activo en el Tribunal de Evaluación (El Gato Jefe + sus 2 Ayudantes)
+// Selector de orador activo y escenario final (Comité Zenit oficial o Sala de Juicio)
 const activeSpeaker = ref<'jefe' | 'asistente_blanco' | 'asistente_negro'>('jefe')
+const sceneMode = ref<'zenit' | 'tribunal'>('zenit')
+
+// Secuencia de parpadeo con sprites gatoJefe1..5.png para el Gato Jefe naranja
+const BLINK_SEQUENCE = [1, 1, 1, 1, 2, 3, 4, 5, 4, 3, 2, 1, 1, 1]
+const blinkStep = ref(0)
+let blinkTimer: number | undefined
+
+onMounted(() => {
+  blinkTimer = window.setInterval(() => {
+    blinkStep.value = (blinkStep.value + 1) % BLINK_SEQUENCE.length
+  }, 180)
+})
+
+onUnmounted(() => {
+  if (blinkTimer !== undefined) {
+    window.clearInterval(blinkTimer)
+  }
+})
+
+const animatedOrangeBossSrc = computed(
+  () => `/sprites/gato/gatoJefe${BLINK_SEQUENCE[blinkStep.value]}.png`,
+)
+
+const bossTabIconSrc = computed(() =>
+  sceneMode.value === 'zenit'
+    ? '/sprites/iconos/icono_gato_jefe_naranja.jpg'
+    : '/sprites/iconos/icono_gato_jefe.png',
+)
+
+const activeSceneBg = computed(() =>
+  sceneMode.value === 'zenit'
+    ? '/sprites/escenas/escena_final.jpg'
+    : '/sprites/escenas/sala_juicio_tribunal_wide.jpg',
+)
+
+const activeSceneAlt = computed(() =>
+  sceneMode.value === 'zenit'
+    ? 'Comité Zenit - Evaluación Final con el Gato Jefe y sus 2 Ayudantes'
+    : 'Sala de Juicio - Tribunal de Evaluación de la Misión',
+)
 
 const finDim = computed(
   () =>
@@ -49,7 +90,10 @@ const tribunalQuotes = computed(() => ({
   jefe: {
     name: 'GATO JEFE · COMISIONADO FÉLIX VANCE',
     role: 'PRESIDENTE DEL TRIBUNAL DE EVALUACIÓN',
-    icon: '/sprites/iconos/icono_gato_jefe.png',
+    icon:
+      sceneMode.value === 'zenit'
+        ? animatedOrangeBossSrc.value
+        : '/sprites/iconos/icono_gato_jefe.png',
     mood: bossMoodSrc.value,
     text: props.report.dialogo_jefe_apertura,
   },
@@ -91,13 +135,32 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
         <p class="ending-sub">{{ report.subtitulo_final }}</p>
       </div>
       <div class="header-right-tools">
+        <div class="scene-switcher" role="group" aria-label="Escenario de evaluación">
+          <button
+            type="button"
+            class="trib-tab-btn"
+            :class="{ active: sceneMode === 'zenit' }"
+            @click="sceneMode = 'zenit'"
+          >
+            Comité Zenit
+          </button>
+          <button
+            type="button"
+            class="trib-tab-btn"
+            :class="{ active: sceneMode === 'tribunal' }"
+            @click="sceneMode = 'tribunal'"
+          >
+            Sala de Juicio
+          </button>
+        </div>
+
         <div class="tribunal-tabs">
           <button
             class="trib-tab-btn"
             :class="{ active: activeSpeaker === 'jefe' }"
             @click="activeSpeaker = 'jefe'"
           >
-            <img src="/sprites/iconos/icono_gato_jefe.png" alt="Gato Jefe" class="tab-mini-icon" />
+            <img :src="bossTabIconSrc" alt="Gato Jefe" class="tab-mini-icon" />
             <span>Gato Jefe (Veredicto)</span>
           </button>
           <button
@@ -133,26 +196,22 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
     </div>
 
     <!-- ======================================================================= -->
-    <!-- ACTO 1: NOVELA VISUAL WIDESCREEN 16:9 - SALA DE JUICIO CON LOS 3 GATOS  -->
+    <!-- ACTO 1: NOVELA VISUAL WIDESCREEN 16:9 - COMITÉ FINAL CON LOS 3 GATOS    -->
     <!-- ======================================================================= -->
     <div class="vn-tribunal-wrapper">
       <div class="vn-tribunal-stage">
-        <img
-          src="/sprites/escenas/sala_juicio_tribunal_wide.jpg"
-          alt="Sala de Juicio - Tribunal de Evaluación de la Misión"
-          class="tribunal-bg-img"
-        />
+        <img :src="activeSceneBg" :alt="activeSceneAlt" class="tribunal-bg-img" />
         <div class="tribunal-vignette"></div>
 
-        <!-- Ánimo flotante sobre el estrado del Gato Jefe -->
-        <div class="vn-tribunal-boss-mood">
+        <!-- Ánimo flotante sobre el estrado / escritorio del Gato Jefe -->
+        <div class="vn-tribunal-boss-mood" :class="{ 'center-boss': sceneMode === 'zenit' }">
           <img :src="bossMoodSrc" alt="Ánimo del Gato Jefe" class="vn-mood-img" />
         </div>
 
-        <!-- Globo de diálogo principal en zona superior derecha (estilo Novela Visual) -->
-        <div class="tribunal-speech-cluster">
+        <!-- Globo de diálogo principal (estilo Novela Visual) -->
+        <div class="tribunal-speech-cluster" :class="{ 'zenit-anchor': sceneMode === 'zenit' }">
           <div class="tribunal-speech-bubble">
-            <div class="tspeech-tail"></div>
+            <div v-if="sceneMode !== 'zenit'" class="tspeech-tail"></div>
             <div class="tspeech-speaker-bar">
               <span class="tspeech-name">{{ currentTribunalSpeech.name }}</span>
               <span class="tspeech-role">{{ currentTribunalSpeech.role }}</span>
@@ -169,7 +228,9 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
               </div>
 
               <div class="tspeech-copy">
-                <p class="serif-narrative boss-quote">{{ currentTribunalSpeech.text }}</p>
+                <p class="serif-narrative boss-quote">
+                  <TypewriterText :text="currentTribunalSpeech.text" :key="`trib-${activeSpeaker}`" skip-hint="(clic para saltar)" />
+                </p>
 
                 <div
                   v-if="report.monologo_cuarta_pared && activeSpeaker === 'jefe'"
@@ -178,7 +239,9 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
                   <div class="silence-banner">
                     [SILENCIO TOTAL EN LA SALA DE JUICIO: {{ report.silencio_previo_segundos }} SEGUNDOS]
                   </div>
-                  <p class="serif-narrative fourth-wall-text">{{ report.monologo_cuarta_pared }}</p>
+                  <p class="serif-narrative fourth-wall-text">
+                    <TypewriterText :text="report.monologo_cuarta_pared ?? ''" :key="`fw-${report.mission_id}`" skip-hint="(clic para saltar)" />
+                  </p>
                 </div>
               </div>
             </div>
@@ -273,11 +336,7 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
     <!-- Acto 3: Frase Final de Despedida -->
     <div class="closing-box">
       <div class="closing-left">
-        <img
-          src="/sprites/iconos/icono_gato_jefe.png"
-          alt="Gato Jefe"
-          class="closing-icon"
-        />
+        <img :src="bossTabIconSrc" alt="Gato Jefe" class="closing-icon" />
         <p class="serif-narrative closing-phrase">{{ report.frase_despedida }}</p>
       </div>
       <button class="btn-primary" @click="emit('restart')">
@@ -336,7 +395,8 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   gap: 10px;
 }
 
-.tribunal-tabs {
+.tribunal-tabs,
+.scene-switcher {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -447,6 +507,12 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
 }
 
+.vn-tribunal-boss-mood.center-boss {
+  top: 37%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .vn-mood-img {
   width: 24px;
   height: 24px;
@@ -461,6 +527,13 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   width: min(62%, 640px);
   max-height: calc(100% - 8px);
   overflow-y: auto;
+}
+
+.tribunal-speech-cluster.zenit-anchor {
+  margin-top: auto;
+  align-self: flex-end;
+  width: min(58%, 620px);
+  max-height: 60%;
 }
 
 .tribunal-speech-bubble {

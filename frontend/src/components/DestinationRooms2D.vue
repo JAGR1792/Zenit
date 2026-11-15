@@ -5,6 +5,7 @@ import PixelSprite, {
   obtenerSpriteTripulante,
   type AnimacionSprite,
 } from './PixelSprite.vue'
+import TypewriterText from './TypewriterText.vue'
 
 const props = defineProps<{
   mission: EstadoMision
@@ -62,10 +63,9 @@ const FONDOS_HABITACION: Record<string, FondoHabitacion> = {
   laboratorio: { src: '/sprites/escenarios/nave/laboratorio.jpg', ar: 2.1, piso: 1 },
   soporte_vital: { src: '/sprites/escenarios/nave/sala_soporte_vital.jpg', ar: 2.05, piso: 1 },
   sala_sistemas: {
-    src: '/sprites/escenarios/nave/cabina_v2.png',
-    ar: 1.65,
-    piso: 2,
-    ventana: true,
+    src: '/sprites/escenarios/nave/sala_sistemas.jpg',
+    ar: 2.1,
+    piso: 1,
   },
 }
 const fondoActual = computed(() =>
@@ -561,7 +561,13 @@ onUnmounted(() => {
                 </div>
                 <button class="rpg-close-btn" title="Cerrar diálogo [Esc]" @click="closeDialogue">✕ [Esc]</button>
               </div>
-              <p class="serif-narrative rpg-dialogue-copy">{{ activeDialogueText }}</p>
+              <p class="serif-narrative rpg-dialogue-copy">
+                <TypewriterText
+                  :text="activeDialogueText"
+                  :key="`rpg-${activeDialogueMember?.id ?? 'solo'}-${dialogueMode}`"
+                  skip-hint="(clic para saltar)"
+                />
+              </p>
               <div class="rpg-choices-row">
                 <button
                   class="rpg-choice-btn"
