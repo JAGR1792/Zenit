@@ -321,17 +321,28 @@ def test_negociacion_presupuesto_novela_visual_incrementa_fondos() -> None:
     assert res_neg.allowed is True
     assert res_neg.mission_state.presupuesto_restante_usd == presupuesto_base + 18000
 
-    # Verificar tope máximo de 3 rondas de negociación por misión
-    for ronda in range(2, 4):
-        r = procesar_decision_mision(
-            mision.id,
-            DecisionRequest(
-                stage=2,
-                decision="negociar_presupuesto",
-                params={"bono_usd": 10000, "argumento": f"Ronda {ronda}"},
-            ),
-        )
-        assert r is not None and r.allowed is True
+    # Ronda 2 negativa (argumento flojo reduce fondos) y Ronda 3 positiva; tope máximo 3 rondas
+    r2 = procesar_decision_mision(
+        mision.id,
+        DecisionRequest(
+            stage=2,
+            decision="negociar_presupuesto",
+            params={"bono_usd": -12000, "argumento": "Ronda 2 recorte"},
+        ),
+    )
+    assert r2 is not None and r2.allowed is True
+    assert r2.mission_state.presupuesto_restante_usd == presupuesto_base + 18000 - 12000
+
+    r3 = procesar_decision_mision(
+        mision.id,
+        DecisionRequest(
+            stage=2,
+            decision="negociar_presupuesto",
+            params={"bono_usd": 10000, "argumento": "Ronda 3 cierre"},
+        ),
+    )
+    assert r3 is not None and r3.allowed is True
+    assert r3.mission_state.presupuesto_restante_usd == presupuesto_base + 18000 - 12000 + 10000
 
     r4 = procesar_decision_mision(
         mision.id,

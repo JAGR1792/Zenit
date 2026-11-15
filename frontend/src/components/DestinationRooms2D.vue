@@ -207,11 +207,11 @@ function updatePhysicsLoop(): void {
   const right = keysHeld.has('ArrowRight') || keysHeld.has('d') || keysHeld.has('D')
 
   if (left && !right) {
-    playerX.value = Math.max(8, playerX.value - 0.35)
+    playerX.value = Math.max(8, playerX.value - 0.62)
     facingLeft.value = true
     isMoving.value = true
   } else if (right && !left) {
-    playerX.value = Math.min(92, playerX.value + 0.35)
+    playerX.value = Math.min(92, playerX.value + 0.62)
     facingLeft.value = false
     isMoving.value = true
   } else {
@@ -611,11 +611,11 @@ onUnmounted(() => {
       <!-- Barra de mando táctil / teclado -->
       <div class="stage-control-strip">
         <div class="dpad-group">
-          <button @click="stepWalk(-7)">◄ Izquierda [A]</button>
+          <button @click="stepWalk(-10)">◄ Izquierda [A]</button>
           <button class="btn-primary" @click="triggerInteractionE">
             [E] Interactuar / Abrir Compuerta
           </button>
-          <button @click="stepWalk(7)">Derecha [D] ►</button>
+          <button @click="stepWalk(10)">Derecha [D] ►</button>
           <button
             v-for="member in roomCrewMembers"
             :key="`talk-${member.id}`"

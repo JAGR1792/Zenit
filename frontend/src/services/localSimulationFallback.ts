@@ -1128,13 +1128,15 @@ export function sendDecisionLocal(
     const factorDif =
       estado.dificultad === 'facil' ? 1.2 : estado.dificultad === 'dificil' ? 0.9 : 1.0
     const incrementoReal = Math.round(bonoBase * factorDif)
-    estado.presupuesto_inicial_usd = Math.round(
-      Math.max(75000, estado.presupuesto_inicial_usd + incrementoReal),
+    const gastoAcumulado = Math.max(
+      0,
+      estado.presupuesto_inicial_usd - estado.presupuesto_restante_usd,
     )
-    estado.presupuesto_restante_usd = round(
-      Math.max(0, estado.presupuesto_restante_usd + incrementoReal),
-      2,
+    const nuevoInicial = Math.round(
+      Math.max(55000, estado.presupuesto_inicial_usd + incrementoReal),
     )
+    estado.presupuesto_inicial_usd = nuevoInicial
+    estado.presupuesto_restante_usd = round(Math.max(0, nuevoInicial - gastoAcumulado), 2)
     recalcularSubsistemasLocal(estado)
     const signo = incrementoReal >= 0 ? '+' : ''
     resumen = `Negociación con el Gato Jefe (${argumento}): ${signo}${incrementoReal.toLocaleString()} USD (Presupuesto total aprobado: ${estado.presupuesto_inicial_usd.toLocaleString()} USD).`

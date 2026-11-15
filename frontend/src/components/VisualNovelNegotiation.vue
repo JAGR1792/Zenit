@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { EstadoMision } from '../services/api'
 
 const props = defineProps<{
@@ -15,14 +15,19 @@ const emit = defineEmits<{
   (e: 'finishNegotiation'): void
 }>()
 
+type EscenarioId = 'recorte_junta' | 'crisis_helios' | 'auditoria_hangar'
+type OradorId = 'jefe' | 'blanca' | 'negro'
+type AnimoId = 'sol' | 'nube' | 'lluvia'
+
 interface OpcionDialogo {
   id: string
   texto: string
   argumentoCorto: string
   bonoUsd: number
   acuerdoSugerido: 'austero' | 'estandar' | 'ambicioso'
-  efectoAnimoJefe: 'sol' | 'nube' | 'lluvia'
-  respuestaOrador: 'jefe' | 'blanca' | 'negro'
+  efectoAnimoJefe: AnimoId
+  efectoAnimoJugador: AnimoId
+  respuestaOrador: OradorId
   respuestaNombre: string
   respuestaIcono: string
   respuestaTexto: string
@@ -31,202 +36,602 @@ interface OpcionDialogo {
 interface RondaNegociacion {
   numero: number
   tituloRonda: string
-  orador: 'jefe' | 'blanca' | 'negro'
+  orador: OradorId
   nombreOrador: string
-  rolOrador: string
   iconoOrador: string
   dialogoInicial: string
   opciones: OpcionDialogo[]
 }
 
+interface EscenarioNegociacion {
+  id: EscenarioId
+  tituloCorto: string
+  subtituloEscena: string
+  fondoSrc: string
+  rondas: RondaNegociacion[]
+}
+
+const ICONS: Record<OradorId, string> = {
+  jefe: '/sprites/iconos/icono_gato_jefe.png',
+  blanca: '/sprites/iconos/icono_gato_asistente_blanco.png',
+  negro: '/sprites/iconos/icono_gato_asistente_negro.png',
+}
+
+function moodToImg(mood: AnimoId): string {
+  if (mood === 'sol') return '/sprites/elementos/Sol.png'
+  if (mood === 'nube') return '/sprites/elementos/Nube.png'
+  return '/sprites/elementos/Lluvia.png'
+}
+
+function escenarioInicialPorMision(mission: EstadoMision): EscenarioId {
+  const suma = mission.id
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  const lista: EscenarioId[] = ['recorte_junta', 'crisis_helios', 'auditoria_hangar']
+  if (mission.destino === 'LUNA' && suma % 3 === 0) return 'crisis_helios'
+  return lista[suma % lista.length]
+}
+
+const selectedScenarioId = ref<EscenarioId>(escenarioInicialPorMision(props.mission))
 const currentRoundIndex = ref<number>(0)
-const bossMood = ref<'sol' | 'nube' | 'lluvia'>('nube')
+const bossMood = ref<AnimoId>('nube')
+const playerMood = ref<AnimoId>('sol')
+const negotiationCompleted = ref<boolean>(false)
+const roundsTaken = ref<number>(0)
+const netDeltaUsd = ref<number>(0)
 const lastReply = ref<{
   speakerName: string
   speakerIcon: string
   text: string
-  deltaUsd: number
+  wasPositive: boolean
 } | null>(null)
-const negotiationCompleted = ref<boolean>(false)
-const totalSubidoUsd = ref<number>(0)
 
-const rounds = computed<RondaNegociacion[]>(() => {
+watch(
+  () => props.mission.id,
+  () => {
+    selectedScenarioId.value = escenarioInicialPorMision(props.mission)
+    currentRoundIndex.value = 0
+    bossMood.value = 'nube'
+    playerMood.value = 'sol'
+    negotiationCompleted.value = false
+    roundsTaken.value = 0
+    netDeltaUsd.value = 0
+    lastReply.value = null
+  },
+)
+
+const scenarios = computed<Record<EscenarioId, EscenarioNegociacion>>(() => {
   const destNombre =
     props.mission.destino === 'LUNA'
       ? 'el Cráter Lunar Shackleton (384.400 km)'
-      : 'la Órbita Terrestre Baja (OTB - 400 km)'
+      : 'la Órbita Terrestre Baja (OTB · 400 km)'
+  const presupuestoBase = Math.round(props.mission.presupuesto_inicial_usd)
+  const techoJunta = presupuestoBase + (props.mission.destino === 'LUNA' ? 50000 : 40000)
 
-  return [
-    {
-      numero: 1,
-      tituloRonda: 'RONDA 1 DE 3 · APERTURA ANTE EL COMISIONADO',
-      orador: 'jefe',
-      nombreOrador: 'GATO JEFE · COMISIONADO VANCE',
-      rolOrador: 'Director General de la Agencia',
-      iconoOrador: '/sprites/iconos/icono_gato_jefe.png',
-      dialogoInicial: `«Siéntate, Capitán. Mis dos asistentes y yo hemos revisado tu plan hacia ${destNombre}. Tras perder los satélites automáticos en la tormenta Helios-9, el comité está escéptico. ¿Por qué deberíamos ampliarte el presupuesto inicial?»`,
-      opciones: [
+  return {
+    recorte_junta: {
+      id: 'recorte_junta',
+      tituloCorto: 'Recorte de la Junta',
+      subtituloEscena: 'OFICINA DE PLANIFICACIÓN · RECORTE PREVENTIVO',
+      fondoSrc: '/sprites/escenas/negociacion_oficina_jefe.jpg',
+      rondas: [
         {
-          id: 'r1_ciencia_viva',
-          texto:
-            '«Porque ninguna sonda ciega puede recalibrar un espectrómetro en medio de la radiación solar; una dotación canina en laboratorio garantiza datos reales.»',
-          argumentoCorto: 'Defensa de laboratorio tripulado en vivo',
-          bonoUsd: 22000,
-          acuerdoSugerido: 'estandar',
-          efectoAnimoJefe: 'sol',
-          respuestaOrador: 'jefe',
-          respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
-          respuestaIcono: '/sprites/iconos/icono_gato_jefe.png',
-          respuestaTexto:
-            '«Buen punto, Capitán. Las sondas fallaron precisamente por no poder adaptar sus filtros en órbita. Autorizo un primer incremento de +$22.000 USD base.»',
+          numero: 1,
+          tituloRonda: 'RONDA 1 DE 3 · PROPUESTA DEL COMISIONADO',
+          orador: 'jefe',
+          nombreOrador: 'GATO JEFE · COMISIONADO VANCE',
+          iconoOrador: ICONS.jefe,
+          dialogoInicial: `«La Junta Directiva dice que $${techoJunta.toLocaleString()} USD es aceptable para llegar a ${destNombre}. Pero yo creo que ustedes son capaces de hacerlo con menos; por eso parto dándoles $${presupuestoBase.toLocaleString()} USD. ¿Qué me dices, Capitán?»`,
+          opciones: [
+            {
+              id: 'rj_r1_ceder',
+              texto:
+                '«Tiene razón, Comisionado: podemos recortar baterías de reserva y raciones extra para salir todavía más baratos.»',
+              argumentoCorto: 'Cesión prematura de reservas críticas',
+              bonoUsd: -16000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Me gusta tu espíritu de ahorro, Capitán. Si tú mismo admites que te sobra margen en reservas, ajusto tu asignación aún más abajo desde ahora.»',
+            },
+            {
+              id: 'rj_r1_tecnica',
+              texto:
+                '«Acepto ajustar gastos superfluos, pero bajar del umbral sin redundancia eléctrica para los eclipses pondría en riesgo toda la telemetría.»',
+              argumentoCorto: 'Defensa técnica del margen eléctrico en eclipse',
+              bonoUsd: 24000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Buen contraargumento: recortar en vacío térmico sale más caro que financiar la redundancia. Te acerco al techo aprobado por la Junta.»',
+            },
+            {
+              id: 'rj_r1_arrogante',
+              texto:
+                '«La Junta ya aprobó el techo máximo; no deberíamos perder tiempo justificando cada dólar si confía en mi historial.»',
+              argumentoCorto: 'Exigencia de techo máximo sin respaldo técnico',
+              bonoUsd: -20000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Aquí no firmamos cheques por orgullo, Capitán. Si no justificas tus necesidades de vuelo, te aplico un recorte disciplinario inmediato.»',
+            },
+          ],
         },
         {
-          id: 'r1_ambicion_total',
-          texto:
-            '«Si financian instrumentación pesada y enlace de alto caudal, mapearemos toda la anomalía Helios-9 en un solo vuelo histórico.»',
-          argumentoCorto: 'Promesa de campaña científica de alta prioridad',
-          bonoUsd: 32000,
-          acuerdoSugerido: 'ambicioso',
-          efectoAnimoJefe: 'sol',
-          respuestaOrador: 'negro',
-          respuestaNombre: 'ASESOR NEGRO · RIESGO Y CIENCIA',
-          respuestaIcono: '/sprites/iconos/icono_gato_asistente_negro.png',
-          respuestaTexto:
-            '«Ambicioso, Capitán. El Comisionado aprueba +$32.000 USD base, pero toma nota: exigiremos un retorno científico de primer nivel en el tribunal final.»',
+          numero: 2,
+          tituloRonda: 'RONDA 2 DE 3 · ESCRUTINIO DE LA AUDITORA',
+          orador: 'blanca',
+          nombreOrador: 'AUDITORA BLANCA · FINANZAS',
+          iconoOrador: ICONS.blanca,
+          dialogoInicial:
+            '«Aun así, cada especialista que contrates y cada parche que pidas desde órbita dispararán la factura. ¿Para qué necesitas más margen si puedes llevar solo equipo básico?»',
+          opciones: [
+            {
+              id: 'rj_r2_especialistas',
+              texto:
+                '«Un especialista bien pagado a bordo evita fallos de calibración y reduce reparaciones remotas costosas desde Tierra.»',
+              argumentoCorto: 'Justificación de dotación especializada a bordo',
+              bonoUsd: 22000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Cierto: pagar soporte remoto en emergencia destruye cualquier presupuesto. Libero una partida adicional para tu dotación.»',
+            },
+            {
+              id: 'rj_r2_improvisar',
+              texto:
+                '«Si aparece una avería en el trayecto ya pediremos soluciones de emergencia sobre la marcha, no hace falta presupuestarlo hoy.»',
+              argumentoCorto: 'Dependencia de rescates improvisados en vuelo',
+              bonoUsd: -14000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Improvisar en el espacio es la receta de la bancarrota. Congelo parte de tu caja operativa para cubrir tu falta de previsión.»',
+            },
+            {
+              id: 'rj_r2_disciplina',
+              texto:
+                '«Combinaremos herramientas de reparación internas con una dotación compacta, manteniendo reserva solo para lo irremplazable.»',
+              argumentoCorto: 'Plan de autonomía con reserva acotada',
+              bonoUsd: 10000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Prudente y medido. Te concedo un refuerzo moderado en la cuenta, aunque seguiré vigilando tus gastos en el Hangar.»',
+            },
+          ],
         },
         {
-          id: 'r1_prudencia',
-          texto:
-            '«Operaremos con estricto control de costes y componentes esenciales para demostrar que el programa tripulado es rentable.»',
-          argumentoCorto: 'Propuesta de viabilidad contenida',
-          bonoUsd: 10000,
-          acuerdoSugerido: 'austero',
-          efectoAnimoJefe: 'nube',
-          respuestaOrador: 'blanca',
-          respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
-          respuestaIcono: '/sprites/iconos/icono_gato_asistente_blanco.png',
-          respuestaTexto:
-            '«Por fin alguien que respeta el libro mayor. Te liberamos +$10.000 USD adicionales sin elevar tu cuota de exigencia científica.»',
+          numero: 3,
+          tituloRonda: 'RONDA 3 DE 3 · CIERRE DE RIESGO Y RETORNO',
+          orador: 'negro',
+          nombreOrador: 'ASESOR NEGRO · TELEMETRÍA',
+          iconoOrador: ICONS.negro,
+          dialogoInicial:
+            '«Último punto, Capitán. Si te damos el tramo final de la Junta, ¿cómo garantizas que la nave regrese íntegra y con los datos completos de Helios-9?»',
+          opciones: [
+            {
+              id: 'rj_r3_solo_ida',
+              texto:
+                '«Priorizaremos sensores científicos al límite; si falta combustible para el retorno, transmitiremos todo antes de quedar en órbita.»',
+              argumentoCorto: 'Sacrificio del margen de retorno seguro',
+              bonoUsd: -22000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«La Agencia no financia misiones suicidas ni pérdida de tripulación. El Comité retira de inmediato el bono de cierre.»',
+            },
+            {
+              id: 'rj_r3_conservador',
+              texto:
+                '«Respetaremos el tope de masa del cohete y usaremos equipo estándar probado para garantizar un regreso limpio.»',
+              argumentoCorto: 'Compromiso de masa segura y equipo probado',
+              bonoUsd: 12000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Sensato. Prefiero una misión sobria que vuelva a casa que promesas vacías. Sumamos un último respaldo a tu cuenta.»',
+            },
+            {
+              id: 'rj_r3_integral',
+              texto:
+                '«Equilibraremos motor de alto Isp, antena de enlace fiable y reserva de soporte vital sin superar la masa máxima de lanzamiento.»',
+              argumentoCorto: 'Arquitectura integral masa, Delta-v y enlace',
+              bonoUsd: 26000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Por fin escucho ingeniería de sistemas real. Comisionado, merece la ampliación completa para ejecutar ese diseño.»',
+            },
+          ],
         },
       ],
     },
-    {
-      numero: 2,
-      tituloRonda: 'RONDA 2 DE 3 · OBJECIÓN DE LA AUDITORA BLANCA',
-      orador: 'blanca',
-      nombreOrador: 'AUDITORA BLANCA · ASISTENTE DE FINANZAS',
-      rolOrador: 'Control Presupuestario',
-      iconoOrador: '/sprites/iconos/icono_gato_asistente_blanco.png',
-      dialogoInicial:
-        '«Un momento, Comisionado. He revisado las nóminas del Hangar: este Capitán pretende contratar especialistas y comprar módulos regenerativos. ¡Cada sueldo y cada parche en vuelo sangrarán nuestras reservas!»',
-      opciones: [
+
+    crisis_helios: {
+      id: 'crisis_helios',
+      tituloCorto: 'Crisis Helios-9',
+      subtituloEscena: 'SALA DE CRISIS HELIOS-9 · AUDITORÍA DE SINIESTROS',
+      fondoSrc: '/sprites/escenas/negociacion_sala_crisis.jpg',
+      rondas: [
         {
-          id: 'r2_especialistas',
-          texto:
-            '«Contratar a un ingeniero y un geólogo a bordo cuesta una fracción de lo que perderíamos si un subsistema falla a mitad de camino.»',
-          argumentoCorto: 'Partida para contratación de especialistas',
-          bonoUsd: 20000,
-          acuerdoSugerido: 'estandar',
-          efectoAnimoJefe: 'sol',
-          respuestaOrador: 'jefe',
-          respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
-          respuestaIcono: '/sprites/iconos/icono_gato_jefe.png',
-          respuestaTexto:
-            '«El Capitán tiene razón, Auditora. Prefiero pagar el sueldo de dos especialistas hoy que lamentar una misión abortada mañana. Sube la partida en +$20.000 USD.»',
+          numero: 1,
+          tituloRonda: 'RONDA 1 DE 3 · SOMBRA DE SONDAS PERDIDAS',
+          orador: 'jefe',
+          nombreOrador: 'GATO JEFE · COMISIONADO VANCE',
+          iconoOrador: ICONS.jefe,
+          dialogoInicial: `«Acabamos de perder dos sondas automáticas en la tormenta Helios-9 rumbo a ${destNombre}. La mitad del Comité pide reducir tu vuelo a lo mínimo indispensable. Convénceme.»`,
+          opciones: [
+            {
+              id: 'ch_r1_riesgo_cero',
+              texto:
+                '«Esa tormenta fue exagerada por los sensores; nuestra nave no sufrirá ningún fallo ni necesitará contingencias.»',
+              argumentoCorto: 'Negación del riesgo de radiación Helios-9',
+              bonoUsd: -18000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«¿Exagerada? Tengo los restos de dos satélites en mi tableta. Desestimar el entorno te cuesta financiación desde el minuto uno.»',
+            },
+            {
+              id: 'ch_r1_calibracion',
+              texto:
+                '«Las sondas cayeron porque ningún algoritmo pudo recalibrar filtros ni aislar fallos en tiempo real; una dotación preparada sí puede.»',
+              argumentoCorto: 'Defensa de intervención humana ante fallos',
+              bonoUsd: 26000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Exacto. La latencia mató a las sondas antes de recibir un comando. Aprobamos refuerzo inicial para tu equipo científico.»',
+            },
+            {
+              id: 'ch_r1_minimo',
+              texto:
+                '«Si el Comité desconfía, recortemos la carga experimental y vayamos únicamente a probar si el casco aguanta.»',
+              argumentoCorto: 'Renuncia temprana al alcance científico',
+              bonoUsd: -10000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Si vas a renunciar a la ciencia antes de despegar, no necesitas todo este presupuesto. Recorto la partida científica.»',
+            },
+          ],
         },
         {
-          id: 'r2_fondo_contingencia',
-          texto:
-            '«El seguimiento en tiempo real y las reparaciones remotas en tránsito cuestan dinero. Necesitamos un fondo de contingencia blindado.»',
-          argumentoCorto: 'Fondo de reserva para imprevistos en vuelo',
-          bonoUsd: 26000,
-          acuerdoSugerido: 'ambicioso',
-          efectoAnimoJefe: 'sol',
-          respuestaOrador: 'blanca',
-          respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
-          respuestaIcono: '/sprites/iconos/icono_gato_asistente_blanco.png',
-          respuestaTexto:
-            '«Está bien, tienes argumentos técnicos sólidos. Desbloqueo +$26.000 USD para la cuenta operativa, pero vigilaré cada dólar que gastes en órbita.»',
+          numero: 2,
+          tituloRonda: 'RONDA 2 DE 3 · CONSUMO ELÉCTRICO Y ENLACE',
+          orador: 'negro',
+          nombreOrador: 'ASESOR NEGRO · TELEMETRÍA',
+          iconoOrador: ICONS.negro,
+          dialogoInicial:
+            '«En los eclipses los paneles caen a cero y las tormentas degradan la antena. ¿Cómo aseguras que los datos no queden atrapados en órbita?»',
+          opciones: [
+            {
+              id: 'ch_r2_baterias',
+              texto:
+                '«Dimensionando generación solar positiva junto con banco de baterías y antena con alta probabilidad de enlace por ventana.»',
+              argumentoCorto: 'Dimensionamiento eléctrico y ventanas de enlace',
+              bonoUsd: 22000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Eso demuestra que leíste la telemetría de eclipse antes de entrar aquí. Respaldo una ampliación para sistemas eléctricos y antena.»',
+            },
+            {
+              id: 'ch_r2_apagar_o2',
+              texto:
+                '«Si falta potencia en eclipse apagaremos el reciclaje de soporte vital temporalmente mientras transmite la antena.»',
+              argumentoCorto: 'Propuesta peligrosa de corte de soporte vital',
+              bonoUsd: -18000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«¿Apagar el oxígeno para enviar un paquete de datos? Retén fondos, Auditora; este equipo necesita replantear sus prioridades.»',
+            },
+            {
+              id: 'ch_r2_turnos',
+              texto:
+                '«Escalonaremos instrumentos y transmisiones en ventanas diurnas para mantener el balance eléctrico estable.»',
+              argumentoCorto: 'Operación escalonada de consumo eléctrico',
+              bonoUsd: 11000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Operación disciplinada, aunque justa de margen. Añadimos un refuerzo contenido para asegurar las ventanas.»',
+            },
+          ],
         },
         {
-          id: 'r2_reparacion_bordo',
-          texto:
-            '«Resolveremos las anomalías con nuestras propias baterías y herramientas a bordo antes de pedir soporte pagado a Tierra.»',
-          argumentoCorto: 'Compromiso de autonomía operativa en vuelo',
-          bonoUsd: 12000,
-          acuerdoSugerido: 'estandar',
-          efectoAnimoJefe: 'nube',
-          respuestaOrador: 'blanca',
-          respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
-          respuestaIcono: '/sprites/iconos/icono_gato_asistente_blanco.png',
-          respuestaTexto:
-            '«Aceptable. Te asigno +$12.000 USD de margen operativo. Más te vale cuidar los vatios-hora de tu batería allá arriba.»',
+          numero: 3,
+          tituloRonda: 'RONDA 3 DE 3 · RENDICIÓN DE CUENTAS',
+          orador: 'blanca',
+          nombreOrador: 'AUDITORA BLANCA · FINANZAS',
+          iconoOrador: ICONS.blanca,
+          dialogoInicial:
+            '«Si la tormenta golpea en pleno vuelo habrá presiones para comprar ayuda técnica carísima. ¿Cuál es tu pacto final con finanzas?»',
+          opciones: [
+            {
+              id: 'ch_r3_cheque',
+              texto:
+                '«Tengan preparada una línea de crédito abierta por si el retorno científico nos obliga a gastar sin límite.»',
+              argumentoCorto: 'Solicitud de crédito abierto sin tope',
+              bonoUsd: -14000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«El presupuesto es un límite duro, Capitán. Pedir crédito ilimitado hace que cierre el grifo todavía más.»',
+            },
+            {
+              id: 'ch_r3_retorno',
+              texto:
+                '«Asumimos el presupuesto como límite duro: usaremos margen reservado para contingencias y entregaremos datos verificables al volver.»',
+              argumentoCorto: 'Pacto de límite duro con reserva de contingencia',
+              bonoUsd: 22000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Así habla un director responsable. Cerramos el acuerdo con respaldo reforzado. Demuéstralo en el Hangar.»',
+            },
+          ],
         },
       ],
     },
-    {
-      numero: 3,
-      tituloRonda: 'RONDA 3 DE 3 · EL RETO DEL ASESOR NEGRO',
-      orador: 'negro',
-      nombreOrador: 'ASESOR NEGRO · ASISTENTE DE RIESGO',
-      rolOrador: 'Telemetría y Mecánica Orbital',
-      iconoOrador: '/sprites/iconos/icono_gato_asistente_negro.png',
-      dialogoInicial:
-        '«Mi objeción es técnica, Comisionado. De nada sirve recolectar gigabytes en el Laboratorio si luego saturan la antena o se quedan sin Delta-v de retorno. ¿Qué garantía nos da, Capitán?»',
-      opciones: [
+
+    auditoria_hangar: {
+      id: 'auditoria_hangar',
+      tituloCorto: 'Auditoría de Hangar',
+      subtituloEscena: 'GALERÍA DE HANGAR · COSTE POR KILOGRAMO',
+      fondoSrc: '/sprites/escenas/negociacion_auditoria_hangar.jpg',
+      rondas: [
         {
-          id: 'r3_enlace_optico',
-          texto:
-            '«Con un último tramo de financiación instalaremos una antena de alta ganancia y transmitiremos el 100% de la telemetría antes de reentrar.»',
-          argumentoCorto: 'Tramo final para ancho de banda y retorno',
-          bonoUsd: 24000,
-          acuerdoSugerido: 'ambicioso',
-          efectoAnimoJefe: 'sol',
-          respuestaOrador: 'jefe',
-          respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
-          respuestaIcono: '/sprites/iconos/icono_gato_jefe.png',
-          respuestaTexto:
-            '«Trato cerrado, Capitán. Tienes el respaldo total de esta mesa (+$24.000 USD finales). Ahora ve al Hangar y construye una nave digna del nombre Zenit.»',
+          numero: 1,
+          tituloRonda: 'RONDA 1 DE 3 · LÍMITE DE MASA DEL LANZADOR',
+          orador: 'blanca',
+          nombreOrador: 'AUDITORA BLANCA · FINANZAS',
+          iconoOrador: ICONS.blanca,
+          dialogoInicial: `«Tu cohete tiene un tope fijo de ${props.mission.masa_lanzamiento_max_kg} kg en rampa. Si no puedes cargar módulos gigantes, ¿por qué tendríamos que ampliarte el dinero?»`,
+          opciones: [
+            {
+              id: 'ah_r1_miniaturizacion',
+              texto:
+                '«Precisamente porque cada kilogramo cuenta: los motores de mayor Isp, paneles eficientes y sistemas compactos cuestan más por kilo.»',
+              argumentoCorto: 'Relación coste-eficiencia por kilogramo de masa',
+              bonoUsd: 26000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Touché. Reducir masa manteniendo Delta-v nunca es barato. Desbloqueo fondos para tecnología ligera de alto rendimiento.»',
+            },
+            {
+              id: 'ah_r1_no_lei',
+              texto:
+                '«Todavía no reviso la masa exacta de la ficha técnica; primero consigamos los fondos y luego vemos qué cabe.»',
+              argumentoCorto: 'Desconocimiento del límite de masa en rampa',
+              bonoUsd: -18000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«¿Negociar presupuesto sin saber cuánto puede levantar tu cohete? Te reduzco la asignación hasta que estudies el catálogo.»',
+            },
+            {
+              id: 'ah_r1_quitar_equipo',
+              texto:
+                '«Entonces llevaremos una nave casi vacía para no acercarnos al límite y ahorrar dinero en la compra.»',
+              argumentoCorto: 'Reducción voluntaria de equipamiento de misión',
+              bonoUsd: -10000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Anotado: menos hardware requiere menos partida. Ajusto tu presupuesto acorde a ese recorte.»',
+            },
+          ],
         },
         {
-          id: 'r3_margen_deltav',
-          texto:
-            '«Mantendremos la masa bajo el límite del lanzador y priorizaremos el Delta-v de retorno junto con ventanas de transmisión seguras.»',
-          argumentoCorto: 'Garantía de margen de masa y Delta-v',
-          bonoUsd: 16000,
-          acuerdoSugerido: 'estandar',
-          efectoAnimoJefe: 'sol',
-          respuestaOrador: 'negro',
-          respuestaNombre: 'ASESOR NEGRO · RIESGO Y CIENCIA',
-          respuestaIcono: '/sprites/iconos/icono_gato_asistente_negro.png',
-          respuestaTexto:
-            '«Una respuesta de verdadero ingeniero de sistemas. Aprobamos +$16.000 USD adicionales. Nos veremos en el Tribunal de Evaluación a tu regreso.»',
+          numero: 2,
+          tituloRonda: 'RONDA 2 DE 3 · NÓMINAS EN EL HANGAR',
+          orador: 'negro',
+          nombreOrador: 'ASESOR NEGRO · OPERACIONES',
+          iconoOrador: ICONS.negro,
+          dialogoInicial:
+            '«En el Hangar decidirás si contratas especialistas experimentados o vuelas con personal genérico. ¿Qué justifica pagar salarios altos?»',
+          opciones: [
+            {
+              id: 'ah_r2_baratos',
+              texto:
+                '«Contrataremos al personal más barato disponible sin importar su especialidad para guardar dinero.»',
+              argumentoCorto: 'Elección exclusiva por salario mínimo',
+              bonoUsd: -15000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · OPERACIONES',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Un instrumento sin su especialista rinde mal y un novato falla en emergencias. Recortamos fondos por mala estrategia de equipo.»',
+            },
+            {
+              id: 'ah_r2_balance',
+              texto:
+                '«Combinaremos al especialista exacto para nuestra carga científica principal con mantenimiento disciplinado del resto.»',
+              argumentoCorto: 'Selección focalizada de especialidad clave',
+              bonoUsd: 16000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · OPERACIONES',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Criterio quirúrgico. Aprobamos una ampliación equilibrada para cubrir nóminas esenciales sin inflar la masa de soporte vital.»',
+            },
+            {
+              id: 'ah_r2_veteranos',
+              texto:
+                '«La experiencia acelera las tareas científicas, eleva la calidad del dato y reduce el impacto de las emergencias en órbita.»',
+              argumentoCorto: 'Valoración técnica de experiencia y especialidad',
+              bonoUsd: 22000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Exacto: cada día extra en el espacio cuesta energía y oxígeno. Te autorizo margen adicional para contratar talento probado.»',
+            },
+          ],
+        },
+        {
+          numero: 3,
+          tituloRonda: 'RONDA 3 DE 3 · MARGEN DE SEGURIDAD EN RAMPA',
+          orador: 'jefe',
+          nombreOrador: 'GATO JEFE · COMISIONADO VANCE',
+          iconoOrador: ICONS.jefe,
+          dialogoInicial:
+            '«Cierro la revisión. Antes de abrirte las puertas del Hangar, dime cómo manejarás los márgenes de trayectoria y vida a bordo.»',
+          opciones: [
+            {
+              id: 'ah_r3_quemar_todo',
+              texto:
+                '«Optaremos siempre por la ruta más agresiva quemando el propelente justo al filo de la reserva mínima.»',
+              argumentoCorto: 'Trayectoria al límite sin reserva de Delta-v',
+              bonoUsd: -20000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Volar sin margen de Delta-v ante una ventana secundaria es temerario. El Comité reduce tu margen de cierre.»',
+            },
+            {
+              id: 'ah_r3_margen_sano',
+              texto:
+                '«Mantendremos días de O₂ y raciones por encima de la duración total, más reserva de Delta-v y masa bajo el tope.»',
+              argumentoCorto: 'Resguardo completo de O₂, raciones y Delta-v',
+              bonoUsd: 20000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Excelente cierre, Capitán. Tienes el voto de confianza del Comité y un último respaldo para el Hangar.»',
+            },
+          ],
         },
       ],
     },
-  ]
+  }
 })
 
-const activeRound = computed(() => rounds.value[currentRoundIndex.value])
+const activeScenario = computed(() => scenarios.value[selectedScenarioId.value])
+const activeRound = computed(() => activeScenario.value.rondas[currentRoundIndex.value])
+const bossMoodImg = computed(() => moodToImg(bossMood.value))
+const playerMoodImg = computed(() => moodToImg(playerMood.value))
 
-const moodImageSrc = computed(() => {
-  if (bossMood.value === 'sol') return '/sprites/elementos/Sol.png'
-  if (bossMood.value === 'nube') return '/sprites/elementos/Nube.png'
-  return '/sprites/elementos/Lluvia.png'
-})
-
-const roundsTaken = ref<number>(0)
+function selectScenario(id: EscenarioId): void {
+  if (roundsTaken.value > 0 || negotiationCompleted.value) return
+  selectedScenarioId.value = id
+}
 
 function selectDialogueOption(opt: OpcionDialogo): void {
-  if (negotiationCompleted.value) return
+  if (negotiationCompleted.value || props.loading) return
+
   bossMood.value = opt.efectoAnimoJefe
-  totalSubidoUsd.value += opt.bonoUsd
+  playerMood.value = opt.efectoAnimoJugador
+  netDeltaUsd.value += opt.bonoUsd
   roundsTaken.value += 1
+
   lastReply.value = {
     speakerName: opt.respuestaNombre,
     speakerIcon: opt.respuestaIcono,
     text: opt.respuestaTexto,
-    deltaUsd: opt.bonoUsd,
+    wasPositive: opt.bonoUsd >= 0,
   }
 
   emit('negotiate', {
@@ -235,7 +640,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
     acuerdo_id: opt.acuerdoSugerido,
   })
 
-  if (currentRoundIndex.value < rounds.value.length - 1) {
+  if (currentRoundIndex.value < activeScenario.value.rondas.length - 1) {
     currentRoundIndex.value += 1
   } else {
     negotiationCompleted.value = true
@@ -245,170 +650,150 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
 <template>
   <div class="vn-stage-container">
-    <!-- 1. CABECERA DE LA ESCENA DE NOVELA VISUAL -->
+    <!-- 1. CABECERA ESTILO DEBRIEFING / OFICINA -->
     <div class="vn-top-bar">
       <div>
-        <span class="vn-eyebrow">ETAPA 02 · NOVELA VISUAL DE NEGOCIACIÓN</span>
-        <strong class="vn-location">OFICINA DE PLANIFICACIÓN · COMITÉ DE LOS 3 GATOS</strong>
+        <span class="vn-eyebrow">ZENIT · NEGOCIACIÓN DE PRESUPUESTO</span>
+        <strong class="vn-location">
+          {{ activeScenario.subtituloEscena }} · COMITÉ DE LOS 3 GATOS
+        </strong>
       </div>
-      <div class="vn-budget-counter">
-        <span class="vn-budget-label">PRESUPUESTO NEGOCIADO:</span>
-        <strong class="vn-budget-value">${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD</strong>
-        <span v-if="totalSubidoUsd > 0" class="vn-budget-bonus">
-          (+${{ totalSubidoUsd.toLocaleString() }} logrados)
-        </span>
+
+      <div class="vn-top-right">
+        <div v-if="roundsTaken === 0 && !negotiationCompleted" class="vn-scenario-switcher">
+          <button
+            v-for="sc in Object.values(scenarios)"
+            :key="sc.id"
+            type="button"
+            class="vn-sc-pill"
+            :class="{ active: selectedScenarioId === sc.id }"
+            @click="selectScenario(sc.id)"
+          >
+            {{ sc.tituloCorto }}
+          </button>
+        </div>
+
+        <div class="vn-budget-counter">
+          <span class="vn-budget-label">PRESUPUESTO APROBADO:</span>
+          <strong class="vn-budget-value">
+            ${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD
+          </strong>
+        </div>
       </div>
     </div>
 
-    <!-- 2. ESCENARIO PIXEL ART EN GRANDE (OFICINA DE PLANIFICACIÓN + JEFE Y 2 ASISTENTES) -->
+    <!-- 2. ESCENARIO WIDESCREEN PIXEL ART CON LOS 3 GATOS + GLOBO DE DIÁLOGO -->
     <div class="vn-backdrop-frame">
       <img
-        src="/sprites/escenas/oficina_planificacion.png"
-        alt="Oficina de Planificación"
+        :src="activeScenario.fondoSrc"
+        :alt="activeScenario.subtituloEscena"
         class="vn-bg-image"
       />
       <div class="vn-bg-vignette"></div>
 
-      <!-- Los 3 Gatos en sus escritorios: Asistente Blanca (Izq), Gato Jefe (Centro), Asistente Negro (Der) -->
-      <div class="vn-office-actors">
-        <!-- Asistente 1: Auditora Blanca (Izquierda) -->
-        <div
-          class="vn-actor-station assistant-left"
-          :class="{ speaking: activeRound.orador === 'blanca' && !negotiationCompleted }"
-        >
-          <img
-            src="/sprites/iconos/icono_gato_asistente_blanco.png"
-            alt="Auditora Blanca"
-            class="vn-actor-portrait"
-          />
-          <span class="vn-actor-tag">AUDITORA BLANCA</span>
-        </div>
-
-        <!-- Centro: El Gato Jefe (Comisionado Félix Vance) con su estado de ánimo encima -->
-        <div
-          class="vn-actor-station boss-center"
-          :class="{ speaking: activeRound.orador === 'jefe' || negotiationCompleted }"
-        >
-          <div class="vn-boss-mood-float">
-            <img :src="moodImageSrc" alt="Ánimo del Jefe" class="vn-mood-img" />
-          </div>
-          <img
-            src="/sprites/iconos/icono_gato_jefe.png"
-            alt="Gato Jefe"
-            class="vn-actor-portrait boss-portrait"
-          />
-          <span class="vn-actor-tag boss-tag">GATO JEFE (VANCE)</span>
-        </div>
-
-        <!-- Asistente 2: Asesor Negro (Derecha) -->
-        <div
-          class="vn-actor-station assistant-right"
-          :class="{ speaking: activeRound.orador === 'negro' && !negotiationCompleted }"
-        >
-          <img
-            src="/sprites/iconos/icono_gato_asistente_negro.png"
-            alt="Asesor Negro"
-            class="vn-actor-portrait"
-          />
-          <span class="vn-actor-tag">ASESOR NEGRO</span>
-        </div>
+      <!-- Icono de ánimo flotando sobre el Gato Jefe (a la izquierda en las 3 escenas) -->
+      <div class="vn-boss-mood-badge" title="Ánimo del Comité">
+        <img :src="bossMoodImg" alt="Ánimo del Gato Jefe" class="vn-mood-img" />
       </div>
 
-      <!-- GLOBO DE DIÁLOGO SUPERIOR (QUIÉN HABLA EN EL COMITÉ DE GATOS) -->
-      <div class="vn-npc-speech-bubble">
-        <!-- Si hay respuesta reciente a tu argumento anterior, la muestra arriba -->
-        <div v-if="lastReply" class="vn-last-reply-banner">
-          <img :src="lastReply.speakerIcon" alt="Orador" class="vn-mini-icon" />
-          <div class="vn-reply-copy">
-            <strong>{{ lastReply.speakerName }}:</strong> {{ lastReply.text }}
-          </div>
-        </div>
+      <!-- Globo de diálogo en zona superior derecha (estilo cómic / novela visual) -->
+      <div class="vn-speech-cluster">
+        <div class="vn-npc-speech-bubble">
+          <div class="vn-bubble-tail"></div>
 
-        <!-- Intervención actual del Gato Jefe o sus Asistentes -->
-        <div class="vn-speaker-main-row">
-          <img
-            :src="
-              negotiationCompleted
-                ? '/sprites/iconos/icono_gato_jefe.png'
-                : activeRound.iconoOrador
-            "
-            :alt="activeRound.nombreOrador"
-            class="vn-speaker-framed-icon"
-          />
-          <div class="vn-bubble-content">
-            <div class="vn-speaker-header">
-              <span class="vn-speaker-nameplate">
-                {{
-                  negotiationCompleted
-                    ? 'GATO JEFE · VEREDICTO DE FINANCIACIÓN'
-                    : activeRound.nombreOrador
-                }}
-              </span>
-              <span class="vn-round-pill">
-                {{
-                  negotiationCompleted
-                    ? 'NEGOCIACIÓN CONCLUIDA'
-                    : activeRound.tituloRonda
-                }}
-              </span>
+          <div v-if="lastReply" class="vn-last-reply-banner" :class="{ negative: !lastReply.wasPositive }">
+            <img :src="lastReply.speakerIcon" alt="Respuesta" class="vn-mini-icon" />
+            <div class="vn-reply-copy">
+              <strong>{{ lastReply.speakerName }}:</strong> {{ lastReply.text }}
             </div>
-            <p class="vn-dialogue-text">
-              <template v-if="!negotiationCompleted">
-                {{ activeRound.dialogoInicial }}
-              </template>
-              <template v-else>
-                «Hemos escuchado tus tres argumentos, Capitán. Tu presupuesto final queda fijado en
-                <strong>${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD</strong> (disponibles tras chasis base:
-                <strong>${{ mission.presupuesto_restante_usd.toLocaleString() }} USD</strong>). Dirígete al Hangar en la Etapa 3 para equipar la nave y contratar a tu tripulación.»
-              </template>
-            </p>
+          </div>
+
+          <div class="vn-speaker-main-row">
+            <img
+              :src="negotiationCompleted ? ICONS.jefe : activeRound.iconoOrador"
+              :alt="activeRound.nombreOrador"
+              class="vn-speaker-framed-icon"
+            />
+            <div class="vn-bubble-content">
+              <div class="vn-speaker-header">
+                <span class="vn-speaker-nameplate">
+                  {{
+                    negotiationCompleted
+                      ? 'GATO JEFE · VEREDICTO FINAL'
+                      : activeRound.nombreOrador
+                  }}
+                </span>
+                <span class="vn-round-pill">
+                  {{
+                    negotiationCompleted
+                      ? 'ACUERDO CERRADO'
+                      : activeRound.tituloRonda
+                  }}
+                </span>
+              </div>
+
+              <p class="vn-dialogue-text">
+                <template v-if="!negotiationCompleted">
+                  {{ activeRound.dialogoInicial }}
+                </template>
+                <template v-else>
+                  «Tres rondas concluidas, Capitán. Tu presupuesto definitivo de misión queda cerrado en
+                  <strong>${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD</strong>
+                  (saldo disponible tras chasis base:
+                  <strong>${{ mission.presupuesto_restante_usd.toLocaleString() }} USD</strong>). Pasa al Hangar en la Etapa 3.»
+                </template>
+              </p>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 3. CAJA DE DECISIONES DEL JUGADOR ESTILO NOVELA VISUAL + RETRATO CAPTAIN DOG -->
+    <!-- 3. DOCK INFERIOR: RESPUESTAS NARRATIVAS (SIN SPOILERS) + RETRATO CAPITÁN PERRO -->
     <div class="vn-player-decision-dock">
       <div class="vn-choices-column">
         <div class="vn-choices-header">
-          <span>ELIGE TU ARGUMENTO PARA CONVENCER AL COMITÉ:</span>
+          <span>CAPITÁN PERRO · RESPUESTAS AL COMITÉ (SIN GARANTÍA DE RESULTADO)</span>
         </div>
 
         <template v-if="!negotiationCompleted">
           <button
             v-for="opt in activeRound.opciones"
             :key="opt.id"
+            type="button"
             class="vn-choice-line"
             :disabled="loading"
             @click="selectDialogueOption(opt)"
           >
             <span class="vn-choice-arrow">&gt;</span>
             <span class="vn-choice-text">{{ opt.texto }}</span>
-            <span class="vn-choice-effect">
-              [ Persuadir: +${{ opt.bonoUsd.toLocaleString() }} USD ]
-            </span>
           </button>
         </template>
 
         <template v-else>
           <div class="vn-completed-actions">
-            <button class="btn-primary vn-finish-btn" @click="emit('finishNegotiation')">
-              ✓ FIRMAR PRESUPUESTO (${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD · PLAN {{ mission.acuerdo_financiacion_id.toUpperCase() }}) Y AVANZAR A ETAPA 3 ►
+            <button
+              type="button"
+              class="btn-primary vn-finish-btn"
+              @click="emit('finishNegotiation')"
+            >
+              ✓ FIRMAR PRESUPUESTO (${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD) Y AVANZAR A ETAPA 3 ►
             </button>
             <span class="vn-closed-deal-pill">
-              Acuerdo sellado tras {{ roundsTaken }}/3 rondas ante el Comité
+              Acuerdo cerrado tras {{ roundsTaken }}/3 rondas · Balance neto:
+              {{ netDeltaUsd >= 0 ? `+${netDeltaUsd.toLocaleString()}` : netDeltaUsd.toLocaleString() }} USD
             </span>
           </div>
         </template>
       </div>
 
-      <!-- Retrato enmarcado de CAPTAIN DOG (Jugador) con su icono Sol encima -->
+      <!-- Retrato enmarcado de CAPITÁN PERRO con su icono de ánimo -->
       <div class="vn-captain-portrait-card">
         <div class="vn-captain-sun">
-          <img src="/sprites/elementos/Sol.png" alt="Sol" class="vn-mood-img" />
+          <img :src="playerMoodImg" alt="Ánimo Capitán Perro" class="vn-mood-img" />
         </div>
         <img
-          src="/sprites/iconos/icono_perro_director.png"
+          src="/sprites/iconos/icono_captain_dog_casco.png"
           alt="Capitán Perro"
           class="vn-captain-img"
         />
@@ -422,7 +807,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 .vn-stage-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-height: 100%;
   background: var(--void-deep);
   border: 1px solid var(--steel);
@@ -439,7 +824,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   background: var(--cabin);
   border: 1px solid var(--steel);
   border-radius: 5px;
-  padding: 5px 10px;
+  padding: 6px 10px;
 }
 
 .vn-eyebrow {
@@ -453,6 +838,36 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 .vn-location {
   font-size: 12px;
   color: var(--gold);
+}
+
+.vn-top-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vn-scenario-switcher {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.vn-sc-pill {
+  background: var(--void);
+  border: 1px solid var(--steel);
+  color: var(--mist);
+  font-size: 9px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.vn-sc-pill.active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(79, 209, 197, 0.12);
+  font-weight: 700;
 }
 
 .vn-budget-counter {
@@ -475,24 +890,20 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   color: var(--gold);
 }
 
-.vn-budget-bonus {
-  font-size: 10px;
-  color: var(--green);
-  font-weight: 700;
-}
-
-/* ESCENARIO DE FONDO EN GRANDE */
+/* ESCENARIO 16:9 LIMPIO CON LOS 3 GATOS Y GLOBO EN ESQUINA SUPERIOR DERECHA */
 .vn-backdrop-frame {
   position: relative;
-  flex: 1;
-  min-height: 215px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 250px;
+  max-height: 410px;
   border: 2px solid var(--steel);
   border-radius: 6px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 10px;
+  justify-content: flex-start;
+  padding: 12px;
 }
 
 .vn-bg-image {
@@ -501,7 +912,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 35%;
+  object-position: center center;
   image-rendering: pixelated;
   z-index: 0;
 }
@@ -510,94 +921,42 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    180deg,
-    rgba(8, 11, 20, 0.35) 0%,
-    rgba(8, 11, 20, 0.25) 45%,
-    rgba(8, 11, 20, 0.85) 100%
+    90deg,
+    rgba(8, 11, 20, 0.08) 0%,
+    rgba(8, 11, 20, 0.16) 45%,
+    rgba(8, 11, 20, 0.42) 100%
   );
   z-index: 1;
 }
 
-/* LOS 3 GATOS EN LA OFICINA (JEFE + 2 AYUDANTES) */
-.vn-office-actors {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end;
-  padding-top: 8px;
-}
-
-.vn-actor-station {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  position: relative;
-  opacity: 0.82;
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-
-.vn-actor-station.speaking {
-  opacity: 1;
-  transform: translateY(-4px) scale(1.05);
-}
-
-.vn-actor-portrait {
-  width: 50px;
-  height: 50px;
-  image-rendering: pixelated;
-  border: 2px solid var(--steel);
-  border-radius: 4px;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.75);
-  background: var(--void);
-}
-
-.vn-actor-station.speaking .vn-actor-portrait {
-  border-color: var(--amber);
-  box-shadow: 0 0 14px rgba(255, 176, 0, 0.55);
-}
-
-.boss-portrait {
-  width: 62px;
-  height: 62px;
-}
-
-.vn-boss-mood-float {
+.vn-boss-mood-badge {
   position: absolute;
-  top: -26px;
+  top: 10%;
+  left: 23%;
+  z-index: 2;
   background: rgba(11, 14, 26, 0.9);
   border: 1px solid var(--amber);
   border-radius: 8px;
-  padding: 2px 5px;
+  padding: 3px 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
 }
 
 .vn-mood-img {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   image-rendering: pixelated;
   display: block;
 }
 
-.vn-actor-tag {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 6px;
-  background: rgba(11, 14, 26, 0.92);
-  border: 1px solid var(--steel);
-  border-radius: 3px;
-  color: var(--mist);
-}
-
-.boss-tag {
-  color: var(--gold);
-  border-color: var(--amber);
-}
-
-/* GLOBO DE DIÁLOGO ESTILO NOVELA VISUAL */
-.vn-npc-speech-bubble {
+.vn-speech-cluster {
   position: relative;
   z-index: 2;
+  align-self: flex-end;
+  width: min(62%, 560px);
+}
+
+.vn-npc-speech-bubble {
+  position: relative;
   background: rgba(8, 11, 20, 0.94);
   border: 2px solid var(--bone);
   border-radius: 6px;
@@ -605,7 +964,18 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.85);
+}
+
+.vn-bubble-tail {
+  position: absolute;
+  left: -10px;
+  top: 26px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 10px solid var(--bone);
 }
 
 .vn-last-reply-banner {
@@ -620,25 +990,33 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   color: var(--cyan);
 }
 
+.vn-last-reply-banner.negative {
+  background: rgba(255, 107, 107, 0.14);
+  border-left-color: #ff6b6b;
+  color: #ffb3b3;
+}
+
 .vn-mini-icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   image-rendering: pixelated;
   flex-shrink: 0;
+  border-radius: 3px;
 }
 
 .vn-speaker-main-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .vn-speaker-framed-icon {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   image-rendering: pixelated;
   flex-shrink: 0;
   border-radius: 4px;
+  border: 1px solid var(--steel);
 }
 
 .vn-bubble-content {
@@ -660,7 +1038,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   color: var(--gold);
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 3px;
   letter-spacing: 0.05em;
 }
@@ -672,12 +1050,13 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 }
 
 .vn-dialogue-text {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--bone);
-  line-height: 1.48;
+  line-height: 1.45;
+  margin: 0;
 }
 
-/* CAJA DE RESPUESTAS DEL JUGADOR + RETRATO CAPTAIN DOG */
+/* CAJA INFERIOR DE RESPUESTAS + RETRATO CAPITÁN PERRO */
 .vn-player-decision-dock {
   display: flex;
   align-items: stretch;
@@ -711,7 +1090,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   border: 1px solid var(--steel);
   border-radius: 4px;
   padding: 7px 10px;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--bone);
   cursor: pointer;
   transition: border-color 0.14s, background-color 0.14s;
@@ -729,13 +1108,6 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
 .vn-choice-text {
   flex: 1;
-}
-
-.vn-choice-effect {
-  color: var(--cyan);
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .vn-completed-actions {
@@ -762,7 +1134,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 }
 
 .vn-captain-portrait-card {
-  width: 98px;
+  width: 102px;
   background: var(--cabin);
   border: 2px solid var(--gold);
   border-radius: 5px;
@@ -786,8 +1158,8 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 }
 
 .vn-captain-img {
-  width: 68px;
-  height: 68px;
+  width: 72px;
+  height: 72px;
   image-rendering: pixelated;
   border-radius: 3px;
 }
@@ -799,5 +1171,25 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   color: var(--gold);
   text-align: center;
   letter-spacing: 0.04em;
+}
+
+@media (max-width: 760px) {
+  .vn-speech-cluster {
+    width: 100%;
+  }
+
+  .vn-bubble-tail {
+    display: none;
+  }
+
+  .vn-player-decision-dock {
+    flex-direction: column;
+  }
+
+  .vn-captain-portrait-card {
+    width: 100%;
+    flex-direction: row;
+    gap: 10px;
+  }
 }
 </style>

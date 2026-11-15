@@ -187,11 +187,15 @@ def aplicar_decision(
             else (0.90 if estado.dificultad == DificultadId.DIFICIL else 1.0)
         )
         incremento_real = round(bono_usd * factor_dif, 0)
-        estado.presupuesto_inicial_usd = round(
-            max(75000.0, estado.presupuesto_inicial_usd + incremento_real), 0
+        gasto_acumulado = max(
+            0.0, estado.presupuesto_inicial_usd - estado.presupuesto_restante_usd
         )
+        nuevo_inicial = round(
+            max(55000.0, estado.presupuesto_inicial_usd + incremento_real), 0
+        )
+        estado.presupuesto_inicial_usd = nuevo_inicial
         estado.presupuesto_restante_usd = round(
-            max(0.0, estado.presupuesto_restante_usd + incremento_real), 2
+            max(0.0, nuevo_inicial - gasto_acumulado), 2
         )
         recalcular_subsistemas_mision(estado)
         signo = "+" if incremento_real >= 0 else ""

@@ -7,10 +7,10 @@
 - **Backend (FastAPI + motor puro)**: masa/Tsiolkovsky, energía, comunicaciones, presupuesto como límite duro, eventos, evaluación en 7 dimensiones con finales reactivos (en solitario vs. con dotación) y tope de 3 rondas en `negociar_presupuesto`.
 - **Flujo de 10 etapas** con bloqueo de operaciones orbitales mientras la nave sigue en Tierra (etapas 1–5).
 - **Menú de inicio** con dificultad (`Cadete`/`Director`/`Comandante`) y guía de 4 pasos.
-- **Negociación estilo novela visual** (solo Etapa 2) con el Gato Jefe y 2 ayudantes (+ bono de presupuesto), límite de 3 rondas sin bucle de reinicio infinito y paridad con el modo local offline (`localSimulationFallback.ts`).
+- **Negociación estilo novela visual** (solo Etapa 2) con 3 escenarios distintos (`Recorte de la Junta`, `Crisis Helios-9`, `Auditoría de Hangar`), fondos pixel art widescreen propios con el Gato Jefe y sus 2 ayudantes (`negociacion_oficina_jefe.jpg`, `negociacion_sala_crisis.jpg`, `negociacion_auditoria_hangar.jpg`), globo de diálogo superior derecho y retrato de `CAPITÁN PERRO`. Las opciones no revelan de antemano cuánto suben o bajan el presupuesto y una mala respuesta recorta fondos; tope de 3 rondas sincronizado con `localSimulationFallback.ts`.
 - **Sala de Juicio** al final (`BossReportScene.vue`): veredicto del Gato Jefe y sus 2 ayudantes con retratos enmarcados y monólogo de cuarta pared.
 - **Cubierta 2D con zonas RPG/novela visual** (`DestinationRooms2D.vue`):
-  - Fondos pixel art por sala, ventana con vista de Tierra/Luna y zonas separadas para puertas, estación central y tripulantes estáticos.
+  - Fondos pixel art por sala, ventana con vista de Tierra/Luna y desplazamiento acelerado del perro director (`0.62`/frame).
   - Ajuste de altura del piso (`--piso`): `1%` en `laboratorio` y `soporte_vital`, `2%` en `sala_sistemas`, y `12%` en `cabina_mando`.
   - Diálogos RPG con tripulantes caninos mediante `[E]`, clic directo sobre el personaje o botón `💬 Bitácora de Mando` en salas en solitario, con retrato `CAPITÁN [TÚ]` y opciones de diagnóstico o acción directa.
 - **Contrato de API y pruebas**: especificación OpenAPI en `docs/api-contract.yaml` y batería ampliada de pruebas en backend (`pytest`) y frontend (`Vitest` en `App.test.ts` y `GameComponents.test.ts`).

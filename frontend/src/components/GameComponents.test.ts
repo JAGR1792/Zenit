@@ -59,7 +59,7 @@ function crearInformePrueba(): InformeFinal {
 }
 
 describe('Componentes principales del simulador Zenit', () => {
-  it('VisualNovelNegotiation recorre 3 rondas y bloquea reinicios infinitos al cerrar acuerdo', async () => {
+  it('VisualNovelNegotiation oculta montos en opciones, permite ganar o perder presupuesto y cambia escenarios', async () => {
     const mision = createMissionLocal({
       nombre_mision: 'Zenit Test VN',
       destino: 'OTB',
@@ -72,17 +72,38 @@ describe('Componentes principales del simulador Zenit', () => {
       props: { mission: mision, loading: false },
     })
 
-    expect(wrapper.text()).toContain('OFICINA DE PLANIFICACIÓN · COMITÉ DE LOS 3 GATOS')
-    expect(wrapper.text()).toContain('espectrómetro')
+    expect(wrapper.text()).toContain('COMITÉ DE LOS 3 GATOS')
 
-    // Ronda 1 -> Ronda 2 -> Ronda 3
-    await wrapper.find('.vn-choice-line').trigger('click')
-    await wrapper.find('.vn-choice-line').trigger('click')
-    await wrapper.find('.vn-choice-line').trigger('click')
+    // Cambiar explícitamente al escenario de Recorte de la Junta
+    const btnRecorte = wrapper
+      .findAll('.vn-sc-pill')
+      .find((b) => b.text().includes('Recorte de la Junta'))
+    expect(btnRecorte).toBeTruthy()
+    await btnRecorte!.trigger('click')
+    expect(wrapper.text()).toContain('La Junta Directiva dice')
 
-    const emisiones = wrapper.emitted('negotiate')
+    // Ninguna opción narrativa debe revelar montos de dinero antes de decidir
+    const opcionesTexto = wrapper.find('.vn-choices-column').text()
+    expect(opcionesTexto).not.toContain('USD')
+    expect(opcionesTexto).not.toContain('+$')
+    expect(opcionesTexto).not.toContain('-$')
+
+    // Ronda 1: elegir ceder reservas (penaliza presupuesto -> bono negativo)
+    await wrapper.find('.vn-choice-line').trigger('click')
+    // Ronda 2: primera opción (justificar especialistas -> bono positivo)
+    await wrapper.find('.vn-choice-line').trigger('click')
+    // Ronda 3: tercera opción (arquitectura integral -> bono positivo)
+    const opcionesR3 = wrapper.findAll('.vn-choice-line')
+    await opcionesR3[opcionesR3.length - 1].trigger('click')
+
+    const emisiones = wrapper.emitted('negotiate') as
+      | Array<[{ bono_usd: number; argumento: string; acuerdo_id: string }]>
+      | undefined
     expect(emisiones).toBeTruthy()
     expect(emisiones?.length).toBe(3)
+    expect(emisiones![0][0].bono_usd).toBeLessThan(0)
+    expect(emisiones![1][0].bono_usd).toBeGreaterThan(0)
+    expect(emisiones![2][0].bono_usd).toBeGreaterThan(0)
 
     // Al completar 3 rondas se muestra cierre sin bucle de reinicio infinito
     expect(wrapper.text()).toContain('FIRMAR PRESUPUESTO')
@@ -218,19 +239,30 @@ describe('Componentes principales del simulador Zenit', () => {
     expect(opBloqueada.allowed).toBe(false)
     expect(opBloqueada.status).toBe('fail')
 
-    // Etapa 2: hasta 3 rondas permitidas y bloqueo en la 4.ª
-    for (let ronda = 1; ronda <= 3; ronda += 1) {
-      const resp = sendDecisionLocal(mision.id, {
-        stage: 2,
-        decision: 'negociar_presupuesto',
-        params: {
-          bono_usd: 25000,
-          argumento: `Argumento de prueba ronda ${ronda}`,
-          acuerdo_id: 'estandar',
-        },
-      })
-      expect(resp.allowed).toBe(true)
-    }
+    // Etapa 2: hasta 3 rondas permitidas (incluyendo recortes negativos) y bloqueo en la 4.ª
+    const presupuestoAntes = mision.presupuesto_restante_usd
+    const r1 = sendDecisionLocal(mision.id, {
+      stage: 2,
+      decision: 'negociar_presupuesto',
+      params: { bono_usd: 25000, argumento: 'Ronda 1', acuerdo_id: 'estandar' },
+    })
+    expect(r1.allowed).toBe(true)
+    expect(r1.mission_state.presupuesto_restante_usd).toBe(presupuestoAntes + 25000)
+
+    const r2 = sendDecisionLocal(mision.id, {
+      stage: 2,
+      decision: 'negociar_presupuesto',
+      params: { bono_usd: -15000, argumento: 'Ronda 2 recorte', acuerdo_id: 'austero' },
+    })
+    expect(r2.allowed).toBe(true)
+    expect(r2.mission_state.presupuesto_restante_usd).toBe(presupuestoAntes + 25000 - 15000)
+
+    const r3 = sendDecisionLocal(mision.id, {
+      stage: 2,
+      decision: 'negociar_presupuesto',
+      params: { bono_usd: 10000, argumento: 'Ronda 3', acuerdo_id: 'estandar' },
+    })
+    expect(r3.allowed).toBe(true)
 
     const cuartaRonda = sendDecisionLocal(mision.id, {
       stage: 2,
