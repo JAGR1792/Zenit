@@ -27,6 +27,7 @@
 
 ## Notas técnicas
 
-- El Gato Jefe usa `/sprites/iconos/icono_gato_jefe.png` (ya no la hoja `GATO.jpeg`).
+- **Moneda ficticia**: toda la interfaz, bitácoras y evaluaciones muestran **Créditos Zenit (`CZ`)** en lugar de dólares reales (`USD`), manteniendo internamente los identificadores técnicos `*_usd` en los modelos JSON/Pydantic para preservar compatibilidad de API y base de datos.
+- El Gato Jefe usa `/sprites/iconos/icono_gato_jefe_naranja.jpg` y `gatoJefe1.png`–`gatoJefe5.png` en las escenas oficiales (`Comité Zenit` y `escena_inicial`), y `/sprites/iconos/icono_gato_jefe.png` en los fondos alternos (ya no la hoja `GATO.jpeg`).
 - La limpieza de fondo de sprites usa relleno por inundación desde los bordes (conserva pelaje blanco).
 - La pestaña de Oficina de Planificación solo existe en la Etapa 2.

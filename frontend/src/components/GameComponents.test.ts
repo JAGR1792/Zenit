@@ -83,9 +83,14 @@ describe('Componentes principales del simulador Zenit', () => {
     await btnRecorte!.trigger('click')
     expect(wrapper.text()).toContain('La Junta Directiva dice')
 
+    // Verifica uso de moneda ficticia Créditos Zenit (CZ) en lugar de dólares reales
+    expect(wrapper.text()).toContain('CZ')
+    expect(wrapper.text()).not.toContain('USD')
+
     // Ninguna opción narrativa debe revelar montos de dinero antes de decidir
     const opcionesTexto = wrapper.find('.vn-choices-column').text()
     expect(opcionesTexto).not.toContain('USD')
+    expect(opcionesTexto).not.toContain('CZ')
     expect(opcionesTexto).not.toContain('+$')
     expect(opcionesTexto).not.toContain('-$')
 

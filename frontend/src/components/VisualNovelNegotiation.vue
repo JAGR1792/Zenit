@@ -150,7 +150,7 @@ const scenarios = computed<Record<EscenarioId, EscenarioNegociacion>>(() => {
           orador: 'jefe',
           nombreOrador: 'GATO JEFE · COMISIONADO VANCE',
           iconoOrador: ICONS.jefe,
-          dialogoInicial: `«La Junta Directiva dice que $${techoJunta.toLocaleString()} USD es aceptable para llegar a ${destNombre}. Pero yo creo que ustedes son capaces de hacerlo con menos; por eso parto dándoles $${presupuestoBase.toLocaleString()} USD. ¿Qué me dices, Capitán?»`,
+          dialogoInicial: `«La Junta Directiva dice que ${techoJunta.toLocaleString()} CZ es aceptable para llegar a ${destNombre}. Pero yo creo que ustedes son capaces de hacerlo con menos; por eso parto dándoles ${presupuestoBase.toLocaleString()} Créditos Zenit (CZ). ¿Qué me dices, Capitán?»`,
           opciones: [
             {
               id: 'rj_r1_ceder',
@@ -185,7 +185,7 @@ const scenarios = computed<Record<EscenarioId, EscenarioNegociacion>>(() => {
             {
               id: 'rj_r1_arrogante',
               texto:
-                '«La Junta ya aprobó el techo máximo; no deberíamos perder tiempo justificando cada dólar si confía en mi historial.»',
+                '«La Junta ya aprobó el techo máximo; no deberíamos perder tiempo justificando cada crédito si confía en mi historial.»',
               argumentoCorto: 'Exigencia de techo máximo sin respaldo técnico',
               bonoUsd: -20000,
               acuerdoSugerido: 'austero',
@@ -723,7 +723,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
         <div class="vn-budget-counter">
           <span class="vn-budget-label">PRESUPUESTO APROBADO:</span>
           <strong class="vn-budget-value">
-            ${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD
+            {{ mission.presupuesto_inicial_usd.toLocaleString() }} CZ
           </strong>
         </div>
 
@@ -803,7 +803,7 @@ function selectDialogueOption(opt: OpcionDialogo): void {
                 </template>
                 <template v-else>
                   <TypewriterText
-                    :text="`«Tres rondas concluidas, Capitán. Tu presupuesto definitivo de misión queda cerrado en $${mission.presupuesto_inicial_usd.toLocaleString()} USD (saldo disponible tras chasis base: $${mission.presupuesto_restante_usd.toLocaleString()} USD). Pasa al Hangar en la Etapa 3.»`"
+                    :text="`«Tres rondas concluidas, Capitán. Tu presupuesto definitivo de misión queda cerrado en ${mission.presupuesto_inicial_usd.toLocaleString()} CZ (saldo disponible tras chasis base: ${mission.presupuesto_restante_usd.toLocaleString()} CZ). Pasa al Hangar en la Etapa 3.»`"
                     :key="`vn-final-${mission.id}`"
                     skip-hint="(clic para saltar)"
                     @complete="dialogueReady = true"
@@ -846,11 +846,11 @@ function selectDialogueOption(opt: OpcionDialogo): void {
               :disabled="loading || !dialogueReady"
               @click="emit('finishNegotiation')"
             >
-              ✓ FIRMAR PRESUPUESTO (${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD) Y AVANZAR A ETAPA 3 ►
+              ✓ FIRMAR PRESUPUESTO ({{ mission.presupuesto_inicial_usd.toLocaleString() }} CZ) Y AVANZAR A ETAPA 3 ►
             </button>
             <span class="vn-closed-deal-pill">
               Acuerdo cerrado tras {{ roundsTaken }}/3 rondas · Balance neto:
-              {{ netDeltaUsd >= 0 ? `+${netDeltaUsd.toLocaleString()}` : netDeltaUsd.toLocaleString() }} USD
+              {{ netDeltaUsd >= 0 ? `+${netDeltaUsd.toLocaleString()}` : netDeltaUsd.toLocaleString() }} CZ
             </span>
           </div>
         </template>

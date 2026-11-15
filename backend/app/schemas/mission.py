@@ -56,7 +56,7 @@ class ComponenteCatalogo(BaseModel):
     id: str
     nombre: str
     categoria: CategoriaComponente
-    costo_usd: float = Field(ge=0, description="Coste financiero de adquisición en USD")
+    costo_usd: float = Field(ge=0, description="Coste financiero de adquisición en Créditos Zenit (CZ)")
     masa_kg: float = Field(ge=0, description="Masa añadida a la nave en kg")
     consumo_w: float = Field(
         default=0.0, ge=0, description="Consumo eléctrico nominal en W"

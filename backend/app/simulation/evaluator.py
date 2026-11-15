@@ -347,7 +347,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             if estado.presupuesto_restante_usd >= 5000
             else "Al Límite",
             comentario_jefe=(
-                f"Saldo final: {estado.presupuesto_restante_usd:,.0f} USD de {estado.presupuesto_inicial_usd:,.0f} USD iniciales."
+                f"Saldo final: {estado.presupuesto_restante_usd:,.0f} CZ de {estado.presupuesto_inicial_usd:,.0f} CZ iniciales."
             ),
             explicacion_tecnica=(
                 "Límite duro que integra compra de componentes, salarios de especialistas y gastos operativos en tiempo real."

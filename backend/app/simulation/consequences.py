@@ -69,7 +69,7 @@ def capturar_instantanea_variables(
         "presupuesto_restante_usd": (
             "Presupuesto restante",
             round(estado.presupuesto_restante_usd, 0),
-            "USD",
+            "CZ",
         ),
         "o2_dias_disponibles": (
             "Autonomía soporte vital",
@@ -171,7 +171,7 @@ def aplicar_decision(
             0.0, round(nuevo_inicial - gasto_acumulado, 2)
         )
         recalcular_subsistemas_mision(estado)
-        resumen = f"Acuerdo '{acuerdo['nombre']}' firmado. Presupuesto global ajustado: {nuevo_inicial:,.0f} USD."
+        resumen = f"Acuerdo '{acuerdo['nombre']}' firmado. Presupuesto global ajustado: {nuevo_inicial:,.0f} CZ."
         estado.bitacora_decisiones.append(resumen)
 
     elif decision == "negociar_presupuesto":
@@ -200,8 +200,8 @@ def aplicar_decision(
         recalcular_subsistemas_mision(estado)
         signo = "+" if incremento_real >= 0 else ""
         resumen = (
-            f"Negociación con el Gato Jefe ({argumento}): {signo}{incremento_real:,.0f} USD "
-            f"(Presupuesto total aprobado: {estado.presupuesto_inicial_usd:,.0f} USD)."
+            f"Negociación con el Gato Jefe ({argumento}): {signo}{incremento_real:,.0f} CZ "
+            f"(Presupuesto total aprobado: {estado.presupuesto_inicial_usd:,.0f} CZ)."
         )
         estado.bitacora_decisiones.append(resumen)
 
@@ -229,7 +229,7 @@ def aplicar_decision(
             estado.presupuesto_restante_usd - comp.costo_usd, 2
         )
         recalcular_subsistemas_mision(estado)
-        resumen = f"Instalado en nave: {comp.nombre} (-{comp.costo_usd:,.0f} USD, +{comp.masa_kg} kg)."
+        resumen = f"Instalado en nave: {comp.nombre} (-{comp.costo_usd:,.0f} CZ, +{comp.masa_kg} kg)."
         estado.bitacora_decisiones.append(resumen)
 
     elif decision == "remover_componente":
@@ -241,7 +241,7 @@ def aplicar_decision(
         )
         recalcular_subsistemas_mision(estado)
         resumen = (
-            f"Desinstalado: {comp.nombre} (+{comp.costo_usd:,.0f} USD reembolsados)."
+            f"Desinstalado: {comp.nombre} (+{comp.costo_usd:,.0f} CZ reembolsados)."
         )
         estado.bitacora_decisiones.append(resumen)
 
@@ -253,7 +253,7 @@ def aplicar_decision(
             estado.presupuesto_restante_usd - cand.salario_usd, 2
         )
         recalcular_subsistemas_mision(estado)
-        resumen = f"Contratado: {cand.nombre} ({cand.rol}, Salario: -{cand.salario_usd:,.0f} USD)."
+        resumen = f"Contratado: {cand.nombre} ({cand.rol}, Salario: -{cand.salario_usd:,.0f} CZ)."
         estado.bitacora_decisiones.append(resumen)
 
     elif decision == "remover_tripulante":
@@ -264,7 +264,7 @@ def aplicar_decision(
             estado.presupuesto_restante_usd + miembro.salario_usd, 2
         )
         recalcular_subsistemas_mision(estado)
-        resumen = f"Relevado de la misión: {miembro.nombre} (+{miembro.salario_usd:,.0f} USD)."
+        resumen = f"Relevado de la misión: {miembro.nombre} (+{miembro.salario_usd:,.0f} CZ)."
         estado.bitacora_decisiones.append(resumen)
 
     elif decision == "configurar_trayectoria":
@@ -506,7 +506,7 @@ def resolver_evento_activo(
         return (
             estado,
             [],
-            f"Acción denegada: el coste imprevisto ({opcion.costo_presupuesto_usd:,.0f} USD) supera el presupuesto restante.",
+            f"Acción denegada: el coste imprevisto ({opcion.costo_presupuesto_usd:,.0f} CZ) supera el presupuesto restante.",
         )
 
     # Descontar costes en tiempo real (separando presupuesto financiero de energía)
@@ -656,7 +656,7 @@ def avanzar_etapa_mision(
         )
         narrativa = (
             f"Tránsito a {estado.destino.value} completado en {estado.dias_transito} día(s). "
-            f"Coste de seguimiento en tiempo real: -{costo_ops_transito:,.0f} USD."
+            f"Coste de seguimiento en tiempo real: -{costo_ops_transito:,.0f} CZ."
         )
 
     elif estado.etapa_actual in (7, 8, 9):

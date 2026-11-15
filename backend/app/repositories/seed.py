@@ -75,7 +75,7 @@ ACUERDOS_FINANCIACION: list[dict[str, Any]] = [
         "presupuesto_usd": 95000.0,
         "exigencia_ciencia": 45.0,
         "descripcion": (
-            "Presupuesto restrictivo (95.000 USD) otorgado por un consorcio universitario. "
+            "Presupuesto restrictivo (95.000 Créditos Zenit, CZ) otorgado por un consorcio universitario. "
             "Exige prudencia extrema en masa y costes imprevistos, con metas científicas moderadas."
         ),
     },
@@ -85,7 +85,7 @@ ACUERDOS_FINANCIACION: list[dict[str, Any]] = [
         "presupuesto_usd": 125000.0,
         "exigencia_ciencia": 65.0,
         "descripcion": (
-            "Asignación gubernamental equilibrada (125.000 USD). Permite instrumentación sólida "
+            "Asignación gubernamental equilibrada (125.000 CZ). Permite instrumentación sólida "
             "y margen razonable para operaciones en vuelo si se administra sin derroches."
         ),
     },
@@ -95,7 +95,7 @@ ACUERDOS_FINANCIACION: list[dict[str, Any]] = [
         "presupuesto_usd": 155000.0,
         "exigencia_ciencia": 85.0,
         "descripcion": (
-            "Financiación máxima (155.000 USD) condicionada a resultados científicos sobresalientes "
+            "Financiación máxima (155.000 CZ) condicionada a resultados científicos sobresalientes "
             "y transmisión íntegra de telemetría de alta resolución."
         ),
     },
@@ -326,7 +326,7 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         fiabilidad_nominal=0.93,
         slot_visual="payload_espectrometro",
         descripcion_ficha=(
-            "Analizador espectral de alta resolución (+50 kg, +120 W, +8.000 USD). "
+            "Analizador espectral de alta resolución (+50 kg, +120 W, +8.000 CZ). "
             "Genera +15 pts de ciencia base y +2 GB de datos/día. Especialidad afín: Geología."
         ),
     ),

@@ -113,7 +113,7 @@ def crear_nueva_mision(req: CrearMisionRequest) -> EstadoMision:
         tripulacion=[director],
         habitaciones_2d=construir_habitaciones_iniciales(),
         bitacora_decisiones=[
-            f"Misión '{req.nombre_mision}' iniciada en modo '{req.dificultad.value.upper()}' con destino {req.destino.value} y presupuesto {presupuesto_inicial:,.0f} USD."
+            f"Misión '{req.nombre_mision}' iniciada en modo '{req.dificultad.value.upper()}' con destino {req.destino.value} y presupuesto {presupuesto_inicial:,.0f} CZ."
         ],
     )
     recalcular_subsistemas_mision(estado)

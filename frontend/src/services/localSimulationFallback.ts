@@ -83,7 +83,7 @@ export const ACUERDOS_LOCAL: AcuerdoFinanciacion[] = [
     presupuesto_usd: 95000,
     exigencia_ciencia: 45,
     descripcion:
-      'Presupuesto restrictivo (95.000 USD) otorgado por un consorcio universitario. Exige prudencia extrema en masa y costes imprevistos, con metas científicas moderadas.',
+      'Presupuesto restrictivo (95.000 Créditos Zenit, CZ) otorgado por un consorcio universitario. Exige prudencia extrema en masa y costes imprevistos, con metas científicas moderadas.',
   },
   {
     id: 'estandar',
@@ -91,7 +91,7 @@ export const ACUERDOS_LOCAL: AcuerdoFinanciacion[] = [
     presupuesto_usd: 125000,
     exigencia_ciencia: 65,
     descripcion:
-      'Asignación gubernamental equilibrada (125.000 USD). Permite instrumentación sólida y margen razonable para operaciones en vuelo si se administra sin derroches.',
+      'Asignación gubernamental equilibrada (125.000 CZ). Permite instrumentación sólida y margen razonable para operaciones en vuelo si se administra sin derroches.',
   },
   {
     id: 'ambicioso',
@@ -99,7 +99,7 @@ export const ACUERDOS_LOCAL: AcuerdoFinanciacion[] = [
     presupuesto_usd: 155000,
     exigencia_ciencia: 85,
     descripcion:
-      'Financiación máxima (155.000 USD) condicionada a resultados científicos sobresalientes y transmisión íntegra de telemetría de alta resolución.',
+      'Financiación máxima (155.000 CZ) condicionada a resultados científicos sobresalientes y transmisión íntegra de telemetría de alta resolución.',
   },
 ]
 
@@ -431,7 +431,7 @@ export const COMPONENTES_LOCAL: ComponenteCatalogo[] = [
     fiabilidad_nominal: 0.93,
     slot_visual: 'payload_espectrometro',
     descripcion_ficha:
-      'Analizador espectral de alta resolución (+50 kg, +120 W, +8.000 USD). Genera +15 pts de ciencia base y +2 GB de datos/día. Especialidad afín: Geología.',
+      'Analizador espectral de alta resolución (+50 kg, +120 W, +8.000 CZ). Genera +15 pts de ciencia base y +2 GB de datos/día. Especialidad afín: Geología.',
   },
   {
     id: 'inst_radar_criosfera',
@@ -875,7 +875,7 @@ function capturarInstantanea(estado: EstadoMision): Record<string, [string, numb
     presupuesto_restante_usd: [
       'Presupuesto restante',
       round(estado.presupuesto_restante_usd, 0),
-      'USD',
+      'CZ',
     ],
     o2_dias_disponibles: [
       'Autonomía soporte vital',
@@ -1038,7 +1038,7 @@ export function createMissionLocal(payload: {
     banderas_penalizacion_diferida: [],
     ultimos_cambios_variables: [],
     bitacora_decisiones: [
-      `Misión '${payload.nombre_mision}' iniciada en modo '${dificultad.toUpperCase()}' con destino ${payload.destino} y presupuesto ${presupuestoInicial.toLocaleString()} USD.`,
+      `Misión '${payload.nombre_mision}' iniciada en modo '${dificultad.toUpperCase()}' con destino ${payload.destino} y presupuesto ${presupuestoInicial.toLocaleString()} CZ.`,
     ],
   }
 
@@ -1095,7 +1095,7 @@ export function sendDecisionLocal(
     estado.presupuesto_inicial_usd = nuevoInicial
     estado.presupuesto_restante_usd = Math.max(0, round(nuevoInicial - gastoAcumulado, 2))
     recalcularSubsistemasLocal(estado)
-    resumen = `Acuerdo '${acuerdo.nombre}' firmado. Presupuesto global ajustado: ${nuevoInicial.toLocaleString()} USD.`
+    resumen = `Acuerdo '${acuerdo.nombre}' firmado. Presupuesto global ajustado: ${nuevoInicial.toLocaleString()} CZ.`
     estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'negociar_presupuesto') {
     const rondasPrevias = estado.bitacora_decisiones.filter((b) =>
@@ -1145,7 +1145,7 @@ export function sendDecisionLocal(
     estado.presupuesto_restante_usd = round(Math.max(0, nuevoInicial - gastoAcumulado), 2)
     recalcularSubsistemasLocal(estado)
     const signo = incrementoReal >= 0 ? '+' : ''
-    resumen = `Negociación con el Gato Jefe (${argumento}): ${signo}${incrementoReal.toLocaleString()} USD (Presupuesto total aprobado: ${estado.presupuesto_inicial_usd.toLocaleString()} USD).`
+    resumen = `Negociación con el Gato Jefe (${argumento}): ${signo}${incrementoReal.toLocaleString()} CZ (Presupuesto total aprobado: ${estado.presupuesto_inicial_usd.toLocaleString()} CZ).`
     estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'instalar_componente') {
     const compId = String(params.componente_id || '')
@@ -1167,7 +1167,7 @@ export function sendDecisionLocal(
         allowed: false,
         status: 'fail',
         policy_triggered: 'Límite Duro de Presupuesto Global',
-        message: `Presupuesto insuficiente para instalar '${comp.nombre}'. Coste neto: ${costoNeto.toLocaleString()} USD | Disponible: ${estado.presupuesto_restante_usd.toLocaleString()} USD.`,
+        message: `Presupuesto insuficiente para instalar '${comp.nombre}'. Coste neto: ${costoNeto.toLocaleString()} CZ | Disponible: ${estado.presupuesto_restante_usd.toLocaleString()} CZ.`,
         warnings: [],
         affected_variables: [],
         new_state_summary: {},
@@ -1185,7 +1185,7 @@ export function sendDecisionLocal(
     }
     estado.presupuesto_restante_usd = round(estado.presupuesto_restante_usd - comp.costo_usd, 2)
     recalcularSubsistemasLocal(estado)
-    resumen = `Instalado en nave: ${comp.nombre} (-${comp.costo_usd.toLocaleString()} USD, +${comp.masa_kg} kg).`
+    resumen = `Instalado en nave: ${comp.nombre} (-${comp.costo_usd.toLocaleString()} CZ, +${comp.masa_kg} kg).`
     estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'remover_componente') {
     const compId = String(params.componente_id || '')
@@ -1194,7 +1194,7 @@ export function sendDecisionLocal(
       estado.componentes_instalados = estado.componentes_instalados.filter((id) => id !== compId)
       estado.presupuesto_restante_usd = round(estado.presupuesto_restante_usd + comp.costo_usd, 2)
       recalcularSubsistemasLocal(estado)
-      resumen = `Desinstalado: ${comp.nombre} (+${comp.costo_usd.toLocaleString()} USD reembolsados).`
+      resumen = `Desinstalado: ${comp.nombre} (+${comp.costo_usd.toLocaleString()} CZ reembolsados).`
       estado.bitacora_decisiones.push(resumen)
     }
   } else if (decision === 'contratar_tripulante') {
@@ -1220,7 +1220,7 @@ export function sendDecisionLocal(
         allowed: false,
         status: 'fail',
         policy_triggered: 'Límite Duro de Presupuesto Global',
-        message: `Presupuesto insuficiente para contratar a ${cand.nombre} (${cand.salario_usd.toLocaleString()} USD).`,
+        message: `Presupuesto insuficiente para contratar a ${cand.nombre} (${cand.salario_usd.toLocaleString()} CZ).`,
         warnings: [],
         affected_variables: [],
         new_state_summary: {},
@@ -1230,7 +1230,7 @@ export function sendDecisionLocal(
     estado.tripulacion.push(JSON.parse(JSON.stringify(cand)) as TripulanteEstado)
     estado.presupuesto_restante_usd = round(estado.presupuesto_restante_usd - cand.salario_usd, 2)
     recalcularSubsistemasLocal(estado)
-    resumen = `Contratado: ${cand.nombre} (${cand.rol}, Salario: -${cand.salario_usd.toLocaleString()} USD).`
+    resumen = `Contratado: ${cand.nombre} (${cand.rol}, Salario: -${cand.salario_usd.toLocaleString()} CZ).`
     estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'remover_tripulante') {
     const crewId = String(params.crew_id || '')
@@ -1242,7 +1242,7 @@ export function sendDecisionLocal(
         2,
       )
       recalcularSubsistemasLocal(estado)
-      resumen = `Relevado de la misión: ${miembro.nombre} (+${miembro.salario_usd.toLocaleString()} USD).`
+      resumen = `Relevado de la misión: ${miembro.nombre} (+${miembro.salario_usd.toLocaleString()} CZ).`
       estado.bitacora_decisiones.push(resumen)
     }
   } else if (decision === 'configurar_trayectoria') {
@@ -1427,7 +1427,7 @@ export function advanceStageLocal(missionId: string): DecisionResponse {
       Math.max(0, estado.presupuesto_restante_usd - costoOps),
       2,
     )
-    narrativa = `Tránsito a ${estado.destino} completado en ${estado.dias_transito} día(s). Coste de seguimiento: -${costoOps.toLocaleString()} USD.`
+    narrativa = `Tránsito a ${estado.destino} completado en ${estado.dias_transito} día(s). Coste de seguimiento: -${costoOps.toLocaleString()} CZ.`
   } else if ([7, 8, 9].includes(estado.etapa_actual)) {
     estado.dias_transcurridos += 1
     const consVital = estado.dificultad === 'facil' ? 0.7 : 1.0
@@ -1695,7 +1695,7 @@ export function getReportLocal(missionId: string): InformeFinal {
       nombre: 'Gestión de Presupuesto Global',
       puntuacion: scorePresupuesto,
       estado_etiqueta: estado.presupuesto_restante_usd >= 5000 ? 'Solvente' : 'Al Límite',
-      comentario_jefe: `Saldo final: ${estado.presupuesto_restante_usd.toLocaleString()} USD de ${estado.presupuesto_inicial_usd.toLocaleString()} USD iniciales.`,
+      comentario_jefe: `Saldo final: ${estado.presupuesto_restante_usd.toLocaleString()} CZ de ${estado.presupuesto_inicial_usd.toLocaleString()} CZ iniciales.`,
       explicacion_tecnica:
         'Límite duro que integra compra de componentes, salarios y gastos de contingencia en tiempo real.',
     },

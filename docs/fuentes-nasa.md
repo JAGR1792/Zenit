@@ -85,7 +85,7 @@ frente a jugabilidad. Estos puntos son los que siguen sin ser científicamente v
    eliminaría el cuello de botella de datos, que es una mecánica del juego.
 7. **Tránsito rápido a la Luna (2 días).** Las fuentes consultadas no respaldan 2 días: en el Apolo 8 pasaron
    más de 58 h entre la TLI (GET 2:56) y la segunda corrección (GET 61:00) (NASA SP-4029, *Translunar Phase*).
-8. **Presupuestos de 95.000–155.000 USD.** Escala de juego, sin relación con costes reales.
+8. **Presupuestos de 95.000–155.000 Créditos Zenit (CZ).** Moneda ficticia y escala de juego propia de Zenit, sin relación con costes reales en dólares.
 
 ## 5. Lista de fuentes
 

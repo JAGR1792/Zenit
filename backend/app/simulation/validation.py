@@ -33,7 +33,7 @@ def validar_decision(
     """Valida una decisión del jugador contra los límites duros y reglas de etapa.
 
     Importante (Regla de Diseño):
-    - El presupuesto global ($ USD) y el máximo de 4 tripulantes son límites duros preventivos.
+    - El presupuesto global (Créditos Zenit, CZ) y el máximo de 4 tripulantes son límites duros preventivos.
     - Durante el diseño (Etapa 3), NO se bloquean configuraciones pesadas, deficitarias en
       energía ni incompatibles: el jugador lee la ficha técnica y la tabla de variables sin
       que el juego le advierta de qué desastre ocurrirá.
@@ -164,7 +164,7 @@ def validar_decision(
                 policy=PoliticaConsecuencia.FALLO_INMEDIATO,
                 message=(
                     f"Límite duro de presupuesto excedido: faltan "
-                    f"{abs(estado.presupuesto_restante_usd - costo_neto):,.0f} USD."
+                    f"{abs(estado.presupuesto_restante_usd - costo_neto):,.0f} CZ."
                 ),
             )
         # Regla: NO advertimos si supera masa_lanzamiento_max_kg ni si hay déficit energético

@@ -41,7 +41,7 @@ const difficultyOptions: Array<{
     badge: '+FÁCIL / GUIADO',
     desc: 'Ideal para aprender cómo funcionan los sistemas, recolectar ciencia y transmitir datos sin bloqueos frustrantes.',
     perks: [
-      '+35% de presupuesto financiero inicial ($168.750 USD en plan estándar)',
+      '+35% de presupuesto financiero inicial (168.750 CZ en plan estándar)',
       'Capacidad del lanzador ampliada a 1.480 kg (+180 kg de margen)',
       'Espectrómetro Científico ya preinstalado en el Laboratorio',
       '+800 Wh de batería, +6 días de O₂ y +3 ventanas de transmisión',
@@ -53,7 +53,7 @@ const difficultyOptions: Array<{
     badge: 'EQUILIBRADO',
     desc: 'La experiencia clásica de diseño aeroespacial. Exige vigilar la masa máxima de 1.300 kg y comprar tus propios instrumentos.',
     perks: [
-      'Presupuesto nominal ($125.000 USD en acuerdo estándar)',
+      'Presupuesto nominal (125.000 CZ en acuerdo estándar)',
       'Capacidad de lanzamiento fija en 1.300 kg',
       'Sensores base de respaldo si olvidas comprar instrumentos',
       'Frecuencia estándar de anomalías en vuelo',
@@ -674,9 +674,9 @@ onMounted(async () => {
       <!-- Telemetría clave en tiempo real -->
       <div v-if="mission" class="telemetry-pills">
         <div class="tpill">
-          <span class="tpill-label">PRESUPUESTO</span>
+          <span class="tpill-label">CRÉDITOS ZENIT</span>
           <strong class="tpill-val" style="color: var(--gold)">
-            ${{ mission.presupuesto_restante_usd.toLocaleString() }}
+            {{ mission.presupuesto_restante_usd.toLocaleString() }} CZ
           </strong>
         </div>
         <div class="tpill">
@@ -811,11 +811,11 @@ onMounted(async () => {
               </thead>
               <tbody>
                 <tr>
-                  <td>Presupuesto Financiero Global</td>
+                  <td>Presupuesto Global (Créditos Zenit)</td>
                   <td style="color: var(--gold)">
-                    ${{ mission.presupuesto_restante_usd.toLocaleString() }} USD
+                    {{ mission.presupuesto_restante_usd.toLocaleString() }} CZ
                   </td>
-                  <td>Inicial: ${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD</td>
+                  <td>Inicial: {{ mission.presupuesto_inicial_usd.toLocaleString() }} CZ</td>
                 </tr>
                 <tr>
                   <td>Masa Total al Lanzamiento (m₀)</td>
@@ -954,7 +954,7 @@ onMounted(async () => {
                     <span>&gt; {{ opt.texto }}</span>
                     <span class="opt-cost-pills">
                       <em v-if="opt.costo_presupuesto_usd > 0">
-                        -${{ opt.costo_presupuesto_usd.toLocaleString() }}
+                        -{{ opt.costo_presupuesto_usd.toLocaleString() }} CZ
                       </em>
                       <em v-if="opt.costo_energia_wh > 0">-{{ opt.costo_energia_wh }} Wh</em>
                       <em v-if="opt.costo_delta_v_ms > 0">-{{ opt.costo_delta_v_ms }} m/s</em>
@@ -1051,7 +1051,7 @@ onMounted(async () => {
               <div class="vn-sum-row">
                 <span>FONDOS NEGOCIADOS ACTUALES:</span>
                 <strong style="color: var(--gold); font-size: 16px">
-                  ${{ mission.presupuesto_restante_usd.toLocaleString() }} USD
+                  {{ mission.presupuesto_restante_usd.toLocaleString() }} CZ
                 </strong>
               </div>
               <p class="vn-sum-hint">
@@ -1149,7 +1149,7 @@ onMounted(async () => {
                 >
                   <div class="cat-row-top">
                     <span class="cat-item-name">{{ comp.nombre }}</span>
-                    <span class="cat-item-cost">${{ comp.costo_usd.toLocaleString() }} USD</span>
+                    <span class="cat-item-cost">{{ comp.costo_usd.toLocaleString() }} CZ</span>
                   </div>
                   <p class="cat-item-desc">{{ comp.descripcion_ficha }}</p>
                   <div class="cat-row-footer">
@@ -1205,7 +1205,7 @@ onMounted(async () => {
                     <div style="flex: 1">
                       <div class="cat-row-top">
                         <span class="cat-item-name">{{ cand.nombre }}</span>
-                        <span class="cat-item-cost">-${{ cand.salario_usd.toLocaleString() }} USD</span>
+                        <span class="cat-item-cost">-{{ cand.salario_usd.toLocaleString() }} CZ</span>
                       </div>
                       <div class="spec-chips" style="margin: 3px 0">
                         <span>{{ cand.rol }}</span>
