@@ -663,6 +663,28 @@ function selectScenario(id: EscenarioId): void {
   if (!ES_TEST_VN) dialogueReady.value = false
 }
 
+function reproducirReaccion(agradable: boolean): void {
+  if (ES_TEST_VN) return
+  try {
+    const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext
+    if (!Ctor) return
+    const ctx = new Ctor()
+    if (ctx.state === 'suspended') void ctx.resume()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = agradable ? 660 : 240
+    gain.gain.setValueAtTime(0.05, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.2)
+  } catch {
+    // Silencio si el navegador bloquea el audio.
+  }
+}
+
 function selectDialogueOption(opt: OpcionDialogo): void {
   if (negotiationCompleted.value || props.loading) return
 
@@ -677,6 +699,8 @@ function selectDialogueOption(opt: OpcionDialogo): void {
     text: opt.respuestaTexto,
     wasPositive: opt.bonoUsd >= 0,
   }
+
+  reproducirReaccion(opt.bonoUsd >= 0)
 
   emit('negotiate', {
     bono_usd: opt.bonoUsd,
@@ -824,26 +848,31 @@ function selectDialogueOption(opt: OpcionDialogo): void {
         </div>
 
         <template v-if="!negotiationCompleted">
-          <button
-            v-for="opt in activeRound.opciones"
-            :key="opt.id"
-            type="button"
-            class="vn-choice-line"
-            :disabled="loading || !dialogueReady"
-            :class="{ 'vn-choice-locked': !dialogueReady }"
-            @click="selectDialogueOption(opt)"
-          >
-            <span class="vn-choice-arrow">&gt;</span>
-            <span class="vn-choice-text">{{ opt.texto }}</span>
-          </button>
+          <div v-if="dialogueReady" class="vn-choices-reveal">
+            <button
+              v-for="opt in activeRound.opciones"
+              :key="opt.id"
+              type="button"
+              class="vn-choice-line"
+              :disabled="loading"
+              @click="selectDialogueOption(opt)"
+            >
+              <span class="vn-choice-arrow">&gt;</span>
+              <span class="vn-choice-text">{{ opt.texto }}</span>
+            </button>
+          </div>
+          <div v-else class="vn-typing-wait">
+            <span class="vn-typing-dots">…</span>
+            <span>El Comité habla. Espera a que termine para responder.</span>
+          </div>
         </template>
 
         <template v-else>
-          <div class="vn-completed-actions">
+          <div v-if="dialogueReady" class="vn-completed-actions">
             <button
               type="button"
               class="btn-primary vn-finish-btn"
-              :disabled="loading || !dialogueReady"
+              :disabled="loading"
               @click="emit('finishNegotiation')"
             >
               ✓ FIRMAR PRESUPUESTO ({{ mission.presupuesto_inicial_usd.toLocaleString() }} CZ) Y AVANZAR A ETAPA 3 ►

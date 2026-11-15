@@ -51,8 +51,8 @@ function reproducirBlip(caracter: string): void {
     const base = 320 + (caracter.charCodeAt(0) % 40) * 4
     osc.type = 'square'
     osc.frequency.value = base
-    gain.gain.setValueAtTime(0.035, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.06)
+    gain.gain.setValueAtTime(0.018, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05)
     osc.connect(gain)
     gain.connect(ctx.destination)
     osc.start()
