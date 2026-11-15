@@ -56,6 +56,13 @@ const fondoHabitacion = computed(() =>
   currentRoom.value ? (FONDOS_HABITACION[currentRoom.value.id] ?? null) : null,
 )
 
+// Vista exterior (Tierra/Luna): órbita alta durante el tránsito, órbita baja al llegar al destino
+const vistaExterior = computed(() => {
+  const cuerpo = props.mission.destino === 'LUNA' ? 'luna' : 'tierra'
+  const orbita = props.mission.etapa_actual >= 7 ? 'baja' : 'alta'
+  return `/sprites/escenarios/vistas/${cuerpo}_orbita_${orbita}.png`
+})
+
 const nearLeftDoor = computed(() => playerX.value <= 20 && !!currentRoom.value?.puerta_izquierda)
 const nearRightDoor = computed(() => playerX.value >= 80 && !!currentRoom.value?.puerta_derecha)
 const nearCenterStation = computed(() => playerX.value >= 33 && playerX.value <= 67)
@@ -243,6 +250,13 @@ onUnmounted(() => {
         alt=""
         class="room-bg-img"
       />
+      <div class="vista-orbital" :title="`Vista exterior: ${mission.destino === 'LUNA' ? 'Luna' : 'Tierra'}`">
+        <img :src="vistaExterior" alt="Vista exterior" class="vista-orbital-img" />
+        <span class="vista-orbital-tag">
+          {{ mission.destino === 'LUNA' ? 'LUNA' : 'TIERRA' }} ·
+          {{ mission.etapa_actual >= 7 ? 'ÓRBITA BAJA' : 'ÓRBITA ALTA' }}
+        </span>
+      </div>
       <div
         class="backdrop-layer"
         :class="mission.destino === 'LUNA' ? 'dest-luna' : 'dest-otb'"
@@ -582,6 +596,53 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+.vista-orbital {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 170px;
+  z-index: 3;
+  border: 2px solid #d6c59a;
+  border-radius: 4px;
+  background: #060810;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.7);
+}
+
+.vista-orbital-img {
+  display: block;
+  width: 100%;
+  height: 82px;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.vista-orbital-tag {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: center;
+  color: var(--gold);
+  padding: 2px 4px;
+  background: rgba(8, 11, 20, 0.92);
+}
+
+.airlock-door.left {
+  background: #1f2947 url('/sprites/escenarios/nave/puerta_izquierda.jpg') center / cover no-repeat;
+  image-rendering: pixelated;
+}
+
+.airlock-door.right {
+  background: #1f2947 url('/sprites/escenarios/nave/puerta_derecha.jpg') center / cover no-repeat;
+  image-rendering: pixelated;
+}
+
+.airlock-door .door-arch {
+  background: rgba(8, 11, 20, 0.82);
+  border-radius: 3px;
 }
 
 .room-bg-img {

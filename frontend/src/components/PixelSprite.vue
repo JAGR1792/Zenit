@@ -128,16 +128,38 @@ function limpiarFondoBlancoCanvas(img: HTMLImageElement): HTMLCanvasElement {
   try {
     const imgData = ctx.getImageData(0, 0, off.width, off.height)
     const data = imgData.data
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i]
-      const g = data[i + 1]
-      const b = data[i + 2]
-      const a = data[i + 3]
-      if (a > 0 && r > 238 && g > 238 && b > 234) {
-        data[i + 3] = 0
-      } else if (a > 0 && r > 224 && g > 224 && b > 220) {
-        data[i + 3] = 45
+    const w = off.width
+    const h = off.height
+    // Relleno por inundación desde los bordes: solo se elimina el fondo claro conectado al
+    // borde, de modo que el pelaje blanco interior (p. ej. el perro COMMS) se conserva.
+    const esClaro = (i: number): boolean =>
+      data[i + 3] > 0 && data[i] > 222 && data[i + 1] > 222 && data[i + 2] > 218
+    const visitado = new Uint8Array(w * h)
+    const pila: number[] = []
+    const sembrar = (x: number, y: number): void => {
+      const p = y * w + x
+      if (!visitado[p] && esClaro(p * 4)) {
+        visitado[p] = 1
+        pila.push(p)
       }
+    }
+    for (let x = 0; x < w; x++) {
+      sembrar(x, 0)
+      sembrar(x, h - 1)
+    }
+    for (let y = 0; y < h; y++) {
+      sembrar(0, y)
+      sembrar(w - 1, y)
+    }
+    while (pila.length > 0) {
+      const p = pila.pop() as number
+      const x = p % w
+      const y = (p - x) / w
+      data[p * 4 + 3] = 0
+      if (x > 0) sembrar(x - 1, y)
+      if (x < w - 1) sembrar(x + 1, y)
+      if (y > 0) sembrar(x, y - 1)
+      if (y < h - 1) sembrar(x, y + 1)
     }
     ctx.putImageData(imgData, 0, 0)
   } catch {
