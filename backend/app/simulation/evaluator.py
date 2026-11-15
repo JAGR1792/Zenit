@@ -134,16 +134,16 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             "dejando parte de los descubrimientos sin transmitir por falta de ventanas o ancho de banda."
         )
     else:
-        diagnostico_ciencia_narrativo = (
-            f"Transmitiste íntegramente los {estado.datos_transmitidos_gb:.1f} GB de telemetría científica a nuestras estaciones."
-        )
+        diagnostico_ciencia_narrativo = f"Transmitiste íntegramente los {estado.datos_transmitidos_gb:.1f} GB de telemetría científica a nuestras estaciones."
 
     # Selección de uno de los 5 finales ramificados con diálogos reactivos (Solitario vs Con Tripulación)
     if fallo_temprano or (hubo_bajas and estado.datos_transmitidos_gb <= 0.2):
         final_id = "fallo_total"
         numero_final = 5
         titulo_final = "Final 5 — Fallo Total de la Misión"
-        subtitulo_final = "Pérdida del vehículo espacial y ausencia de retorno científico."
+        subtitulo_final = (
+            "Pérdida del vehículo espacial y ausencia de retorno científico."
+        )
         if fue_en_solitario:
             dialogo_apertura = (
                 "El despacho del Comisionado Félix Vance (El Gato Jefe) está en penumbra. Sobre su escritorio de acero "
@@ -188,9 +188,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         final_id = "retorno_emergencia"
         numero_final = 3
         titulo_final = "Final 3 — Retorno de Emergencia"
-        subtitulo_final = (
-            "Sobrevivencia al límite operativo con reservas críticas y sistemas desgastados."
-        )
+        subtitulo_final = "Sobrevivencia al límite operativo con reservas críticas y sistemas desgastados."
         if fue_en_solitario:
             dialogo_apertura = (
                 "El Comisionado Félix Vance apoya las garras sobre la mesa iluminada con luz ámbar: "
@@ -212,9 +210,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         final_id = "exito_cientifico_pleno"
         numero_final = 1
         titulo_final = "Final 1 — Éxito Científico Pleno"
-        subtitulo_final = (
-            "Misión histórica: objetivos científicos cumplidos, datos transmitidos y retorno íntegro."
-        )
+        subtitulo_final = "Misión histórica: objetivos científicos cumplidos, datos transmitidos y retorno íntegro."
         if fue_en_solitario:
             dialogo_apertura = (
                 "El Comisionado Félix Vance se levanta de su sillón y aplaude con asombro mientras revisa tu telemetría: "
@@ -237,9 +233,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         final_id = "supervivencia_mision_parcial"
         numero_final = 2
         titulo_final = "Final 2 — Supervivencia con Misión Parcial"
-        subtitulo_final = (
-            "Retorno seguro a Tierra, pero la cosecha o transmisión de datos científicos quedó incompleta."
-        )
+        subtitulo_final = "Retorno seguro a Tierra, pero la cosecha o transmisión de datos científicos quedó incompleta."
         if fue_en_solitario:
             dialogo_apertura = (
                 "El Comisionado Félix Vance revisa las gráficas en su terminal ámbar y te observa con gesto serio: "
@@ -392,7 +386,10 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         recomendaciones.append(
             "En la Etapa 7 (Operaciones Científicas), recuerda pulsar '🔬 PASO 1: Recolectar Datos en Laboratorio' o usar la tecla [E] dentro del Laboratorio para generar ciencia."
         )
-    elif estado.datos_generados_gb > estado.datos_transmitidos_gb + 0.2 and not fallo_temprano:
+    elif (
+        estado.datos_generados_gb > estado.datos_transmitidos_gb + 0.2
+        and not fallo_temprano
+    ):
         recomendaciones.append(
             f"Dejaste {estado.datos_generados_gb - estado.datos_transmitidos_gb:.1f} GB sin enviar en la memoria de la nave: usa el botón '📡 PASO 2: Transmitir Datos a Tierra' antes de finalizar la Etapa 9."
         )
@@ -430,7 +427,9 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         frase_despedida=frase_despedida,
         resumen_tecnico_datos={
             "destino": estado.destino.value,
-            "modo_dotacion": "En Solitario (1)" if fue_en_solitario else f"Equipo ({total_crew})",
+            "modo_dotacion": "En Solitario (1)"
+            if fue_en_solitario
+            else f"Equipo ({total_crew})",
             "masa_final_kg": estado.masa_total_kg,
             "masa_max_lanzador_kg": estado.masa_lanzamiento_max_kg,
             "delta_v_inicial_ms": estado.delta_v_inicial_ms,

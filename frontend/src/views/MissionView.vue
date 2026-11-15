@@ -1261,7 +1261,7 @@ onMounted(async () => {
                   <span class="badge">Mínimo Δv</span>
                 </div>
                 <p class="serif-narrative option-prose">
-                  Requiere {{ currentDestinationInfo?.delta_v_total_minimo_ms }} m/s totales y
+                  Requiere {{ currentDestinationInfo?.delta_v_total_minimo_ms }} m/s propios (inserción orbital + retorno) y
                   {{ currentDestinationInfo?.dias_transito_estandar }} día(s) de tránsito.
                 </p>
               </div>
@@ -1295,10 +1295,9 @@ onMounted(async () => {
             <p class="serif-narrative stage-prose">
               La nave está en la plataforma. Al confirmar el lanzamiento se verificará la
               restricción física crítica de masa máxima ({{ mission.masa_total_kg }} /
-              {{ mission.masa_lanzamiento_max_kg }} kg) y el impulso de ascenso ({{
-                currentDestinationInfo?.delta_v_lanzamiento_ms
-              }}
-              m/s).
+              {{ mission.masa_lanzamiento_max_kg }} kg). El ascenso lo aporta el lanzador externo:
+              tu nave conserva todo su delta-v ({{ mission.delta_v_disponible_ms }} m/s) para la
+              inserción orbital y el retorno.
             </p>
           </div>
 

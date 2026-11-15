@@ -54,7 +54,7 @@ Decisión: añadir un espectrómetro (+50 kg, +120 W, +8.000 USD, +15 pts cienci
 
 1. **Masa:** 1.200 → 1.250 kg. Si `mass_launch_max` = 1.300 kg, sigue dentro. Si fuera 1.240 kg, fallo inmediato.
 2. **Propulsión:** con el motor MMH/MON-3 (Isp 315 s, clase OMS-E de Orión) y un tripulante, delta-v disponible baja de ≈3.490 a ≈3.230 m/s.
-3. **Trayectoria:** la Luna requiere 3.100 m/s en el modelo de juego → margen de ≈130 m/s (ajustado).
+3. **Trayectoria:** la Luna es una misión orbital (sin descenso): la nave necesita ≈2.030 m/s propios (inserción lunar + retorno, Apolo 8); el lanzador aporta el ascenso y la inyección translunar. Ver `docs/fuentes-nasa.md` §4.
 4. **Energía:** consumo 480 → 600 W; generación 550 W → déficit de 50 W → degradación progresiva.
 5. **Científico:** +15 pts ciencia, pero +2 GB de datos/día a transmitir.
 6. **Telecomunicaciones:** antena de 2 Mbps → 2 GB en ≈133 min (≈2,2 h) de enlace continuo; con 2 ventanas/día se acumulan datos.

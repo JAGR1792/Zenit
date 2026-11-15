@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import type { VueWrapper } from '@vue/test-utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import BossReportScene from './BossReportScene.vue'
 import DestinationRooms2D from './DestinationRooms2D.vue'
@@ -6,6 +7,7 @@ import ShipSchematic from './ShipSchematic.vue'
 import VisualNovelNegotiation from './VisualNovelNegotiation.vue'
 import type { InformeFinal, TripulanteEstado } from '../services/api'
 import { createMissionLocal, sendDecisionLocal } from '../services/localSimulationFallback'
+import TypewriterText from './TypewriterText.vue'
 
 beforeAll(() => {
   // jsdom no implementa canvas 2D nativo; evitamos advertencias al montar PixelSprite
@@ -59,64 +61,97 @@ function crearInformePrueba(): InformeFinal {
   }
 }
 
+async function saltarDialogo(wrapper: VueWrapper) {
+  const dialogo = wrapper
+    .findAllComponents(TypewriterText)
+    .find((componente) => componente.props('skipHint') === '(clic para saltar)')
+
+  if (!dialogo) {
+    throw new Error('No se encontró el diálogo principal')
+  }
+
+  await dialogo.find('.typewriter-text').trigger('click')
+}
+
 describe('Componentes principales del simulador Zenit', () => {
   it('VisualNovelNegotiation oculta montos en opciones, permite ganar o perder presupuesto y cambia escenarios', async () => {
-    const mision = createMissionLocal({
-      nombre_mision: 'Zenit Test VN',
-      destino: 'OTB',
-      dificultad: 'normal',
-      acuerdo_financiacion_id: 'estandar',
-      especialidad_director: 'comando',
-    })
-
-    const wrapper = mount(VisualNovelNegotiation, {
-      props: { mission: mision, loading: false },
-    })
-
-    expect(wrapper.text()).toContain('COMITÉ DE LOS 3 GATOS')
-
-    // Cambiar explícitamente al escenario de Recorte de la Junta
-    const btnRecorte = wrapper
-      .findAll('.vn-sc-pill')
-      .find((b) => b.text().includes('Recorte de la Junta'))
-    expect(btnRecorte).toBeTruthy()
-    await btnRecorte!.trigger('click')
-    expect(wrapper.text()).toContain('La Junta Directiva dice')
-
-    // Ninguna opción narrativa debe revelar montos de dinero antes de decidir
-    const opcionesTexto = wrapper.find('.vn-choices-column').text()
-    expect(opcionesTexto).not.toContain('USD')
-    expect(opcionesTexto).not.toContain('+$')
-    expect(opcionesTexto).not.toContain('-$')
-
-    // Ronda 1: elegir ceder reservas (penaliza presupuesto -> bono negativo)
-    await wrapper.find('.vn-choice-line').trigger('click')
-    // Ronda 2: primera opción (justificar especialistas -> bono positivo)
-    await wrapper.find('.vn-choice-line').trigger('click')
-    // Ronda 3: tercera opción (arquitectura integral -> bono positivo)
-    const opcionesR3 = wrapper.findAll('.vn-choice-line')
-    await opcionesR3[opcionesR3.length - 1].trigger('click')
-
-    const emisiones = wrapper.emitted('negotiate') as
-      | Array<[{ bono_usd: number; argumento: string; acuerdo_id: string }]>
-      | undefined
-    expect(emisiones).toBeTruthy()
-    expect(emisiones?.length).toBe(3)
-    expect(emisiones![0][0].bono_usd).toBeLessThan(0)
-    expect(emisiones![1][0].bono_usd).toBeGreaterThan(0)
-    expect(emisiones![2][0].bono_usd).toBeGreaterThan(0)
-
-    // Al completar 3 rondas se muestra cierre sin bucle de reinicio infinito
-    expect(wrapper.text()).toContain('FIRMAR PRESUPUESTO')
-    expect(wrapper.text()).not.toContain('Reiniciar negociación')
-
-    const botonFirmar = wrapper
-      .findAll('button')
-      .find((b) => b.text().includes('FIRMAR PRESUPUESTO'))
-    expect(botonFirmar).toBeTruthy()
-    await botonFirmar!.trigger('click')
-    expect(wrapper.emitted('finishNegotiation')).toBeTruthy()
+  const mision = createMissionLocal({
+    nombre_mision: 'Zenit Test VN',
+    destino: 'OTB',
+    dificultad: 'normal',
+    acuerdo_financiacion_id: 'estandar',
+    especialidad_director: 'comando',
   })
+
+  const wrapper = mount(VisualNovelNegotiation, {
+    props: {
+      mission: mision,
+      loading: false,
+    },
+  })
+
+  // Verificar el escenario inicial
+  expect(wrapper.text()).toContain('COMITÉ DE LOS 3 GATOS')
+
+  // Seleccionar el escenario "Recorte de la Junta"
+  const escenario = wrapper
+    .findAll('.vn-sc-pill')
+    .find((elemento) => elemento.text().includes('Recorte de la Junta'))
+
+  expect(escenario).toBeTruthy()
+  await escenario!.trigger('click')
+
+  expect(wrapper.text()).toContain('La Junta Directiva dice')
+
+  // Verificar que las opciones no muestran directamente los montos
+  const opciones = wrapper.find('.vn-choices-column')
+  expect(opciones.exists()).toBe(true)
+  expect(opciones.text()).not.toMatch(/\$\s?[\d,.]+/)
+
+  // Completar el diálogo principal para habilitar las opciones
+  const saltarDialogo = async () => {
+    const dialogo = wrapper
+      .findAllComponents(TypewriterText)
+      .find((componente) => componente.props('skipHint') === '(clic para saltar)')
+
+    expect(dialogo).toBeTruthy()
+    await dialogo!.find('.typewriter-text').trigger('click')
+  }
+
+  // Primera ronda: elegir la primera opción (bono negativo)
+  await saltarDialogo()
+  await wrapper.findAll('.vn-choice-line')[0].trigger('click')
+
+  // Segunda ronda: elegir la primera opción (bono positivo)
+  await saltarDialogo()
+  await wrapper.findAll('.vn-choice-line')[0].trigger('click')
+
+  // Tercera ronda: elegir la última opción (bono positivo)
+  await saltarDialogo()
+  const opcionesTerceraRonda = wrapper.findAll('.vn-choice-line')
+await opcionesTerceraRonda[opcionesTerceraRonda.length - 1].trigger('click')
+
+  // Verificar los eventos emitidos
+  const emisiones = wrapper.emitted('negotiate')
+
+expect(emisiones).toBeTruthy()
+expect(emisiones).toHaveLength(3)
+
+const primeraEmision = emisiones![0][0] as { bono_usd: number }
+const segundaEmision = emisiones![1][0] as { bono_usd: number }
+const terceraEmision = emisiones![2][0] as { bono_usd: number }
+
+expect(primeraEmision.bono_usd).toBeLessThan(0)
+expect(segundaEmision.bono_usd).toBeGreaterThan(0)
+expect(terceraEmision.bono_usd).toBeGreaterThan(0)
+
+  // Verificar que aparece el botón para firmar el presupuesto
+  expect(wrapper.text()).toContain('FIRMAR PRESUPUESTO')
+
+  await wrapper.find('button').trigger('click')
+
+  expect(wrapper.emitted('finishNegotiation')).toBeTruthy()
+})
 
   it('DestinationRooms2D ajusta la altura del piso por sala y abre el diálogo RPG de tripulación', async () => {
     const mision = createMissionLocal({

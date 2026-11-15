@@ -290,7 +290,10 @@ def test_modo_facil_otorga_margen_presupuesto_e_instrumento_inicial() -> None:
     # Verificar que el informe final distingue cuando el jugador fue en solitario (sin contratar tripulación)
     informe_solitario = obtener_informe_mision(mision_facil.id)
     assert informe_solitario is not None
-    assert "solo" in informe_solitario.dialogo_jefe_apertura.lower() or "solitario" in informe_solitario.dialogo_jefe_apertura.lower()
+    assert (
+        "solo" in informe_solitario.dialogo_jefe_apertura.lower()
+        or "solitario" in informe_solitario.dialogo_jefe_apertura.lower()
+    )
 
 
 def test_negociacion_presupuesto_novela_visual_incrementa_fondos() -> None:
@@ -342,7 +345,10 @@ def test_negociacion_presupuesto_novela_visual_incrementa_fondos() -> None:
         ),
     )
     assert r3 is not None and r3.allowed is True
-    assert r3.mission_state.presupuesto_restante_usd == presupuesto_base + 18000 - 12000 + 10000
+    assert (
+        r3.mission_state.presupuesto_restante_usd
+        == presupuesto_base + 18000 - 12000 + 10000
+    )
 
     r4 = procesar_decision_mision(
         mision.id,

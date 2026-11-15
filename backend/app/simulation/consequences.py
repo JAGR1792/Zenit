@@ -24,6 +24,8 @@ from app.simulation.events import (
     generar_eventos_contextuales,
 )
 from app.simulation.physics import (
+    calcular_delta_v_transito_ms,
+    calcular_gb_por_ventana,
     calcular_rendimiento_tripulacion,
     recalcular_subsistemas_mision,
 )
@@ -373,7 +375,15 @@ def aplicar_decision(
             estado.calidad_datos_promedio = round(
                 min(100.0, estado.calidad_tarea_equipo * 92.0), 1
             )
-            if estado.datos_generados_gb > (estado.ventanas_comm_restantes * 3.0):
+            capacidad_ventanas_gb = (
+                estado.ventanas_comm_restantes
+                * calcular_gb_por_ventana(
+                    estado.tasa_transmision_kbps, estado.probabilidad_enlace_comm
+                )
+            )
+            if (
+                estado.datos_generados_gb - estado.datos_transmitidos_gb
+            ) > capacidad_ventanas_gb:
                 if (
                     "exceso_datos_cuello_botella"
                     not in estado.banderas_penalizacion_diferida
@@ -444,20 +454,16 @@ def aplicar_decision(
             )
         elif estado.bateria_actual_wh < 80.0:
             resumen = "Energía en baterías insuficiente para alimentar el amplificador de transmisión."
+        elif estado.tasa_transmision_kbps <= 0:
+            resumen = "No hay antena operativa: instala o repara una antena para transmitir a Tierra."
         else:
             estado.ventanas_comm_restantes -= 1
             estado.bateria_actual_wh = round(
                 max(0.0, estado.bateria_actual_wh - 100.0), 1
             )
-            # Capacidad por ventana calibrada para transmitir de forma clara y fluida
-            gb_por_ventana = max(
-                2.5,
-                round(
-                    (estado.tasa_transmision_kbps / 1000.0)
-                    * estado.probabilidad_enlace_comm
-                    * 2.2,
-                    2,
-                ),
+            # GB = kbps × s ÷ 8 ÷ 10⁹ (valor esperado según la probabilidad de enlace).
+            gb_por_ventana = calcular_gb_por_ventana(
+                estado.tasa_transmision_kbps, estado.probabilidad_enlace_comm
             )
             transmitido_ahora = round(min(pendientes, gb_por_ventana), 2)
             estado.datos_transmitidos_gb = round(
@@ -604,33 +610,27 @@ def avanzar_etapa_mision(
             despues = capturar_instantanea_variables(estado)
             return estado, construir_tabla_cambios(antes, despues), estado.causa_fallo
 
-        if estado.delta_v_disponible_ms < params_destino.delta_v_lanzamiento_ms:
-            estado.estado_juego = "fallo_inmediato"
-            estado.causa_fallo = (
-                f"Empuje/Impulso insuficiente en ascenso: {estado.delta_v_disponible_ms} m/s disponibles "
-                f"frente a {params_destino.delta_v_lanzamiento_ms} m/s requeridos."
+        # El ascenso lo realiza el lanzador externo: el delta-v de la nave no se descuenta aquí.
+        # Para la Luna, la etapa superior del lanzador también realiza la inyección translunar.
+        if estado.destino == DestinoId.LUNA:
+            narrativa = (
+                "Lanzamiento completado: el lanzador externo puso la nave en trayectoria translunar. "
+                f"Delta-v propio intacto: {estado.delta_v_disponible_ms:.0f} m/s."
             )
-            estado.etapa_actual = 10
-            estado.nombre_etapa = NOMBRES_ETAPAS[10]
-            despues = capturar_instantanea_variables(estado)
-            return estado, construir_tabla_cambios(antes, despues), estado.causa_fallo
-
-        # Descontar delta-v de lanzamiento e inserción inicial
-        estado.delta_v_disponible_ms = round(
-            estado.delta_v_disponible_ms - params_destino.delta_v_lanzamiento_ms, 1
-        )
-        narrativa = f"Ascenso orbital completado. Se consumieron {params_destino.delta_v_lanzamiento_ms:.0f} m/s de Delta-v."
+        else:
+            narrativa = (
+                "Lanzamiento completado: el lanzador externo entregó la nave en órbita terrestre baja. "
+                f"Delta-v propio intacto: {estado.delta_v_disponible_ms:.0f} m/s."
+            )
 
     elif estado.etapa_actual == 6:
         # Tránsito hacia el destino
-        dv_transito = round(
-            params_destino.delta_v_transito_insercion_ms
-            * (1.18 if estado.perfil_trayectoria == "rapida" else 1.0),
-            1,
+        dv_transito = calcular_delta_v_transito_ms(
+            params_destino, estado.perfil_trayectoria, estado.ventana_lanzamiento
         )
         if estado.delta_v_disponible_ms < dv_transito:
             estado.estado_juego = "perdida_mision"
-            estado.causa_fallo = f"Delta-v agotado en maniobra de inyección ({estado.delta_v_disponible_ms} m/s < {dv_transito} m/s)."
+            estado.causa_fallo = f"Delta-v agotado en la maniobra de inserción orbital ({estado.delta_v_disponible_ms} m/s < {dv_transito} m/s)."
             estado.etapa_actual = 10
             estado.nombre_etapa = NOMBRES_ETAPAS[10]
             despues = capturar_instantanea_variables(estado)
@@ -655,7 +655,8 @@ def avanzar_etapa_mision(
             max(0.0, estado.presupuesto_restante_usd - costo_ops_transito), 2
         )
         narrativa = (
-            f"Tránsito a {estado.destino.value} completado en {estado.dias_transito} día(s). "
+            f"Tránsito a {estado.destino.value} completado en {estado.dias_transito} día(s); "
+            f"maniobra de inserción orbital: {dv_transito:.0f} m/s. "
             f"Coste de seguimiento en tiempo real: -{costo_ops_transito:,.0f} USD."
         )
 

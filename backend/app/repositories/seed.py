@@ -27,14 +27,19 @@ NOMBRES_ETAPAS: dict[int, str] = {
 }
 
 DESTINOS_CATALOGO: dict[DestinoId, ParametrosDestino] = {
+    # Presupuesto de delta-v de la NAVE (no del lanzador): el lanzador externo, de capacidad fija,
+    # entrega la nave en OTB. Valores en docs/fuentes-nasa.md §4.
     DestinoId.OTB: ParametrosDestino(
         id=DestinoId.OTB,
         nombre="Órbita Terrestre Baja (OTB - 400 km)",
         distancia_km=400.0,
-        delta_v_lanzamiento_ms=1450.0,
-        delta_v_transito_insercion_ms=350.0,
-        delta_v_retorno_ms=300.0,
-        delta_v_total_minimo_ms=2100.0,
+        # El ascenso desde la superficie lo paga el lanzador externo, no la nave.
+        delta_v_lanzamiento_ms=0.0,
+        # Valor de juego: ajuste de fase/altitud tras la separación del lanzador.
+        delta_v_transito_insercion_ms=100.0,
+        # Cálculo propio (dos cuerpos): desorbitar de 400 km a un perigeo de 50 km ≈ 102 m/s.
+        delta_v_retorno_ms=102.0,
+        delta_v_total_minimo_ms=202.0,
         dias_transito_estandar=1,
         dias_transito_rapido=1,
         dias_operacion_destino=4,
@@ -42,28 +47,35 @@ DESTINOS_CATALOGO: dict[DestinoId, ParametrosDestino] = {
         entorno_riesgo="Ciclado térmico orbital rápido y micro-escombros en órbita baja.",
         descripcion=(
             "Misión de observación atmosférica y microgravedad en órbita terrestre baja. "
-            "Menor exigencia de delta-v y enlace de corta distancia, pero eclipses frecuentes cada 90 minutos."
+            "El lanzador externo entrega la nave en OTB, por lo que la exigencia de delta-v de la nave es mínima; "
+            "el enlace es de corta distancia y hay eclipses frecuentes cada 90 minutos."
         ),
     ),
+    # Misión ORBITAL lunar (sin descenso). La inyección translunar (TLI) la realiza la etapa superior
+    # del lanzador externo; la nave paga la inserción en órbita lunar (LOI) y el retorno (TEI).
+    # LOI = LOI-1 (913,5 m/s) + LOI-2 (41,1 m/s) y TEI = 1.072,6 m/s del Apolo 8 (NASA, post-launch report).
     DestinoId.LUNA: ParametrosDestino(
         id=DestinoId.LUNA,
-        nombre="Órbita y Superficie Lunar (Cráter Shackleton - 384.400 km)",
+        nombre="Órbita Lunar Polar (observación del Cráter Shackleton - 384.400 km)",
         distancia_km=384400.0,
-        delta_v_lanzamiento_ms=1450.0,
-        delta_v_transito_insercion_ms=1050.0,
-        delta_v_retorno_ms=600.0,
-        delta_v_total_minimo_ms=3100.0,
+        delta_v_lanzamiento_ms=0.0,
+        delta_v_transito_insercion_ms=955.0,
+        delta_v_retorno_ms=1073.0,
+        delta_v_total_minimo_ms=2028.0,
+        # Apolo 8: ≈66 h de tránsito (≈3 días). 4 días es el perfil estándar y 3 el rápido (valores de juego).
         dias_transito_estandar=4,
-        dias_transito_rapido=2,
+        dias_transito_rapido=3,
         dias_operacion_destino=5,
+        # Valor de juego dentro de la cota calculada: a 100 km de altitud la sombra máxima es 0,394 de la órbita.
         fraccion_eclipse=0.25,
         entorno_riesgo=(
-            "Regolito lunar helado resbaladizo para sistemas robóticos, radiación profunda y ocultación de señal. "
-            "El interior de Shackleton está en sombra permanente (NASA/LRO): la energía solar solo es viable en el borde."
+            "Radiación profunda, ocultación de señal al pasar por la cara oculta y ciclos térmicos en órbita lunar. "
+            "El interior de Shackleton está en sombra permanente (NASA/LRO), por eso se observa desde órbita."
         ),
         descripcion=(
-            "Expedición científica cislunar y de prospección polar. Exige al menos 3.100 m/s de delta-v de misión, "
-            "antena de largo alcance y reservas críticas de soporte vital."
+            "Misión orbital de cartografía y prospección polar: la nave llega en trayectoria translunar gracias al "
+            "lanzador, se inserta en órbita lunar y regresa. Exige ≈2.030 m/s de delta-v propio, antena de largo "
+            "alcance y reservas de soporte vital. No incluye descenso ni ascenso."
         ),
     ),
 }
@@ -118,7 +130,7 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         slot_visual="tobera_compacta",
         descripcion_ficha=(
             "Motor químico económico de monopropelente (hidracina). Isp: 225 s | Combustible integrado: 650 kg. "
-            "Cubre OTB solo con dotación reducida y masa seca contenida; no alcanza la transferencia lunar."
+            "Cubre OTB con holgura; para la órbita lunar (≈2.030 m/s) queda justo o corto según la masa seca."
         ),
     ),
     ComponenteCatalogo(
@@ -136,8 +148,8 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         slot_visual="tobera_campana",
         descripcion_ficha=(
             "Motor hipergólico MMH/MON-3 de la clase del OMS-E de Orión (26,7 kN, Isp 315 s según NASA) | "
-            "Combustible: 795 kg (≈3.100-3.500 m/s según tripulación). "
-            "Permite alcanzar los 3.100 m/s de la Luna solo si se controla la masa seca."
+            "Combustible: 795 kg (≈2.900-3.200 m/s según tripulación y carga). "
+            "Cubre con margen los ≈2.030 m/s de la órbita lunar si se controla la masa seca."
         ),
     ),
     ComponenteCatalogo(
@@ -264,6 +276,8 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         ),
     ),
     # --- SOPORTE VITAL (ECLSS) ---
+    # Aproximación documentada: `masa_kg` agrupa el módulo y sus consumibles a escala de tripulante de 25 kg
+    # (NASA usa ≈6,57 kg/persona-día para humanos de 82 kg; ver docs/fuentes-nasa.md §4, punto 4).
     ComponenteCatalogo(
         id="eclss_abierto_ligero",
         nombre="Módulo Vital de Ciclo Abierto V-18",
@@ -377,8 +391,8 @@ COMPONENTES_CATALOGO: list[ComponenteCatalogo] = [
         fiabilidad_nominal=0.88,
         slot_visual="modulo_robot",
         descripcion_ficha=(
-            "Robot autónomo determinista (+55 kg, +90 W). No consume O2 ni comida y no sufre estado de ánimo, "
-            "pero puede resbalar o atascarse en terreno lunar helado."
+            "Robot autónomo determinista (+55 kg, +90 W). No consume O2 ni comida y no sufre estado de ánimo. "
+            "Abstracción del MVP: representa una sonda desplegable; no se simula descenso ni ascenso lunar."
         ),
     ),
 ]
