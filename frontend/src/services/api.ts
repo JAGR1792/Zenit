@@ -231,73 +231,164 @@ export interface CatalogoCompleto {
   masa_lanzamiento_max_kg: number
 }
 
-const API_BASE = '/api/v1'
+import {
+  advanceStageLocal,
+  createMissionLocal,
+  getCatalogLocal,
+  getReportLocal,
+  guardarMisionEnCacheLocal,
+  obtenerMisionDeCacheLocal,
+  resolveEventLocal,
+  sendDecisionLocal,
+} from './localSimulationFallback'
 
-async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  })
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`Error HTTP ${response.status}: ${errText}`)
+const API_BASES = [
+  '/api/v1',
+  'http://127.0.0.1:8010/api/v1',
+  'http://127.0.0.1:8000/api/v1',
+  'http://localhost:8010/api/v1',
+  'http://localhost:8000/api/v1',
+]
+
+let preferredApiBase = API_BASES[0]
+
+async function requestJson<T>(endpointPath: string, options?: RequestInit): Promise<T> {
+  const isLocalHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+  const basesActivas = isLocalHost ? API_BASES : ['/api/v1']
+  const candidateBases = [
+    preferredApiBase,
+    ...basesActivas.filter((b) => b !== preferredApiBase),
+  ]
+
+  let lastError: Error | null = null
+
+  for (const base of candidateBases) {
+    const url = `${base}${endpointPath}`
+    try {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      })
+      if (response.ok) {
+        preferredApiBase = base
+        return (await response.json()) as T
+      }
+      // Si es un error de validación de negocio (400/422), no reintentar en otro puerto
+      if (response.status === 400 || response.status === 422) {
+        const errText = await response.text()
+        throw new Error(`Error HTTP ${response.status}: ${errText}`)
+      }
+      const errText = await response.text()
+      lastError = new Error(`Error HTTP ${response.status}: ${errText}`)
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      // Si fue un error 400/422 lanzado explícitamente arriba, propagar de inmediato
+      if (
+        lastError.message.startsWith('Error HTTP 400') ||
+        lastError.message.startsWith('Error HTTP 422')
+      ) {
+        throw lastError
+      }
+    }
   }
-  return (await response.json()) as T
+
+  throw lastError ?? new Error('No se pudo conectar con el servidor de Zenit.')
 }
 
 export const zenitApi = {
-  getCatalog(): Promise<CatalogoCompleto> {
-    return requestJson<CatalogoCompleto>(`${API_BASE}/catalog`)
+  async getCatalog(): Promise<CatalogoCompleto> {
+    try {
+      return await requestJson<CatalogoCompleto>('/catalog')
+    } catch {
+      return getCatalogLocal()
+    }
   },
 
-  createMission(payload: {
+  async createMission(payload: {
     nombre_mision: string
     destino: DestinoId
     dificultad?: DificultadId
     acuerdo_financiacion_id: string
     especialidad_director: string
   }): Promise<EstadoMision> {
-    return requestJson<EstadoMision>(`${API_BASE}/missions`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    try {
+      const estado = await requestJson<EstadoMision>('/missions', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      return guardarMisionEnCacheLocal(estado)
+    } catch {
+      return createMissionLocal(payload)
+    }
   },
 
-  getMission(missionId: string): Promise<EstadoMision> {
-    return requestJson<EstadoMision>(`${API_BASE}/missions/${missionId}`)
+  async getMission(missionId: string): Promise<EstadoMision> {
+    try {
+      const estado = await requestJson<EstadoMision>(`/missions/${missionId}`)
+      return guardarMisionEnCacheLocal(estado)
+    } catch (err) {
+      const cached = obtenerMisionDeCacheLocal(missionId)
+      if (cached) return cached
+      throw err
+    }
   },
 
-  sendDecision(
+  async sendDecision(
     missionId: string,
     payload: { stage: number; decision: string; params: Record<string, unknown> },
   ): Promise<DecisionResponse> {
-    return requestJson<DecisionResponse>(`${API_BASE}/missions/${missionId}/decisions`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    try {
+      const resp = await requestJson<DecisionResponse>(`/missions/${missionId}/decisions`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      guardarMisionEnCacheLocal(resp.mission_state)
+      return resp
+    } catch {
+      return sendDecisionLocal(missionId, payload)
+    }
   },
 
-  advanceStage(missionId: string): Promise<DecisionResponse> {
-    return requestJson<DecisionResponse>(`${API_BASE}/missions/${missionId}/advance`, {
-      method: 'POST',
-    })
+  async advanceStage(missionId: string): Promise<DecisionResponse> {
+    try {
+      const resp = await requestJson<DecisionResponse>(`/missions/${missionId}/advance`, {
+        method: 'POST',
+      })
+      guardarMisionEnCacheLocal(resp.mission_state)
+      return resp
+    } catch {
+      return advanceStageLocal(missionId)
+    }
   },
 
-  resolveEvent(
+  async resolveEvent(
     missionId: string,
     eventId: string,
     optionId: string,
   ): Promise<DecisionResponse> {
-    return requestJson<DecisionResponse>(
-      `${API_BASE}/missions/${missionId}/events/${eventId}/resolve`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ option_id: optionId }),
-      },
-    )
+    try {
+      const resp = await requestJson<DecisionResponse>(
+        `/missions/${missionId}/events/${eventId}/resolve`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ option_id: optionId }),
+        },
+      )
+      guardarMisionEnCacheLocal(resp.mission_state)
+      return resp
+    } catch {
+      return resolveEventLocal(missionId, eventId, optionId)
+    }
   },
 
-  getReport(missionId: string): Promise<InformeFinal> {
-    return requestJson<InformeFinal>(`${API_BASE}/missions/${missionId}/report`)
+  async getReport(missionId: string): Promise<InformeFinal> {
+    try {
+      return await requestJson<InformeFinal>(`/missions/${missionId}/report`)
+    } catch {
+      return getReportLocal(missionId)
+    }
   },
 }

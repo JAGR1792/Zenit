@@ -320,6 +320,3 @@ def test_negociacion_presupuesto_novela_visual_incrementa_fondos() -> None:
     assert res_neg is not None
     assert res_neg.allowed is True
     assert res_neg.mission_state.presupuesto_restante_usd == presupuesto_base + 18000
-
-
-

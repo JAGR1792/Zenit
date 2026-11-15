@@ -59,16 +59,20 @@ def validar_decision(
         )
 
     # Bloquear cambios de diseño o planificación si la nave ya despegó (Etapa 6+)
-    if decision in (
-        "seleccionar_destino",
-        "seleccionar_financiacion",
-        "negociar_presupuesto",
-        "instalar_componente",
-        "remover_componente",
-        "contratar_tripulante",
-        "remover_tripulante",
-        "configurar_trayectoria",
-    ) and estado.etapa_actual >= 6:
+    if (
+        decision
+        in (
+            "seleccionar_destino",
+            "seleccionar_financiacion",
+            "negociar_presupuesto",
+            "instalar_componente",
+            "remover_componente",
+            "contratar_tripulante",
+            "remover_tripulante",
+            "configurar_trayectoria",
+        )
+        and estado.etapa_actual >= 6
+    ):
         return ResultadoValidacion(
             allowed=False,
             status="fail",
@@ -253,7 +257,10 @@ def validar_decision(
             ),
         )
 
-    if decision in ("operacion_cientifica", "usar_ventana_comm") and estado.etapa_actual < 7:
+    if (
+        decision in ("operacion_cientifica", "usar_ventana_comm")
+        and estado.etapa_actual < 7
+    ):
         return ResultadoValidacion(
             allowed=False,
             status="warning",

@@ -270,6 +270,13 @@ function dibujarFrame(): void {
   // Recorte con ligero margen interno para evitar bordes entre celdas
   const padX = cellW * 0.04
   const padY = cellH * 0.03
+  const srcW = cellW - padX * 2
+  const srcH = cellH - padY * 2
+  const scale = Math.min(canvas.width / srcW, (canvas.height - 4) / srcH)
+  const dw = Math.round(srcW * scale)
+  const dh = Math.round(srcH * scale)
+  const dx = Math.round((canvas.width - dw) / 2)
+  const dy = Math.round(canvas.height - dh)
 
   ctx.save()
   if (props.flipX) {
@@ -280,12 +287,12 @@ function dibujarFrame(): void {
     processedCatBossSheet,
     sx + padX,
     sy + padY,
-    cellW - padX * 2,
-    cellH - padY * 2,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
+    srcW,
+    srcH,
+    dx,
+    dy,
+    dw,
+    dh,
   )
   ctx.restore()
 }
@@ -338,7 +345,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="pixel-sprite-container" :style="{ width: `${width}px` }">
+  <div
+    class="pixel-sprite-container"
+    :class="{ 'has-animo': !!(animo && rutaIconoAnimo) }"
+    :style="{ width: `${width}px` }"
+  >
     <!-- Efecto de estado de ánimo en Pixel Art oficial (Sol.png, Nube.png, Lluvia.png) -->
     <div v-if="animo && rutaIconoAnimo" class="animo-widget" :class="`animo-${animo}`">
       <img :src="rutaIconoAnimo" :alt="`Estado de ánimo: ${animo}`" class="animo-pixel-img" />
@@ -362,6 +373,11 @@ onUnmounted(() => {
   align-items: center;
   position: relative;
   user-select: none;
+  flex-shrink: 0;
+}
+
+.pixel-sprite-container.has-animo {
+  padding-top: 24px;
 }
 
 .sprite-canvas {
@@ -373,7 +389,7 @@ onUnmounted(() => {
 
 .animo-widget {
   position: absolute;
-  top: -22px;
+  top: 0;
   padding: 2px 5px;
   border-radius: 8px;
   background: rgba(11, 14, 26, 0.88);

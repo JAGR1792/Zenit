@@ -479,7 +479,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
+  height: auto;
+  min-height: 460px;
 }
 
 .corridor-nav {
@@ -662,7 +663,8 @@ onUnmounted(() => {
 
 .deck-floor {
   position: relative;
-  height: 200px;
+  min-height: 220px;
+  padding-top: 28px;
   background: repeating-linear-gradient(
     90deg,
     #141c34 0px,
@@ -674,7 +676,9 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 14px 12px;
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-bottom: 12px;
 }
 
 .airlock-door {

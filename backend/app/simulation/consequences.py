@@ -658,18 +658,14 @@ def avanzar_etapa_mision(
     elif estado.etapa_actual in (7, 8, 9):
         # Coste diario operativo y degradación progresiva si faltan recursos operativos
         estado.dias_transcurridos += 1
-        consumo_diario_vital = (
-            0.7 if estado.dificultad == DificultadId.FACIL else 1.0
-        )
+        consumo_diario_vital = 0.7 if estado.dificultad == DificultadId.FACIL else 1.0
         estado.o2_dias_disponibles = round(
             max(0.0, estado.o2_dias_disponibles - consumo_diario_vital), 1
         )
         estado.comida_dias_disponibles = round(
             max(0.0, estado.comida_dias_disponibles - consumo_diario_vital), 1
         )
-        costo_diario_ops = (
-            450.0 if estado.dificultad == DificultadId.FACIL else 850.0
-        )
+        costo_diario_ops = 450.0 if estado.dificultad == DificultadId.FACIL else 850.0
         estado.presupuesto_restante_usd = round(
             max(0.0, estado.presupuesto_restante_usd - costo_diario_ops), 2
         )
