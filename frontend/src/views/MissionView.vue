@@ -39,78 +39,6 @@ const tutorialActivo = ref<boolean>(leerPreferenciaTutorial())
 const tutorialVisible = ref<boolean>(false)
 const tutorialPaso = ref<number>(0)
 
-const hitosTutorial: PasoTutorial[] = [
-  {
-    selector: '[data-tutorial="command"], [data-tutorial="timeline"]',
-    posicion: 'left',
-    titulo: 'Etapa 1 · Elige destino',
-    descripcion:
-      'Selecciona el destino científico en el panel derecho (OTB es más accesible; Luna exige mayor Delta-v y días de tránsito).',
-  },
-  {
-    selector: '[data-tutorial="telemetry"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 2 · Negocia presupuesto',
-    descripcion:
-      'Vigila Créditos Zenit (CZ), masa y Delta-v arriba. En la Oficina de Planificación argumenta ante el Comité de 3 Gatos para ajustar tu presupuesto.',
-  },
-  {
-    selector: '[data-tutorial="viewport"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 3 · Diseña la nave',
-    descripcion:
-      'Alterna vistas en el visor izquierdo, instala componentes y contrata tripulación. Lee la ficha técnica y equilibra masa (≤ 1.300 kg) y energía.',
-  },
-  {
-    selector: '[data-tutorial="command"], [data-tutorial="telemetry"]',
-    posicion: 'left',
-    titulo: 'Etapa 4 · Planifica trayectoria',
-    descripcion:
-      'Elige perfil de trayectoria y ventana de lanzamiento. Una trayectoria rápida o ventana secundaria aumenta el Delta-v requerido.',
-  },
-  {
-    selector: '[data-tutorial="timeline"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 5 · Lanzamiento',
-    descripcion:
-      'Comprueba tu progreso antes de encender motores: si la masa supera el límite o falta Delta-v, la misión puede fracasar en el despegue.',
-  },
-  {
-    selector: '[data-tutorial="viewport"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 6 · Tránsito',
-    descripcion:
-      'Resuelve alertas de subsistemas usando tripulación, batería o CZ. No dejes alertas críticas sin atender durante el viaje.',
-  },
-  {
-    selector: '[data-tutorial="viewport"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 7 · Recolecta datos',
-    descripcion:
-      'En la Cubierta 2D muévete al Laboratorio Científico y pulsa E junto a la consola para recolectar datos. Primero datos, luego transmisión.',
-  },
-  {
-    selector: '[data-tutorial="viewport"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 8 · Tripulación',
-    descripcion:
-      'Estabiliza el ánimo de tu equipo en el Módulo de Vida. Una tripulación descansada (“Sol”) rinde mejor en ciencia y emergencias.',
-  },
-  {
-    selector: '[data-tutorial="viewport"]',
-    posicion: 'bottom',
-    titulo: 'Etapa 9 · Transmite',
-    descripcion:
-      'En Sala de Sistemas usa la antena con E para transmitir datos a la Tierra antes de cerrar operaciones. Sin transmisión el veredicto cae.',
-  },
-  {
-    selector: '[data-tutorial="final"], [data-tutorial="deltabar"]',
-    posicion: 'top',
-    titulo: 'Etapa 10 · Veredicto',
-    descripcion:
-      'El Comité evalúa ciencia transmitida, finanzas en CZ y supervivencia. Revisa las respuestas del Gato Jefe y sus dos ayudantes.',
-  },
-]
 const selectedDifficulty = ref<DificultadId>('facil')
 const selectedInitialDest = ref<DestinoId>('OTB')
 const customMissionName = ref<string>('Expedición Zenit-1')
@@ -200,6 +128,241 @@ const pendingDataToTransmitGb = computed(() => {
     0,
     Number((mission.value.datos_generados_gb - mission.value.datos_transmitidos_gb).toFixed(2)),
   )
+})
+
+const etiquetaContextoTutorial = computed<string>(() => {
+  if (finalReport.value) return 'ETAPA 10 DE 10 · VEREDICTO FINAL'
+  if (!mission.value) return 'GUÍA REACTIVA'
+  return `ETAPA ${mission.value.etapa_actual} DE 10`
+})
+
+// Tutorial estrictamente coherente con la etapa y pestaña activas (sin adelantar etapas futuras)
+const pasosTutorialActuales = computed<PasoTutorial[]>(() => {
+  if (showMainMenu.value) return []
+  if (finalReport.value) {
+    return [
+      {
+        selector: '[data-tutorial="final"]',
+        posicion: 'top',
+        titulo: 'Veredicto del Comité Zenit',
+        descripcion:
+          'Revisa tu evaluación en las 7 dimensiones y consulta el dictamen del Gato Jefe y sus dos ayudantes.',
+      },
+    ]
+  }
+  const m = mission.value
+  if (!m) return []
+
+  if (m.etapa_actual === 1) {
+    if (activeViewportTab.value === 'telemetry') {
+      return [
+        {
+          selector: '[data-tutorial="variables-sheet"], [data-tutorial="viewport"]',
+          posicion: 'right',
+          titulo: 'Etapa 1 · Pestaña Variables',
+          descripcion:
+            'Aquí ves el detalle físico de la misión. Cambia a «🚀 Hangar: Nave y Perros» arriba o elige destino en el panel derecho para continuar.',
+        },
+      ]
+    }
+    if (!etapa1DestinoElegido.value) {
+      return [
+        {
+          selector: '[data-tutorial="stage1-options"], [data-tutorial="command"]',
+          posicion: 'left',
+          titulo: 'Etapa 1 · Elige el destino de la misión',
+          descripcion:
+            'Selecciona OTB (400 km) o Luna (384.400 km) en este panel. Hasta que elijas un destino no se habilitará el avance a la Etapa 2.',
+        },
+      ]
+    }
+    return [
+      {
+        selector: '[data-tutorial="advance-btn"], [data-tutorial="telemetry"]',
+        posicion: 'left',
+        titulo: 'Etapa 1 · ¡Destino fijado!',
+        descripcion:
+          'Mira cómo se actualizó tu Delta-v requerido arriba. Cuando estés listo, pulsa «Avanzar a Etapa 2 ►» para ir a negociar presupuesto.',
+      },
+    ]
+  }
+
+  if (m.etapa_actual === 2) {
+    if (activeViewportTab.value !== 'office_vn') {
+      return [
+        {
+          selector: '[data-tutorial="tab-office"], [data-tutorial="viewport"]',
+          posicion: 'bottom',
+          titulo: 'Etapa 2 · Abre la Oficina de Planificación',
+          descripcion:
+            'Estás en otra pestaña del visor. Haz clic en «🏢 Oficina Planificación» arriba para negociar el presupuesto de la Etapa 2.',
+        },
+      ]
+    }
+    return [
+      {
+        selector: '[data-tutorial="telemetry"]',
+        posicion: 'bottom',
+        titulo: 'Etapa 2 · Negociación con el Comité',
+        descripcion:
+          'Responde en la escena de la Oficina (hasta 3 rondas). Tus argumentos reales suben o recortan tus Créditos Zenit (CZ) arriba antes de diseñar la nave.',
+      },
+    ]
+  }
+
+  if (m.etapa_actual === 3) {
+    if (activeViewportTab.value === 'telemetry') {
+      return [
+        {
+          selector: '[data-tutorial="variables-sheet"], [data-tutorial="viewport"]',
+          posicion: 'right',
+          titulo: 'Etapa 3 · Variables del diseño',
+          descripcion:
+            'Consulta aquí masa, Delta-v y balance eléctrico al instante, o vuelve a «🚀 Hangar: Nave y Perros» para ver el montaje en el chasis.',
+        },
+      ]
+    }
+    if (stage3SubTab.value === 'crew') {
+      return [
+        {
+          selector: '[data-tutorial="stage3-panel"], [data-tutorial="command"]',
+          posicion: 'left',
+          titulo: 'Etapa 3 · Tripulación canina',
+          descripcion:
+            'Contrata especialistas según su rol (Ciencia, Ingeniería o Medicina), o viaja en solitario ahorrando masa y CZ. Al terminar, pulsa «Avanzar a Etapa 4 ►».',
+        },
+      ]
+    }
+    return [
+      {
+        selector: '[data-tutorial="stage3-panel"], [data-tutorial="command"]',
+        posicion: 'left',
+        titulo: 'Etapa 3 · Equipa tu nave en el Hangar',
+        descripcion: `Instala motor, energía, antena e instrumentos sin superar ${m.masa_lanzamiento_max_kg} kg. Revisa también «🐶 2. Tripulación» antes de avanzar.`,
+      },
+    ]
+  }
+
+  if (m.etapa_actual === 4) {
+    if (!etapa4TrayectoriaElegida.value) {
+      return [
+        {
+          selector: '[data-tutorial="stage4-options"], [data-tutorial="command"]',
+          posicion: 'left',
+          titulo: 'Etapa 4 · Selecciona trayectoria',
+          descripcion:
+            'Elige Transferencia Estándar o Directa Rápida (+18% Δv). Hasta confirmar una trayectoria aquí no podrás avanzar al lanzamiento.',
+        },
+      ]
+    }
+    return [
+      {
+        selector: '[data-tutorial="advance-btn"], [data-tutorial="telemetry"]',
+        posicion: 'left',
+        titulo: 'Etapa 4 · Trayectoria confirmada',
+        descripcion:
+          'Verifica en la barra superior que tu Delta-v disponible cubra el requerido y pulsa «Avanzar a Etapa 5 ►».',
+      },
+    ]
+  }
+
+  if (m.etapa_actual === 5) {
+    return [
+      {
+        selector: '[data-tutorial="advance-btn"], [data-tutorial="telemetry"]',
+        posicion: 'left',
+        titulo: 'Etapa 5 · Verificación de lanzamiento',
+        descripcion: `Última revisión en plataforma: comprueba masa (≤ ${m.masa_lanzamiento_max_kg} kg) y Delta-v suficiente arriba, y pulsa «Avanzar a Etapa 6 ►» para despegar.`,
+      },
+    ]
+  }
+
+  if (m.etapa_actual === 6) {
+    if (m.eventos_activos.length > 0) {
+      return [
+        {
+          selector: '[data-tutorial="events-drawer"], [data-tutorial="command"]',
+          posicion: 'left',
+          titulo: 'Etapa 6 · Resuelve anomalías de vuelo',
+          descripcion:
+            'Tienes alertas activas en tránsito. Elige una respuesta del Capitán Perro gastando batería, tripulación o CZ antes de continuar.',
+        },
+      ]
+    }
+    if (activeViewportTab.value !== 'rooms2d') {
+      return [
+        {
+          selector: '[data-tutorial="tab-rooms2d"], [data-tutorial="viewport"]',
+          posicion: 'bottom',
+          titulo: 'Etapa 6 · Cubierta 2D desbloqueada',
+          descripcion:
+            'La nave ya está en vuelo. Abre «🎮 Cubierta 2D en Vuelo [E]» arriba para recorrer las salas con A/D o avanza a Etapa 7 si no hay alertas.',
+        },
+      ]
+    }
+    return [
+      {
+        selector: '[data-tutorial="advance-btn"], [data-tutorial="viewport-body"]',
+        posicion: 'left',
+        titulo: 'Etapa 6 · Tránsito en ruta',
+        descripcion:
+          'Sin alertas activas: explora las salas en Cubierta 2D o pulsa «Avanzar a Etapa 7 ►» para entrar en órbita científica.',
+      },
+    ]
+  }
+
+  if (m.etapa_actual >= 7 && m.etapa_actual <= 9) {
+    if (activeViewportTab.value !== 'rooms2d') {
+      return [
+        {
+          selector: '[data-tutorial="tab-rooms2d"], [data-tutorial="viewport"]',
+          posicion: 'bottom',
+          titulo: `Etapa ${m.etapa_actual} · Vuelve a la Cubierta 2D`,
+          descripcion:
+            'Las operaciones en destino ocurren dentro de «🎮 Cubierta 2D en Vuelo [E]». Cambia a esa pestaña o usa los accesos rápidos de la derecha.',
+        },
+      ]
+    }
+    if (m.datos_generados_gb === 0) {
+      return [
+        {
+          selector: '[data-tutorial="viewport-body"], [data-tutorial="command"]',
+          posicion: 'right',
+          titulo: `Etapa ${m.etapa_actual} · Paso 1: Recolecta ciencia`,
+          descripcion:
+            'Camina con A/D al Laboratorio Científico y pulsa [E] en la consola (o usa «PASO 1» a la derecha) para recolectar datos.',
+        },
+      ]
+    }
+    if (pendingDataToTransmitGb.value > 0) {
+      return [
+        {
+          selector: '[data-tutorial="viewport-body"], [data-tutorial="command"]',
+          posicion: 'right',
+          titulo: `Etapa ${m.etapa_actual} · Paso 2: Transmite a Tierra`,
+          descripcion: `Tienes ${pendingDataToTransmitGb.value} GB recolectados. Ve a Sala de Sistemas y pulsa [E] en la antena (o «PASO 2» a la derecha) para enviarlos.`,
+        },
+      ]
+    }
+    return [
+      {
+        selector: '[data-tutorial="advance-btn"], [data-tutorial="command"]',
+        posicion: 'left',
+        titulo: `Etapa ${m.etapa_actual} · Datos transmitidos`,
+        descripcion: `Ya enviaste ${m.datos_transmitidos_gb} GB a Tierra. Puedes cuidar el ánimo del equipo o pulsar para avanzar a la siguiente etapa.`,
+      },
+    ]
+  }
+
+  return [
+    {
+      selector: '[data-tutorial="final"], [data-tutorial="deltabar"]',
+      posicion: 'top',
+      titulo: 'Etapa 10 · Cierre e informe final',
+      descripcion:
+        'Pulsa el botón de retorno para presentar el informe completo ante el Comité de los 3 Gatos.',
+    },
+  ]
 })
 
 const hasScientificInstrumentInstalled = computed(() => {
@@ -365,13 +528,8 @@ function sincronizarTutorial(): void {
     tutorialVisible.value = false
     return
   }
-  if (finalReport.value) {
-    tutorialPaso.value = hitosTutorial.length - 1
-    tutorialVisible.value = true
-    return
-  }
-  if (mission.value) {
-    tutorialPaso.value = Math.max(0, Math.min(mission.value.etapa_actual - 1, hitosTutorial.length - 1))
+  tutorialPaso.value = 0
+  if (finalReport.value || mission.value) {
     tutorialVisible.value = true
   }
 }
@@ -389,6 +547,9 @@ function desactivarTutorial(): void {
 watch(showMainMenu, () => sincronizarTutorial())
 watch(() => mission.value?.etapa_actual, () => sincronizarTutorial(), { immediate: true })
 watch(() => Boolean(finalReport.value), () => sincronizarTutorial())
+watch(pasosTutorialActuales, () => {
+  tutorialPaso.value = 0
+})
 
 async function startNewMission(fromMenu = false): Promise<void> {
   loading.value = true
@@ -598,6 +759,7 @@ onMounted(async () => {
         <div class="viewport-switcher" data-tutorial="viewport">
           <button
             v-if="mission.etapa_actual === 2"
+            data-tutorial="tab-office"
             class="vtab-btn"
             :class="{ active: activeViewportTab === 'office_vn' }"
             @click="activeViewportTab = 'office_vn'"
@@ -612,6 +774,7 @@ onMounted(async () => {
             🚀 {{ mission.etapa_actual <= 5 ? 'Hangar: Nave y Perros' : 'Esquemático de Nave y Perros' }}
           </button>
           <button
+            data-tutorial="tab-rooms2d"
             class="vtab-btn"
             :class="{ active: activeViewportTab === 'rooms2d' }"
             :disabled="mission.etapa_actual < 6"
@@ -638,7 +801,7 @@ onMounted(async () => {
         </div>
 
         <!-- Contenido del Visor Activo -->
-        <div class="viewport-stage-body">
+        <div class="viewport-stage-body" data-tutorial="viewport-body">
           <VisualNovelNegotiation
             v-if="activeViewportTab === 'office_vn' && mission.etapa_actual === 2"
             :mission="mission"
@@ -662,7 +825,7 @@ onMounted(async () => {
           />
 
           <!-- Vista 3: Tabla Completa de Variables Explícitas -->
-          <div v-else class="panel-box full-telemetry-sheet">
+          <div v-else class="panel-box full-telemetry-sheet" data-tutorial="variables-sheet">
             <div class="sheet-header">
               <span class="sheet-title">MATRIZ DE VARIABLES INTERDEPENDIENTES DE LA NAVE</span>
               <p class="sheet-sub">
@@ -787,7 +950,7 @@ onMounted(async () => {
           </div>
 
           <!-- ALERTAS Y EVENTOS ACTIVOS CON ICONO DE QUIÉN TOMA LA DECISIÓN (CAPTAIN DOG) -->
-          <div v-if="mission.eventos_activos.length > 0" class="events-drawer">
+          <div v-if="mission.eventos_activos.length > 0" class="events-drawer" data-tutorial="events-drawer">
             <div class="event-drawer-header blink-warning">
               ▲ ALERTA DE SUBSISTEMA SIN CUANTIFICAR ({{ mission.eventos_activos.length }})
             </div>
@@ -852,7 +1015,7 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="option-list">
+            <div class="option-list" data-tutorial="stage1-options">
               <div
                 v-for="dest in catalog.destinos"
                 :key="dest.id"
@@ -933,7 +1096,7 @@ onMounted(async () => {
           </div>
 
           <!-- ETAPA 3: DISEÑO DE LA NAVE Y SELECCIÓN DE PERSONAL (PERROS ESPECIALISTAS) -->
-          <div v-if="mission.etapa_actual === 3" class="stage-card">
+          <div v-if="mission.etapa_actual === 3" class="stage-card" data-tutorial="stage3-panel">
             <div class="stage-eyebrow">ETAPA 03 DE 10 · INGENIERÍA DE SISTEMAS</div>
             <h2 class="stage-title">Diseño de Nave y Tripulación Canina</h2>
 
@@ -1108,7 +1271,7 @@ onMounted(async () => {
               Elige el perfil de transferencia hacia {{ mission.destino }}. Una ruta rápida consume
               un +18% de Delta-v pero ahorra días de soporte vital.
             </p>
-            <div class="option-list">
+            <div class="option-list" data-tutorial="stage4-options">
               <div
                 class="option-tile"
                 :class="{ selected: etapa4TrayectoriaElegida && mission.perfil_trayectoria === 'estandar' }"
@@ -1292,6 +1455,7 @@ onMounted(async () => {
             <span>TRIPULACIÓN: {{ mission.tripulacion.length }}/4 PERROS</span>
           </div>
           <button
+            data-tutorial="advance-btn"
             class="btn-primary advance-cta-btn"
             :disabled="
               loading ||
@@ -1330,8 +1494,9 @@ onMounted(async () => {
 
     <TutorialOverlay
       v-model:paso-inicial="tutorialPaso"
-      :pasos="hitosTutorial"
+      :pasos="pasosTutorialActuales"
       :activo="tutorialVisible"
+      :etiqueta-contexto="etiquetaContextoTutorial"
       @finish="tutorialVisible = false"
       @skip="desactivarTutorial()"
     />

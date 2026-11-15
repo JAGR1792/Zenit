@@ -13,9 +13,11 @@ const props = withDefaults(
     pasos: PasoTutorial[]
     activo: boolean
     pasoInicial?: number
+    etiquetaContexto?: string
   }>(),
   {
     pasoInicial: 0,
+    etiquetaContexto: 'GUÍA REACTIVA',
   },
 )
 
@@ -363,7 +365,7 @@ onUnmounted(() => {
     >
       <div class="tutorial-top-row">
         <div class="tutorial-step-counter">
-          GUÍA REACTIVA · PASO {{ indice + 1 }} DE {{ pasosLista.length }}
+          {{ etiquetaContexto }} · PASO {{ indice + 1 }} DE {{ pasosLista.length }}
         </div>
         <button
           type="button"
