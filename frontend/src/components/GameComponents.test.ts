@@ -104,12 +104,14 @@ describe('Componentes principales del simulador Zenit', () => {
     expect(wrapper.text()).toContain('CZ')
     expect(wrapper.text()).not.toContain('USD')
 
-    // Ninguna opción narrativa debe revelar montos de dinero antes de decidir
+    // Ninguna opción narrativa debe revelar montos de dinero ni pistas de resultado antes de decidir
     const opcionesTexto = wrapper.find('.vn-choices-column').text()
     expect(opcionesTexto).not.toContain('USD')
     expect(opcionesTexto).not.toContain('CZ')
     expect(opcionesTexto).not.toContain('+$')
     expect(opcionesTexto).not.toContain('-$')
+    expect(opcionesTexto).not.toContain('Consecuencia posible')
+    expect(wrapper.find('.vn-choice-hint').exists()).toBe(false)
 
     // Ronda 1: elegir ceder reservas (penaliza presupuesto -> bono negativo)
     await saltarDialogo(wrapper)

@@ -846,13 +846,6 @@ function selectScenario(id: EscenarioId): void {
   if (!ES_TEST_VN) dialogueReady.value = false
 }
 
-function pistaPara(opt: OpcionDialogo): string {
-  if (opt.bonoUsd >= 0) {
-    return 'Consecuencia posible: mejora la financiación, pero puede consumir margen de masa, energía o reservas.'
-  }
-  return 'Consecuencia posible: recorta fondos o reservas; verifica que no afecte el retorno ni la seguridad.'
-}
-
 function reproducirReaccion(agradable: boolean): void {
   if (ES_TEST_VN) return
   try {
@@ -1050,9 +1043,6 @@ function selectDialogueOption(opt: OpcionDialogo): void {
               <span class="vn-choice-arrow">&gt;</span>
               <span class="vn-choice-text">
                 {{ opt.texto }}
-                <small v-if="mission.dificultad !== 'dificil'" class="vn-choice-hint">
-                  {{ pistaPara(opt) }}
-                </small>
               </span>
             </button>
           </div>
