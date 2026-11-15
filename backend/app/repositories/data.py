@@ -41,6 +41,7 @@ def guardar_mision(estado: EstadoMision) -> EstadoMision:
     raw = estado.model_dump_json()
     _MEM_STORE[estado.id] = raw
     try:
+        init_db()
         with sqlite3.connect(_obtener_ruta_db()) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO missions (id, payload_json) VALUES (?, ?)",

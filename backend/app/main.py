@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
+
+# Asegura que el paquete `app` sea importable tanto desde la raíz del repo como desde `backend/` (Vercel)
+_BACKEND_DIR = str(Path(__file__).resolve().parents[1])
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import router as v1_router

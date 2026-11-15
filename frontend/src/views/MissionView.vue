@@ -415,6 +415,14 @@ onMounted(async () => {
                 </ul>
               </div>
             </div>
+
+            <button
+              class="btn-primary start-mission-btn"
+              :disabled="loading"
+              @click="startNewMission(true)"
+            >
+              {{ loading ? '⏳ INICIANDO CONSOLA...' : `🚀 EMPEZAR EXPEDICIÓN (${selectedDifficulty.toUpperCase()})` }}
+            </button>
           </div>
 
           <!-- Columna 2: Guía Clara de 4 Pasos (Cómo Jugar y Transmitir Datos) -->
@@ -472,13 +480,17 @@ onMounted(async () => {
               </div>
             </div>
 
+            <div v-if="lastStatusType === 'fail'" class="menu-error-banner">
+              ⚠ {{ statusMessage }}
+            </div>
+
             <div class="menu-cta-row">
               <button
                 class="btn-primary start-mission-btn"
                 :disabled="loading"
                 @click="startNewMission(true)"
               >
-                🚀 JUGAR NUEVA EXPEDICIÓN ({{ selectedDifficulty.toUpperCase() }})
+                {{ loading ? '⏳ CONECTANDO CON CONTROL DE MISIÓN...' : `🚀 EMPEZAR EXPEDICIÓN (${selectedDifficulty.toUpperCase()})` }}
               </button>
               <button
                 v-if="mission"
@@ -1227,28 +1239,35 @@ onMounted(async () => {
         </footer>
       </aside>
     </main>
+
+    <!-- ESTADO DE RESPALDO SI LA CONEXIÓN ESTÁ CARGANDO O REINTENTANDO -->
+    <main v-else class="fallback-workstation">
+      <div class="panel-box fallback-card">
+        <h2 class="stage-title">Inicializando Consola de Control Zenit</h2>
+        <p class="serif-narrative stage-prose">{{ statusMessage }}</p>
+        <div class="fallback-actions">
+          <button class="btn-primary" :disabled="loading" @click="startNewMission(true)">
+            {{ loading ? 'Conectando...' : '🔄 Reintentar e Iniciar Expedición' }}
+          </button>
+          <button @click="showMainMenu = true">Volver al Menú de Inicio</button>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
 /* ========================================================================= */
-/* ARQUITECTURA DE ESTACIÓN DE VUELO (100VH EN ESCRITORIO, CERO FATIGA)      */
+/* ARQUITECTURA DE ESTACIÓN DE VUELO ADAPTABLE (SIN RECORTES VERTICALES)     */
 /* ========================================================================= */
 .cockpit-layout {
   min-height: 100vh;
-  max-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--void);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
-}
-
-@media (max-width: 1080px) {
-  .cockpit-layout {
-    max-height: none;
-    overflow: visible;
-  }
 }
 
 /* ========================================================================= */
@@ -1260,18 +1279,19 @@ onMounted(async () => {
   z-index: 50;
   background: radial-gradient(circle at 50% 15%, #1b2340 0%, #070a14 85%);
   overflow-y: auto;
-  padding: 20px;
+  padding: 20px 20px 32px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
 .menu-container {
   max-width: 1180px;
   width: 100%;
+  margin: auto 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .menu-hero-banner {
@@ -1831,6 +1851,39 @@ onMounted(async () => {
   color: var(--bone);
 }
 
+.menu-error-banner {
+  background: rgba(229, 72, 77, 0.16);
+  border: 1px solid var(--red);
+  color: var(--bone);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+
+.fallback-workstation {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fallback-card {
+  max-width: 540px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.fallback-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* COLUMNA DERECHA: CONSOLA DE DECISIONES */
 .right-command-column {
   background: var(--cabin);
@@ -1838,8 +1891,18 @@ onMounted(async () => {
   border-radius: 6px;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 480px;
+  max-height: calc(100vh - 82px);
+  position: sticky;
+  top: 12px;
   overflow: hidden;
+}
+
+@media (max-width: 1080px) {
+  .right-command-column {
+    max-height: none;
+    position: static;
+  }
 }
 
 .command-scroll-area {
