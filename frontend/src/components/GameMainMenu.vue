@@ -32,13 +32,13 @@ type VistaMenu = 'main' | 'new_game' | 'howto' | 'cast' | 'credits'
 
 const activeView = ref<VistaMenu>('main')
 const missionName = ref<string>(props.initialMissionName || 'Expedición Zenit-1')
-const selectedDest = ref<DestinoId>(props.initialDestination || 'OTB')
-const selectedDiff = ref<DificultadId>(props.initialDifficulty || 'facil')
+const selectedDiff = ref<DificultadId | null>(null)
 
 function handleStart(): void {
+  if (!selectedDiff.value) return
   emit('start', {
     nombre_mision: missionName.value.trim() || 'Expedición Zenit-1',
-    destino: selectedDest.value,
+    destino: props.initialDestination || 'OTB',
     dificultad: selectedDiff.value,
   })
 }
@@ -157,31 +157,7 @@ function handleStart(): void {
           </div>
 
           <div class="submenu-field">
-            <span class="submenu-label">Destino Científico</span>
-            <div class="submenu-dest-grid">
-              <button
-                type="button"
-                class="submenu-chip-btn"
-                :class="{ active: selectedDest === 'OTB' }"
-                @click="selectedDest = 'OTB'"
-              >
-                <strong>🌍 Órbita Terrestre Baja</strong>
-                <small>Delta-v moderado · Más accesible</small>
-              </button>
-              <button
-                type="button"
-                class="submenu-chip-btn"
-                :class="{ active: selectedDest === 'LUNA' }"
-                @click="selectedDest = 'LUNA'"
-              >
-                <strong>🌕 Cráter Lunar Shackleton</strong>
-                <small>Alta exigencia orbital y térmica</small>
-              </button>
-            </div>
-          </div>
-
-          <div class="submenu-field">
-            <span class="submenu-label">Nivel de Dificultad</span>
+            <span class="submenu-label">Nivel de Dificultad (elige uno)</span>
             <div class="submenu-diff-list">
               <button
                 v-for="diff in difficultyOptions"
@@ -212,13 +188,15 @@ function handleStart(): void {
             <button
               type="button"
               class="arcade-btn arcade-btn-primary arcade-btn-launch"
-              :disabled="loading"
+              :disabled="loading || !selectedDiff"
               @click="handleStart"
             >
               {{
                 loading
                   ? 'Iniciando Consola...'
-                  : `🚀 Despegar (${selectedDiff.toUpperCase()})`
+                  : !selectedDiff
+                    ? 'Selecciona una dificultad'
+                    : `🚀 Despegar (${selectedDiff.toUpperCase()})`
               }}
             </button>
           </div>

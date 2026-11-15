@@ -351,22 +351,28 @@ describe('Componentes principales del simulador Zenit', () => {
     await btnVolver!.trigger('click')
     expect(wrapper.text()).toContain('MENÚ PRINCIPAL')
 
-    // Abrir Nueva Expedición, elegir Luna y emitir start
+    // Abrir Nueva Expedición: no debe haber ninguna dificultad preseleccionada
     const btnNueva = wrapper.findAll('button').find((b) => b.text().includes('Nueva Expedición'))
     expect(btnNueva).toBeTruthy()
     await btnNueva!.trigger('click')
 
-    const btnLuna = wrapper.findAll('button').find((b) => b.text().includes('Luna'))
-    expect(btnLuna).toBeTruthy()
-    await btnLuna!.trigger('click')
-
+    expect(wrapper.findAll('.submenu-diff-item.selected').length).toBe(0)
     const btnDespegar = wrapper.find('.arcade-btn-launch')
+    expect((btnDespegar.element as HTMLButtonElement).disabled).toBe(true)
+
+    const btnDirector = wrapper
+      .findAll('.submenu-diff-item')
+      .find((b) => b.text().includes('Modo Director'))
+    expect(btnDirector).toBeTruthy()
+    await btnDirector!.trigger('click')
+    expect((btnDespegar.element as HTMLButtonElement).disabled).toBe(false)
+
     await btnDespegar.trigger('click')
 
     const startEmitted = wrapper.emitted('start') as
       | Array<[{ nombre_mision: string; destino: string; dificultad: string }]>
       | undefined
     expect(startEmitted).toBeTruthy()
-    expect(startEmitted![0][0].destino).toBe('LUNA')
+    expect(startEmitted![0][0].dificultad).toBe('normal')
   })
 })
