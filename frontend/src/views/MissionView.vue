@@ -74,6 +74,9 @@ const difficultyOptions: Array<{
 // Modos del visor izquierdo y sub-pestañas de la Etapa 3
 // La negociación ('office_vn') solo aparece en la Etapa 2; Etapas 1 y 3-5 usan 'schematic' (Hangar); 6+ usa 'rooms2d'
 const activeViewportTab = ref<'office_vn' | 'rooms2d' | 'schematic' | 'telemetry'>('schematic')
+const isFullStageVn = computed(
+  () => Boolean(mission.value && mission.value.etapa_actual === 2 && activeViewportTab.value === 'office_vn'),
+)
 const stage3SubTab = ref<'hardware' | 'crew'>('hardware')
 const activeCategory = ref<string>('instrumento')
 
@@ -141,13 +144,7 @@ const currentStoryBeat = computed(() => {
     }
   }
   if (st === 2) {
-    return {
-      chapter: 'CAPÍTULO II · AUDIENCIA ANTE EL COMITÉ DE LOS 3 GATOS',
-      speaker: 'GATO JEFE + 2 AYUDANTES (FINANZAS Y RIESGO)',
-      speakerIcon: '/sprites/iconos/icono_gato_asistente_blanco.png',
-      quote:
-        '«En la Oficina de Planificación (visor izquierdo), el Gato Jefe y sus dos ayudantes evalúan tus argumentos. Convéncelos en las 3 rondas de diálogo para subir el presupuesto antes de pasar al hangar.»',
-    }
+    return null
   }
   if (st === 3) {
     return {
@@ -237,8 +234,8 @@ const currentStageGuide = computed(() => {
   }
   if (st === 2) {
     return {
-      objective: 'Convence al Gato Jefe y a sus 2 Ayudantes (Novela Visual a la izquierda) para subir tu presupuesto.',
-      tip: 'Elige tus argumentos en las 3 rondas de diálogo de la Oficina de Planificación para sumar hasta +$50.000 USD extra.',
+      objective: 'Negocia tu presupuesto en 3 rondas ante el Gato Jefe y sus 2 Ayudantes.',
+      tip: 'Tus argumentos pueden ampliar o recortar fondos según el escenario; al cerrar el acuerdo pasarás al Hangar.',
     }
   }
   if (st === 3) {
@@ -720,7 +717,11 @@ onMounted(async () => {
     <!-- ======================================================================= -->
     <!-- ESTACIÓN DE TRABAJO DE DOBLE PANEL (SIN SCROLL DE PÁGINA COMPLETA)      -->
     <!-- ======================================================================= -->
-    <main v-else-if="mission && catalog" class="split-workstation">
+    <main
+      v-else-if="mission && catalog"
+      class="split-workstation"
+      :class="{ 'full-vn-focus': isFullStageVn }"
+    >
       <!-- PANEL IZQUIERDO (58%): VISOR INTERACTIVO MULTIMODO + CHIPS DE IMPACTO -->
       <section class="left-viewport-column">
         <!-- Conmutador de Vista Principal -->
@@ -893,11 +894,11 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- PANEL DERECHO (42%): CONSOLA DE DECISIONES DE ETAPA + PIE DE AVANCE FIJO -->
-      <aside class="right-command-column">
+      <!-- PANEL DERECHO (42%): CONSOLA DE DECISIONES DE ETAPA (oculta durante novela visual enfocada) -->
+      <aside v-if="!isFullStageVn" class="right-command-column">
         <div class="command-scroll-area">
-          <!-- CRÓNICA NARRATIVA DE LA TRAMA (EXPEDIENTE HELIOS-9) CON ICONO DEL ORADOR -->
-          <div v-if="currentStoryBeat" class="story-chapter-box">
+          <!-- CRÓNICA NARRATIVA DE LA TRAMA (solo cuando no estorba al visor 2D RPG) -->
+          <div v-if="currentStoryBeat && activeViewportTab !== 'rooms2d'" class="story-chapter-box">
             <div class="story-head">
               <span class="story-chapter-tag">{{ currentStoryBeat.chapter }}</span>
               <span class="story-speaker">{{ currentStoryBeat.speaker }}</span>
@@ -1900,6 +1901,13 @@ onMounted(async () => {
   min-height: 0;
 }
 
+.split-workstation.full-vn-focus {
+  grid-template-columns: 1fr;
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+}
+
 @media (max-width: 1080px) {
   .split-workstation {
     grid-template-columns: 1fr;
@@ -1909,8 +1917,8 @@ onMounted(async () => {
 .final-report-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 18px;
-  max-width: 1200px;
+  padding: 16px 18px;
+  max-width: 1240px;
   margin: 0 auto;
   width: 100%;
 }

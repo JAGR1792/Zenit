@@ -14,13 +14,35 @@ const emit = defineEmits<{
 const activeSpeaker = ref<'jefe' | 'asistente_blanco' | 'asistente_negro'>('jefe')
 
 const finDim = computed(
-  () => props.report.dimensiones.find((d) => d.id === 'eficiencia_financiera') ?? props.report.dimensiones[0],
+  () =>
+    props.report.dimensiones.find((d) => d.id === 'eficiencia_financiera') ??
+    props.report.dimensiones[0],
 )
 const sciDim = computed(
-  () => props.report.dimensiones.find((d) => d.id === 'exito_cientifico') ?? props.report.dimensiones[0],
+  () =>
+    props.report.dimensiones.find((d) => d.id === 'exito_cientifico') ??
+    props.report.dimensiones[0],
 )
 const crewDim = computed(
-  () => props.report.dimensiones.find((d) => d.id === 'supervivencia_salud') ?? props.report.dimensiones[0],
+  () =>
+    props.report.dimensiones.find((d) => d.id === 'supervivencia_salud') ??
+    props.report.dimensiones[0],
+)
+
+const bossMoodSrc = computed(() =>
+  props.report.puntuacion_global >= 75
+    ? '/sprites/elementos/Sol.png'
+    : props.report.puntuacion_global >= 45
+      ? '/sprites/elementos/Nube.png'
+      : '/sprites/elementos/Lluvia.png',
+)
+
+const playerMoodSrc = computed(() =>
+  props.report.puntuacion_global >= 65
+    ? '/sprites/elementos/Sol.png'
+    : props.report.puntuacion_global >= 40
+      ? '/sprites/elementos/Nube.png'
+      : '/sprites/elementos/Lluvia.png',
 )
 
 const tribunalQuotes = computed(() => ({
@@ -28,12 +50,7 @@ const tribunalQuotes = computed(() => ({
     name: 'GATO JEFE · COMISIONADO FÉLIX VANCE',
     role: 'PRESIDENTE DEL TRIBUNAL DE EVALUACIÓN',
     icon: '/sprites/iconos/icono_gato_jefe.png',
-    mood:
-      props.report.puntuacion_global >= 75
-        ? '/sprites/elementos/Sol.png'
-        : props.report.puntuacion_global >= 45
-          ? '/sprites/elementos/Nube.png'
-          : '/sprites/elementos/Lluvia.png',
+    mood: bossMoodSrc.value,
     text: props.report.dialogo_jefe_apertura,
   },
   asistente_blanco: {
@@ -68,35 +85,12 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
     <div class="office-header">
       <div>
         <div class="ending-tag">
-          SALA DE JUICIO · TRIBUNAL DE EVALUACIÓN DE LA MISIÓN (EL GATO JEFE Y SUS 2 AYUDANTES)
+          ZENIT · SALA DE JUICIO · TRIBUNAL DE EVALUACIÓN DE LA MISIÓN (EL GATO JEFE Y SUS 2 AYUDANTES)
         </div>
         <h2 class="ending-title">{{ report.titulo_final }}</h2>
         <p class="ending-sub">{{ report.subtitulo_final }}</p>
       </div>
-      <div class="score-badge">
-        <div class="score-label">ÍNDICE GLOBAL</div>
-        <div class="score-num">{{ report.puntuacion_global }} / 100</div>
-      </div>
-    </div>
-
-    <!-- ======================================================================= -->
-    <!-- ACTO 1: ESCENA GRANDE NOVELA VISUAL - SALA DE JUICIO CON LOS 3 GATOS   -->
-    <!-- ======================================================================= -->
-    <div class="vn-tribunal-stage">
-      <!-- Fondo pixel-art grande separado de la Sala de Juicio -->
-      <img
-        src="/sprites/escenas/sala_juicio_tribunal.png"
-        alt="Sala de Juicio - Tribunal de Evaluación de la Misión"
-        class="tribunal-bg-img"
-      />
-      <div class="tribunal-vignette"></div>
-
-      <!-- Cinta superior de escena estilo debriefing -->
-      <div class="tribunal-top-hud">
-        <div>
-          <div class="thud-main">ZENIT · TRIBUNAL DE EVALUACIÓN DE LA MISIÓN</div>
-          <div class="thud-sub">FASE: EVALUACIÓN / RETORNO · COMITÉ DE LOS 3 GATOS</div>
-        </div>
+      <div class="header-right-tools">
         <div class="tribunal-tabs">
           <button
             class="trib-tab-btn"
@@ -131,41 +125,68 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
             <span>Ayudante 2: Ciencia/Tripulación</span>
           </button>
         </div>
+        <div class="score-badge">
+          <div class="score-label">ÍNDICE GLOBAL</div>
+          <div class="score-num">{{ report.puntuacion_global }} / 100</div>
+        </div>
       </div>
+    </div>
 
-      <!-- Globo de diálogo principal con el icono enmarcado de quien habla -->
-      <div class="tribunal-speech-zone">
-        <div class="tribunal-speech-bubble">
-          <div class="tspeech-speaker-bar">
-            <span class="tspeech-name">{{ currentTribunalSpeech.name }}</span>
-            <span class="tspeech-role">{{ currentTribunalSpeech.role }}</span>
-          </div>
+    <!-- ======================================================================= -->
+    <!-- ACTO 1: NOVELA VISUAL WIDESCREEN 16:9 - SALA DE JUICIO CON LOS 3 GATOS  -->
+    <!-- ======================================================================= -->
+    <div class="vn-tribunal-wrapper">
+      <div class="vn-tribunal-stage">
+        <img
+          src="/sprites/escenas/sala_juicio_tribunal_wide.jpg"
+          alt="Sala de Juicio - Tribunal de Evaluación de la Misión"
+          class="tribunal-bg-img"
+        />
+        <div class="tribunal-vignette"></div>
 
-          <div class="tspeech-body">
-            <div class="tspeech-portrait-box">
-              <img
-                :src="currentTribunalSpeech.icon"
-                :alt="currentTribunalSpeech.name"
-                class="tspeech-portrait-img"
-              />
-              <img :src="currentTribunalSpeech.mood" alt="Estado" class="tspeech-mood-icon" />
+        <!-- Ánimo flotante sobre el estrado del Gato Jefe -->
+        <div class="vn-tribunal-boss-mood">
+          <img :src="bossMoodSrc" alt="Ánimo del Gato Jefe" class="vn-mood-img" />
+        </div>
+
+        <!-- Globo de diálogo principal en zona superior derecha (estilo Novela Visual) -->
+        <div class="tribunal-speech-cluster">
+          <div class="tribunal-speech-bubble">
+            <div class="tspeech-tail"></div>
+            <div class="tspeech-speaker-bar">
+              <span class="tspeech-name">{{ currentTribunalSpeech.name }}</span>
+              <span class="tspeech-role">{{ currentTribunalSpeech.role }}</span>
             </div>
 
-            <div class="tspeech-copy">
-              <p class="serif-narrative boss-quote">{{ currentTribunalSpeech.text }}</p>
+            <div class="tspeech-body">
+              <div class="tspeech-portrait-box">
+                <img
+                  :src="currentTribunalSpeech.icon"
+                  :alt="currentTribunalSpeech.name"
+                  class="tspeech-portrait-img"
+                />
+                <img :src="currentTribunalSpeech.mood" alt="Estado" class="tspeech-mood-icon" />
+              </div>
 
-              <div v-if="report.monologo_cuarta_pared && activeSpeaker === 'jefe'" class="fourth-wall-box">
-                <div class="silence-banner">
-                  [SILENCIO TOTAL EN LA SALA DE JUICIO: {{ report.silencio_previo_segundos }} SEGUNDOS]
+              <div class="tspeech-copy">
+                <p class="serif-narrative boss-quote">{{ currentTribunalSpeech.text }}</p>
+
+                <div
+                  v-if="report.monologo_cuarta_pared && activeSpeaker === 'jefe'"
+                  class="fourth-wall-box"
+                >
+                  <div class="silence-banner">
+                    [SILENCIO TOTAL EN LA SALA DE JUICIO: {{ report.silencio_previo_segundos }} SEGUNDOS]
+                  </div>
+                  <p class="serif-narrative fourth-wall-text">{{ report.monologo_cuarta_pared }}</p>
                 </div>
-                <p class="serif-narrative fourth-wall-text">{{ report.monologo_cuarta_pared }}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Barra inferior Novela Visual: Opciones de consulta al Tribunal + Retrato del Capitán Perro -->
+      <!-- Dock inferior Novela Visual: Opciones ante el Tribunal + Retrato Capitán Perro -->
       <div class="tribunal-bottom-bar">
         <div class="tribunal-choices-box">
           <div class="tchoice-tag">CAPITÁN PERRO · RESPUESTAS ANTE EL TRIBUNAL</div>
@@ -190,28 +211,21 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
           >
             &gt; CONSULTAR EVALUACIÓN CIENTÍFICA Y HUMANA DEL ASESOR NEGRO (AYUDANTE 2)
           </button>
+          <button class="tchoice-line tchoice-restart" @click="emit('restart')">
+            &gt; CERRAR ACTA DE EVALUACIÓN Y PLANIFICAR NUEVA EXPEDICIÓN ESPACIAL ►
+          </button>
         </div>
 
         <div class="tribunal-player-card">
-          <img
-            :src="
-              report.puntuacion_global >= 65
-                ? '/sprites/elementos/Sol.png'
-                : report.puntuacion_global >= 40
-                  ? '/sprites/elementos/Nube.png'
-                  : '/sprites/elementos/Lluvia.png'
-            "
-            alt="Ánimo"
-            class="tplayer-sun"
-          />
-          <div class="tplayer-frame">
-            <img
-              src="/sprites/iconos/icono_captain_dog_casco.png"
-              alt="Captain Dog"
-              class="tplayer-img"
-            />
+          <div class="tplayer-sun-wrap">
+            <img :src="playerMoodSrc" alt="Ánimo" class="tplayer-sun" />
           </div>
-          <div class="tplayer-label">CAPTAIN DOG</div>
+          <img
+            src="/sprites/iconos/icono_captain_dog_casco.png"
+            alt="Capitán Perro"
+            class="tplayer-img"
+          />
+          <div class="tplayer-label">CAPITÁN PERRO [TÚ]</div>
         </div>
       </div>
     </div>
@@ -275,117 +289,51 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
 
 <style scoped>
 .boss-office-scene {
-  background: #141926;
-  border: 1px solid var(--mist);
+  background: var(--void-deep);
+  border: 1px solid var(--steel);
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
+
 .office-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
-  border-bottom: 1px solid var(--steel);
-  padding-bottom: 12px;
-}
-.ending-tag {
-  font-size: 11px;
-  color: var(--mist);
-  letter-spacing: 0.05em;
-}
-.ending-title {
-  color: var(--gold);
-  font-size: 22px;
-  margin-top: 4px;
-}
-.ending-sub {
-  color: var(--mist);
-  font-size: 13px;
-}
-.score-badge {
-  background: var(--void);
-  border: 1px solid var(--amber);
-  border-radius: 6px;
-  padding: 8px 14px;
-  text-align: right;
-}
-.score-label {
-  font-size: 10px;
-  color: var(--mist);
-}
-.score-num {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--amber);
-}
-
-/* ========================================================================= */
-/* ESCENA NOVELA VISUAL: SALA DE JUICIO / TRIBUNAL DE LOS 3 GATOS            */
-/* ========================================================================= */
-.vn-tribunal-stage {
-  position: relative;
-  min-height: 490px;
-  border: 2px solid var(--amber);
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: #0d101b;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
-}
-
-.tribunal-bg-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 22%;
-  image-rendering: pixelated;
-  z-index: 0;
-}
-
-.tribunal-vignette {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(8, 11, 20, 0.72) 0%,
-    rgba(8, 11, 20, 0.12) 38%,
-    rgba(8, 11, 20, 0.65) 72%,
-    rgba(8, 11, 20, 0.94) 100%
-  );
-  z-index: 1;
-}
-
-.tribunal-top-hud {
-  position: relative;
-  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px 16px;
-  background: rgba(8, 11, 20, 0.86);
-  border-bottom: 1px solid rgba(242, 209, 107, 0.45);
+  gap: 12px;
+  background: var(--cabin);
+  border: 1px solid var(--steel);
+  border-radius: 6px;
+  padding: 10px 14px;
 }
 
-.thud-main {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--bone);
-  letter-spacing: 0.06em;
-}
-
-.thud-sub {
+.ending-tag {
   font-size: 10px;
-  color: var(--amber);
+  color: var(--cyan);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.ending-title {
+  color: var(--gold);
+  font-size: 20px;
+  margin: 2px 0;
+}
+
+.ending-sub {
+  color: var(--mist);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.header-right-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .tribunal-tabs {
@@ -398,11 +346,11 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
+  padding: 5px 9px;
   font-size: 11px;
-  background: rgba(15, 21, 38, 0.9);
+  background: var(--void);
   border: 1px solid var(--steel);
-  border-radius: 5px;
+  border-radius: 4px;
   color: var(--mist);
   cursor: pointer;
 }
@@ -410,30 +358,128 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
 .trib-tab-btn.active {
   border-color: var(--gold);
   color: var(--gold);
-  background: rgba(245, 158, 11, 0.18);
+  background: rgba(245, 158, 11, 0.16);
 }
 
 .tab-mini-icon {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   image-rendering: pixelated;
   border-radius: 3px;
 }
 
-.tribunal-speech-zone {
+.score-badge {
+  background: var(--void);
+  border: 1px solid var(--amber);
+  border-radius: 5px;
+  padding: 6px 12px;
+  text-align: right;
+}
+
+.score-label {
+  font-size: 9px;
+  color: var(--mist);
+}
+
+.score-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ========================================================================= */
+/* ESCENA NOVELA VISUAL WIDESCREEN 16:9 - IDÉNTICA EN ESCALA A ETAPA 2       */
+/* ========================================================================= */
+.vn-tribunal-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vn-tribunal-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 360px;
+  max-height: 520px;
+  border: 2px solid var(--steel);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 14px;
+  background: #0d101b;
+}
+
+.tribunal-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  image-rendering: pixelated;
+  z-index: 0;
+}
+
+.tribunal-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(8, 11, 20, 0.08) 0%,
+    rgba(8, 11, 20, 0.2) 45%,
+    rgba(8, 11, 20, 0.45) 100%
+  );
+  z-index: 1;
+}
+
+.vn-tribunal-boss-mood {
+  position: absolute;
+  top: 12%;
+  left: 33%;
+  z-index: 2;
+  background: rgba(11, 14, 26, 0.9);
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  padding: 3px 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+}
+
+.vn-mood-img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  display: block;
+}
+
+.tribunal-speech-cluster {
   position: relative;
   z-index: 2;
-  padding: 14px 18px;
-  margin-top: auto;
+  align-self: flex-end;
+  width: min(62%, 640px);
+  max-height: calc(100% - 8px);
+  overflow-y: auto;
 }
 
 .tribunal-speech-bubble {
-  max-width: 820px;
-  background: rgba(8, 11, 20, 0.93);
-  border: 2px solid #d6c59a;
+  position: relative;
+  background: rgba(8, 11, 20, 0.94);
+  border: 2px solid var(--bone);
   border-radius: 6px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
-  overflow: hidden;
+}
+
+.tspeech-tail {
+  position: absolute;
+  left: -10px;
+  top: 28px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 10px solid var(--bone);
 }
 
 .tspeech-speaker-bar {
@@ -442,27 +488,27 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 12px;
-  background: rgba(27, 35, 64, 0.95);
-  border-bottom: 1px solid #d6c59a;
+  padding: 7px 12px;
+  background: rgba(27, 35, 64, 0.96);
+  border-bottom: 1px solid var(--bone);
 }
 
 .tspeech-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--gold);
   letter-spacing: 0.05em;
 }
 
 .tspeech-role {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--cyan);
 }
 
 .tspeech-body {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
   padding: 12px 14px;
 }
 
@@ -472,19 +518,20 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
 }
 
 .tspeech-portrait-img {
-  width: 74px;
-  height: 74px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
   image-rendering: pixelated;
   border-radius: 4px;
+  border: 1px solid var(--steel);
 }
 
 .tspeech-mood-icon {
   position: absolute;
   top: -8px;
   right: -8px;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   image-rendering: pixelated;
 }
 
@@ -493,15 +540,16 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
 }
 
 .boss-quote {
-  font-size: 15px;
+  font-size: 14.5px;
   color: var(--bone);
-  line-height: 1.55;
+  line-height: 1.52;
+  margin: 0;
 }
 
 .fourth-wall-box {
   margin-top: 10px;
   padding: 10px 12px;
-  background: rgba(229, 72, 77, 0.14);
+  background: rgba(229, 72, 77, 0.16);
   border: 1px solid var(--red);
   border-radius: 6px;
 }
@@ -517,29 +565,23 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   font-size: 14px;
   color: var(--bone);
   font-style: italic;
+  line-height: 1.5;
+  margin: 0;
 }
 
+/* DOCK INFERIOR ESTILO NOVELA VISUAL */
 .tribunal-bottom-bar {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: 1fr 140px;
-  gap: 12px;
-  align-items: end;
-  padding: 0 18px 14px;
-}
-
-@media (max-width: 760px) {
-  .tribunal-bottom-bar {
-    grid-template-columns: 1fr;
-  }
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  background: #080b14;
+  border: 2px solid var(--bone);
+  border-radius: 6px;
+  padding: 10px 12px;
 }
 
 .tribunal-choices-box {
-  background: rgba(8, 11, 20, 0.94);
-  border: 2px solid #d6c59a;
-  border-radius: 6px;
-  padding: 10px 12px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -548,75 +590,82 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
 .tchoice-tag {
   font-size: 10px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--amber);
   letter-spacing: 0.06em;
   margin-bottom: 2px;
 }
 
 .tchoice-line {
   text-align: left;
-  background: rgba(20, 27, 45, 0.85);
-  border: 1px solid rgba(138, 153, 173, 0.3);
+  background: rgba(27, 35, 64, 0.55);
+  border: 1px solid var(--steel);
   border-radius: 4px;
-  padding: 6px 10px;
+  padding: 7px 10px;
   color: var(--bone);
-  font-size: 11px;
+  font-size: 11.5px;
   font-family: var(--font-mono);
   cursor: pointer;
+  transition: border-color 0.14s, background-color 0.14s;
 }
 
 .tchoice-line:hover,
 .tchoice-line.selected {
-  border-color: var(--gold);
+  border-color: var(--amber);
   color: var(--gold);
-  background: rgba(245, 158, 11, 0.14);
+  background: rgba(255, 176, 0, 0.14);
+}
+
+.tchoice-restart {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  font-weight: 700;
 }
 
 .tribunal-player-card {
-  position: relative;
-  background: rgba(8, 11, 20, 0.94);
-  border: 2px solid #d6c59a;
-  border-radius: 6px;
+  width: 104px;
+  background: var(--cabin);
+  border: 2px solid var(--gold);
+  border-radius: 5px;
   padding: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tplayer-sun-wrap {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  background: var(--void);
+  border: 1px solid var(--amber);
+  border-radius: 50%;
+  padding: 2px;
 }
 
 .tplayer-sun {
-  position: absolute;
-  top: -12px;
-  right: -10px;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   image-rendering: pixelated;
-}
-
-.tplayer-frame {
-  width: 100%;
-  height: 92px;
-  background: #2c4a6f;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  display: block;
 }
 
 .tplayer-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 72px;
+  height: 72px;
   image-rendering: pixelated;
+  border-radius: 3px;
 }
 
 .tplayer-label {
-  margin-top: 5px;
-  font-size: 10px;
+  margin-top: 4px;
+  font-size: 8.5px;
   font-weight: 700;
-  color: var(--bone);
-  letter-spacing: 0.06em;
+  color: var(--gold);
+  text-align: center;
+  letter-spacing: 0.04em;
 }
 
 .section-heading {
@@ -624,17 +673,20 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   color: var(--amber);
   margin-bottom: 10px;
 }
+
 .dimensions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 10px;
 }
+
 .dim-card {
   background: var(--void);
   border: 1px solid var(--steel);
   border-radius: 5px;
   padding: 10px;
 }
+
 .dim-top {
   display: flex;
   justify-content: space-between;
@@ -642,12 +694,15 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   font-weight: 700;
   margin-bottom: 6px;
 }
+
 .dim-name {
   color: var(--bone);
 }
+
 .dim-score {
   color: var(--cyan);
 }
+
 .dim-bar {
   height: 5px;
   background: var(--steel);
@@ -655,34 +710,59 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   overflow: hidden;
   margin-bottom: 8px;
 }
+
 .dim-bar > div {
   height: 100%;
 }
+
 .dim-boss {
   font-size: 13px;
   color: var(--bone);
   margin-bottom: 4px;
 }
+
 .dim-tech {
   font-size: 10px;
   color: var(--mist);
 }
+
 .technical-dossier {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
+
 @media (max-width: 760px) {
+  .tribunal-speech-cluster {
+    width: 100%;
+  }
+
+  .tspeech-tail {
+    display: none;
+  }
+
+  .tribunal-bottom-bar {
+    flex-direction: column;
+  }
+
+  .tribunal-player-card {
+    width: 100%;
+    flex-direction: row;
+    gap: 10px;
+  }
+
   .technical-dossier {
     grid-template-columns: 1fr;
   }
 }
+
 .dossier-col {
   background: var(--void);
   border: 1px solid var(--steel);
   border-radius: 5px;
   padding: 12px;
 }
+
 .causal-list {
   padding-left: 16px;
   font-size: 11px;
@@ -691,6 +771,7 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   flex-direction: column;
   gap: 6px;
 }
+
 .closing-box {
   border-top: 1px solid var(--steel);
   padding-top: 14px;
@@ -700,18 +781,21 @@ const currentTribunalSpeech = computed(() => tribunalQuotes.value[activeSpeaker.
   flex-wrap: wrap;
   gap: 12px;
 }
+
 .closing-left {
   display: flex;
   align-items: center;
   gap: 12px;
   max-width: 760px;
 }
+
 .closing-icon {
   width: 52px;
   height: 52px;
   image-rendering: pixelated;
   flex-shrink: 0;
 }
+
 .closing-phrase {
   font-size: 16px;
   color: var(--gold);

@@ -59,11 +59,11 @@ interface FondoHabitacion {
 }
 const FONDOS_HABITACION: Record<string, FondoHabitacion> = {
   cabina_mando: { src: '/sprites/escenarios/nave/cabina_mando.jpg', ar: 1364 / 768, piso: 12 },
-  laboratorio: { src: '/sprites/escenarios/nave/laboratorio.jpg', ar: 1326 / 544, piso: 1 },
-  soporte_vital: { src: '/sprites/escenarios/nave/sala_soporte_vital.jpg', ar: 1227 / 544, piso: 1 },
+  laboratorio: { src: '/sprites/escenarios/nave/laboratorio.jpg', ar: 2.1, piso: 1 },
+  soporte_vital: { src: '/sprites/escenarios/nave/sala_soporte_vital.jpg', ar: 2.05, piso: 1 },
   sala_sistemas: {
     src: '/sprites/escenarios/nave/cabina_v2.png',
-    ar: 752 / 544,
+    ar: 1.65,
     piso: 2,
     ventana: true,
   },
@@ -207,11 +207,11 @@ function updatePhysicsLoop(): void {
   const right = keysHeld.has('ArrowRight') || keysHeld.has('d') || keysHeld.has('D')
 
   if (left && !right) {
-    playerX.value = Math.max(8, playerX.value - 0.62)
+    playerX.value = Math.max(8, playerX.value - 0.43)
     facingLeft.value = true
     isMoving.value = true
   } else if (right && !left) {
-    playerX.value = Math.min(92, playerX.value + 0.62)
+    playerX.value = Math.min(92, playerX.value + 0.43)
     facingLeft.value = false
     isMoving.value = true
   } else {
@@ -611,11 +611,11 @@ onUnmounted(() => {
       <!-- Barra de mando táctil / teclado -->
       <div class="stage-control-strip">
         <div class="dpad-group">
-          <button @click="stepWalk(-10)">◄ Izquierda [A]</button>
+          <button @click="stepWalk(-8)">◄ Izquierda [A]</button>
           <button class="btn-primary" @click="triggerInteractionE">
             [E] Interactuar / Abrir Compuerta
           </button>
-          <button @click="stepWalk(10)">Derecha [D] ►</button>
+          <button @click="stepWalk(8)">Derecha [D] ►</button>
           <button
             v-for="member in roomCrewMembers"
             :key="`talk-${member.id}`"
@@ -888,8 +888,9 @@ onUnmounted(() => {
 
 .scene-box {
   position: relative;
-  width: min(100%, calc(52vh * var(--ar, 2)));
-  aspect-ratio: var(--ar, 2);
+  width: 100%;
+  min-height: 340px;
+  aspect-ratio: var(--ar, 1.85);
   margin: 0 auto;
   overflow: hidden;
   background: #060810;
