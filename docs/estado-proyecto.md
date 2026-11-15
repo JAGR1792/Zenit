@@ -16,7 +16,7 @@
 - **Dificultad en negociación**: el selector de dificultad limita los escenarios disponibles (Cadete solo "Recorte de la Junta" y "Revisión de Costes") y muestra la dificultad activa; los bonos se multiplican según dificultad en el motor local. En difícil se ocultan las pistas de consecuencia.
 - **Cuarto escenario de negociación**: "Revisión de Costes y Redundancias" con 3 rondas sobre redundancia, masa viva y eficiencia integral (opciones con trade-offs menos obvias).
 - **Pistas pedagógicas**: cada opción de negociación muestra una línea de "Consecuencia posible" (sin revelar montos), que en modo difícil se oculta.
-- **Coherencia en el informe final**: detección de ineficiencias (motor criogénico excesivo en OTB, instrumentos sin especialista afín, robot comprado sin generar datos) y nuevo final "Final 1B — Éxito con Ineficiencias" con diálogo y recomendaciones específicas.
+- **Coherencia en el informe final**: detección de ineficiencias (motor criogénico excesivo en OTB, instrumentos sin especialista afín, robot comprado sin generar datos) y finales adicionales: "Final 1A — Héroe en Solitario", "Final 1B — Éxito con Ineficiencias" y "Final 2B — Éxito al Límite", con diálogos y recomendaciones específicas.
 - **Cubierta 2D con zonas RPG/novela visual** (`DestinationRooms2D.vue`):
   - Escenarios 100% de ancho completo (`min-height: 340px`, reemplazando `cabina_v2.png` por `sala_sistemas.jpg` panorámica `1331x544`), ventana con vista de Tierra/Luna y desplazamiento equilibrado del perro director (`0.43`/frame).
   - Ajuste de altura del piso (`--piso`): `1%` en `laboratorio`, `soporte_vital` y `sala_sistemas`, y `12%` en `cabina_mando`.
