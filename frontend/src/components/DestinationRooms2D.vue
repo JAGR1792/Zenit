@@ -45,6 +45,17 @@ const playerAnimation = computed<AnimacionSprite>(() => {
   return 'perro_idle'
 })
 
+// Fondos pixel art por habitación (carpeta public/sprites/escenarios/nave)
+const FONDOS_HABITACION: Record<string, string> = {
+  cabina_mando: '/sprites/escenarios/nave/cabina_mando.jpg',
+  laboratorio: '/sprites/escenarios/nave/laboratorio.jpg',
+  soporte_vital: '/sprites/escenarios/nave/sala_soporte_vital.jpg',
+  sala_sistemas: '/sprites/escenarios/nave/cabina_v2.jpg',
+}
+const fondoHabitacion = computed(() =>
+  currentRoom.value ? (FONDOS_HABITACION[currentRoom.value.id] ?? null) : null,
+)
+
 const nearLeftDoor = computed(() => playerX.value <= 20 && !!currentRoom.value?.puerta_izquierda)
 const nearRightDoor = computed(() => playerX.value >= 80 && !!currentRoom.value?.puerta_derecha)
 const nearCenterStation = computed(() => playerX.value >= 33 && playerX.value <= 67)
@@ -224,7 +235,14 @@ onUnmounted(() => {
     </div>
 
     <!-- 2. Escenario 2D Pixel Art amplio y despejado -->
-    <div class="pixel-stage-canvas">
+    <div class="pixel-stage-canvas" :class="{ 'con-fondo': !!fondoHabitacion }">
+      <img
+        v-if="fondoHabitacion"
+        :key="fondoHabitacion"
+        :src="fondoHabitacion"
+        alt=""
+        class="room-bg-img"
+      />
       <div
         class="backdrop-layer"
         :class="mission.destino === 'LUNA' ? 'dest-luna' : 'dest-otb'"
@@ -556,6 +574,7 @@ onUnmounted(() => {
 }
 
 .pixel-stage-canvas {
+  position: relative;
   background: var(--void-deep);
   border: 1px solid var(--steel);
   border-radius: 6px;
@@ -563,6 +582,38 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+.room-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center bottom;
+  image-rendering: pixelated;
+  z-index: 0;
+}
+
+.pixel-stage-canvas.con-fondo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 11, 20, 0.35), rgba(8, 11, 20, 0.15) 50%, rgba(8, 11, 20, 0.55));
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pixel-stage-canvas.con-fondo > .backdrop-layer,
+.pixel-stage-canvas.con-fondo > .deck-floor {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border-color: transparent;
+}
+
+.pixel-stage-canvas.con-fondo .observation-window {
+  display: none;
 }
 
 .backdrop-layer {

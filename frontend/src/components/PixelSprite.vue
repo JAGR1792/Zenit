@@ -107,9 +107,8 @@ const cacheEspecialistas: Record<
 let processedCatBossSheet: HTMLCanvasElement | null = null
 let assetsPromise: Promise<void> | null = null
 
-// GATO.jpeg es una hoja de 3 columnas x 2 filas del Gato Jefe en traje ejecutivo
-const CAT_BOSS_COLS = 3
-const CAT_BOSS_ROWS = 2
+// Sprite separado del Gato Jefe (ya recortado, sin hoja de celdas)
+const RUTA_GATO_JEFE = '/sprites/iconos/icono_gato_jefe.png'
 
 const rutaIconoAnimo = computed(() => {
   if (!props.animo) return null
@@ -177,7 +176,7 @@ function inicializarAssetsSprites(): Promise<void> {
     const [der, izq, catBoss] = await Promise.all([
       Promise.all(RUTAS_PERRO_DER.map(cargarImagen)),
       Promise.all(RUTAS_PERRO_IZQ.map(cargarImagen)),
-      cargarImagen('/sprites/GATO.jpeg'),
+      cargarImagen(RUTA_GATO_JEFE),
       ...promesasEspecialistas,
     ])
     framesPerroDer = der.filter((c): c is HTMLCanvasElement => c !== null)
@@ -251,49 +250,15 @@ function dibujarFrame(): void {
     }
   }
 
-  // 3. Gato Jefe (SIEMPRE y EXCLUSIVAMENTE el Jefe, desde GATO.jpeg 3x2)
+  // 3. Gato Jefe (SIEMPRE y EXCLUSIVAMENTE el Jefe): retrato separado y estable
+  //    /sprites/iconos/icono_gato_jefe.png (reemplaza la hoja GATO.jpeg que fallaba al recortar)
   if (!processedCatBossSheet) return
-  const row = props.animacion === 'gato_caminar' ? 0 : 1
-  const frames =
-    props.animacion === 'gato_caminar'
-      ? [0, 1, 2, 1]
-      : props.animacion === 'gato_hablar'
-        ? [0, 1, 2, 1]
-        : [0, 1]
-  const col = frames[frameIndex % frames.length]
-
-  const cellW = processedCatBossSheet.width / CAT_BOSS_COLS
-  const cellH = processedCatBossSheet.height / CAT_BOSS_ROWS
-  const sx = col * cellW
-  const sy = row * cellH
-
-  // Recorte con ligero margen interno para evitar bordes entre celdas
-  const padX = cellW * 0.04
-  const padY = cellH * 0.03
-  const srcW = cellW - padX * 2
-  const srcH = cellH - padY * 2
-  const scale = Math.min(canvas.width / srcW, (canvas.height - 4) / srcH)
-  const dw = Math.round(srcW * scale)
-  const dh = Math.round(srcH * scale)
-  const dx = Math.round((canvas.width - dw) / 2)
-  const dy = Math.round(canvas.height - dh)
-
   ctx.save()
   if (props.flipX) {
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
   }
-  ctx.drawImage(
-    processedCatBossSheet,
-    sx + padX,
-    sy + padY,
-    srcW,
-    srcH,
-    dx,
-    dy,
-    dw,
-    dh,
-  )
+  dibujarCanvasCentrado(ctx, canvas, processedCatBossSheet)
   ctx.restore()
 }
 

@@ -1091,6 +1091,13 @@ export function sendDecisionLocal(
     recalcularSubsistemasLocal(estado)
     resumen = `Acuerdo '${acuerdo.nombre}' firmado. Presupuesto global ajustado: ${nuevoInicial.toLocaleString()} USD.`
     estado.bitacora_decisiones.push(resumen)
+  } else if (decision === 'negociar_presupuesto') {
+    const bono = Math.max(0, Math.min(50000, Math.round(Number(params.bono_usd) || 0)))
+    estado.presupuesto_inicial_usd = round(estado.presupuesto_inicial_usd + bono, 2)
+    estado.presupuesto_restante_usd = round(estado.presupuesto_restante_usd + bono, 2)
+    recalcularSubsistemasLocal(estado)
+    resumen = `Negociación con el comité de gatos: +${bono.toLocaleString()} USD al presupuesto.`
+    estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'instalar_componente') {
     const compId = String(params.componente_id || '')
     const comp = catalogo[compId]
