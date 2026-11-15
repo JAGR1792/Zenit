@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import TypewriterText from '../components/TypewriterText.vue'
+import TutorialOverlay from '../components/TutorialOverlay.vue'
+import type { PasoTutorial } from '../components/TutorialOverlay.vue'
 import BossReportScene from '../components/BossReportScene.vue'
 import DestinationRooms2D from '../components/DestinationRooms2D.vue'
 import GameMainMenu from '../components/GameMainMenu.vue'
@@ -23,11 +25,15 @@ const statusMessage = ref<string>('Inicializando consola de misión Zenit...')
 const lastStatusType = ref<'allowed' | 'warning' | 'fail'>('allowed')
 const loading = ref<boolean>(false)
 
-// Menú de Inicio y Configuración de Dificultad (por defecto 'facil' para hacer más accesible la experiencia)
+// Menú de Inicio y control de decisiones explícitas sin preselecciones visibles
 const showMainMenu = ref<boolean>(true)
+const tutorialActivo = ref<boolean>(false)
+const pasosTutorial = ref<PasoTutorial[]>([])
 const selectedDifficulty = ref<DificultadId>('facil')
 const selectedInitialDest = ref<DestinoId>('OTB')
 const customMissionName = ref<string>('Expedición Zenit-1')
+const etapa1DestinoElegido = ref<boolean>(false)
+const etapa4TrayectoriaElegida = ref<boolean>(false)
 
 const difficultyOptions: Array<{
   id: DificultadId
@@ -38,9 +44,9 @@ const difficultyOptions: Array<{
 }> = [
   {
     id: 'facil',
-    title: 'Modo Cadete (Fácil · Recomendado)',
-    badge: '+FÁCIL / GUIADO',
-    desc: 'Ideal para aprender cómo funcionan los sistemas, recolectar ciencia y transmitir datos sin bloqueos frustrantes.',
+    title: 'Modo Cadete (Fácil)',
+    badge: 'ACCESIBLE',
+    desc: 'Ideal para familiarizarse con los sistemas, recolectar ciencia y transmitir datos con mayor margen.',
     perks: [
       '+35% de presupuesto financiero inicial (168.750 CZ en plan estándar)',
       'Capacidad del lanzador ampliada a 1.480 kg (+180 kg de margen)',
@@ -224,52 +230,6 @@ const currentStoryBeat = computed(() => {
   }
 })
 
-// Guía contextual paso a paso por etapa para que el jugador siempre entienda qué hacer
-const currentStageGuide = computed(() => {
-  if (!mission.value) return null
-  const st = mission.value.etapa_actual
-  if (st === 1) {
-    return {
-      objective: 'Elige tu destino espacial (OTB es más cercano y sencillo; Luna exige más Delta-v y antena potente).',
-      tip: 'Cuando estés listo, pulsa el botón ámbar "Avanzar a Etapa 2 ►" abajo a la derecha.',
-    }
-  }
-  if (st === 2) {
-    return {
-      objective: 'Negocia tu presupuesto en 3 rondas ante el Gato Jefe y sus 2 Ayudantes.',
-      tip: 'Tus argumentos pueden ampliar o recortar fondos según el escenario; al cerrar el acuerdo pasarás al Hangar.',
-    }
-  }
-  if (st === 3) {
-    return {
-      objective: 'Equipa tu nave y contrata hasta 3 perros especialistas (máximo 4 tripulantes contigo).',
-      tip: `Vigila que la Masa Total (${mission.value.masa_total_kg} kg) NO supere ${mission.value.masa_lanzamiento_max_kg} kg y asegúrate de llevar al menos 1 instrumento en la pestaña "🔬 Ciencia".`,
-    }
-  }
-  if (st === 4) {
-    return {
-      objective: 'Selecciona la trayectoria orbital hacia el destino.',
-      tip: `Verifica que tu Delta-v disponible (${mission.value.delta_v_disponible_ms} m/s) sea mayor o igual al requerido (${mission.value.delta_v_requerido_total_ms} m/s).`,
-    }
-  }
-  if (st === 5) {
-    return {
-      objective: 'Verificación en rampa de lanzamiento.',
-      tip: 'Pulsa "Avanzar a Etapa 6 ►" para encender motores. Si no superaste la masa máxima, entrarás en órbita.',
-    }
-  }
-  if (st === 6) {
-    return {
-      objective: 'Crucero de tránsito espacial hacia el destino.',
-      tip: 'Si aparece una alerta naranja arriba, elige una opción para resolverla (puedes usar la tripulación, batería o dinero) antes de avanzar.',
-    }
-  }
-  return {
-    objective: 'Operaciones en Destino: 1º Recolecta datos en el Laboratorio → 2º Transmítelos a Tierra con la Antena.',
-    tip: 'Puedes usar los botones numerados de abajo o caminar con [A/D] y pulsar [E] en las salas 2D de la izquierda.',
-  }
-})
-
 // Cambiar automáticamente al visor correspondiente según la etapa:
 // Etapa 2: Oficina de Planificación (negociación novela visual con los 3 gatos); solo en esta etapa
 // Etapas 1 y 3-5: Hangar en Tierra (Esquemático de Nave y Perros)
@@ -308,9 +268,47 @@ async function handleMenuStart(payload: {
   await startNewMission(true)
 }
 
+function iniciarTutorial(): void {
+  pasosTutorial.value = [
+    {
+      selector: '[data-tutorial="timeline"]',
+      titulo: 'Progreso de la misión',
+      descripcion:
+        'Aquí ves las 10 etapas. Avanza solo cuando completes la actual; un Delta-v bajo o masa excesiva puede bloquear el despegue.',
+    },
+    {
+      selector: '[data-tutorial="telemetry"]',
+      titulo: 'Telemetría clave',
+      descripcion:
+        'Vigila presupuesto (CZ), masa (máx. 1.300 kg), Delta-v (debe alcanzar el destino) y datos transmitidos. Mucha masa reduce el Delta-v disponible.',
+    },
+    {
+      selector: '[data-tutorial="viewport"]',
+      titulo: 'Visor principal',
+      descripcion:
+        'Cambia entre Oficina (negociación), Hangar (diseño), Cubierta 2D (operaciones) y Variables. Cada uno muestra un aspecto del sistema.',
+    },
+    {
+      selector: '[data-tutorial="story"]',
+      titulo: 'Crónica de la trama',
+      descripcion:
+        'Contexto narrativo de la misión Helios-9. No afecta números, pero orienta las decisiones.',
+    },
+    {
+      selector: '[data-tutorial="deltabar"]',
+      titulo: 'Bitácora e impacto',
+      descripcion:
+        'Muestra el último mensaje y los cambios (Δ) en variables. Un buen Delta-v y margen de masa ayudan a un final exitoso.',
+    },
+  ]
+  tutorialActivo.value = true
+}
+
 async function startNewMission(fromMenu = false): Promise<void> {
   loading.value = true
   finalReport.value = null
+  etapa1DestinoElegido.value = false
+  etapa4TrayectoriaElegida.value = false
   try {
     if (!catalog.value) {
       catalog.value = await zenitApi.getCatalog()
@@ -326,7 +324,7 @@ async function startNewMission(fromMenu = false): Promise<void> {
     if (fromMenu) {
       showMainMenu.value = false
     }
-    statusMessage.value = `Misión iniciada en dificultad ${selectedDifficulty.value.toUpperCase()}. Sigue la guía paso a paso del panel derecho.`
+    statusMessage.value = `Misión iniciada en dificultad ${selectedDifficulty.value.toUpperCase()}.`
     lastStatusType.value = 'allowed'
   } catch (err) {
     statusMessage.value = `Error al conectar con el backend: ${(err as Error).message}`
@@ -427,6 +425,9 @@ onMounted(async () => {
         <button class="menu-trigger-btn" @click="showMainMenu = true">
           ☰ MENÚ / DIFICULTAD
         </button>
+        <button v-if="mission" class="menu-trigger-btn" @click="iniciarTutorial">
+          AYUDA / TUTORIAL
+        </button>
         <span class="brand-mark">ZENIT</span>
         <div class="brand-titles">
           <span class="brand-main">
@@ -438,7 +439,7 @@ onMounted(async () => {
       </div>
 
       <!-- Línea de tiempo de las 10 etapas -->
-      <nav v-if="mission" class="timeline-10" aria-label="Progreso de etapas de la misión">
+      <nav v-if="mission" class="timeline-10" data-tutorial="timeline" aria-label="Progreso de etapas de la misión">
         <div
           v-for="step in 10"
           :key="step"
@@ -454,7 +455,7 @@ onMounted(async () => {
       </nav>
 
       <!-- Telemetría clave en tiempo real -->
-      <div v-if="mission" class="telemetry-pills">
+      <div v-if="mission" class="telemetry-pills" data-tutorial="telemetry">
         <div class="tpill">
           <span class="tpill-label">CRÉDITOS ZENIT</span>
           <strong class="tpill-val" style="color: var(--gold)">
@@ -506,9 +507,9 @@ onMounted(async () => {
       :class="{ 'full-vn-focus': isFullStageVn }"
     >
       <!-- PANEL IZQUIERDO (58%): VISOR INTERACTIVO MULTIMODO + CHIPS DE IMPACTO -->
-      <section class="left-viewport-column">
+      <section class="left-viewport-column" data-tutorial="viewport">
         <!-- Conmutador de Vista Principal -->
-        <div class="viewport-switcher">
+        <div class="viewport-switcher" data-tutorial="viewport">
           <button
             v-if="mission.etapa_actual === 2"
             class="vtab-btn"
@@ -651,6 +652,7 @@ onMounted(async () => {
         <!-- Barra inferior del visor: Bitácora + Chips instantáneos de Variables Afectadas (Δ) -->
         <div
           class="live-delta-bar"
+          data-tutorial="deltabar"
           :class="{
             'bar-ok': lastStatusType === 'allowed',
             'bar-warn': lastStatusType === 'warning',
@@ -681,7 +683,7 @@ onMounted(async () => {
       <aside v-if="!isFullStageVn" class="right-command-column">
         <div class="command-scroll-area">
           <!-- CRÓNICA NARRATIVA DE LA TRAMA (solo cuando no estorba al visor 2D RPG) -->
-          <div v-if="!showMainMenu && currentStoryBeat && activeViewportTab !== 'rooms2d'" class="story-chapter-box">
+          <div v-if="!showMainMenu && currentStoryBeat && activeViewportTab !== 'rooms2d'" class="story-chapter-box" data-tutorial="story">
             <div class="story-head">
               <span class="story-chapter-tag">{{ currentStoryBeat.chapter }}</span>
               <span class="story-speaker">{{ currentStoryBeat.speaker }}</span>
@@ -696,16 +698,6 @@ onMounted(async () => {
                 <TypewriterText :text="currentStoryBeat.quote" :key="`story-${mission?.etapa_actual}-${mission?.destino}`" skip-hint="(clic para saltar)" />
               </p>
             </div>
-          </div>
-
-          <!-- GUÍA CONTEXTUAL PASO A PASO DE LA ETAPA ACTUAL -->
-          <div v-if="currentStageGuide" class="stage-guide-banner">
-            <div class="guide-banner-head">
-              <span class="guide-badge">🧭 QUÉ HACER EN ESTA ETAPA</span>
-              <span class="guide-stage-num">ETAPA {{ mission.etapa_actual }} / 10</span>
-            </div>
-            <p class="guide-objective">{{ currentStageGuide.objective }}</p>
-            <p class="guide-tip">{{ currentStageGuide.tip }}</p>
           </div>
 
           <!-- ALERTAS Y EVENTOS ACTIVOS CON ICONO DE QUIÉN TOMA LA DECISIÓN (CAPTAIN DOG) -->
@@ -779,8 +771,11 @@ onMounted(async () => {
                 v-for="dest in catalog.destinos"
                 :key="dest.id"
                 class="option-tile"
-                :class="{ selected: mission.destino === dest.id }"
-                @click="executeDecision('seleccionar_destino', { destino: dest.id })"
+                :class="{ selected: etapa1DestinoElegido && mission.destino === dest.id }"
+                @click="
+                  etapa1DestinoElegido = true;
+                  executeDecision('seleccionar_destino', { destino: dest.id })
+                "
               >
                 <div class="option-tile-head">
                   <span class="option-name">{{ dest.nombre }}</span>
@@ -1030,8 +1025,9 @@ onMounted(async () => {
             <div class="option-list">
               <div
                 class="option-tile"
-                :class="{ selected: mission.perfil_trayectoria === 'estandar' }"
+                :class="{ selected: etapa4TrayectoriaElegida && mission.perfil_trayectoria === 'estandar' }"
                 @click="
+                  etapa4TrayectoriaElegida = true;
                   executeDecision('configurar_trayectoria', {
                     perfil_trayectoria: 'estandar',
                     ventana_lanzamiento: mission.ventana_lanzamiento,
@@ -1050,8 +1046,9 @@ onMounted(async () => {
 
               <div
                 class="option-tile"
-                :class="{ selected: mission.perfil_trayectoria === 'rapida' }"
+                :class="{ selected: etapa4TrayectoriaElegida && mission.perfil_trayectoria === 'rapida' }"
                 @click="
+                  etapa4TrayectoriaElegida = true;
                   executeDecision('configurar_trayectoria', {
                     perfil_trayectoria: 'rapida',
                     ventana_lanzamiento: mission.ventana_lanzamiento,
@@ -1210,13 +1207,21 @@ onMounted(async () => {
           </div>
           <button
             class="btn-primary advance-cta-btn"
-            :disabled="loading"
+            :disabled="
+              loading ||
+              (mission.etapa_actual === 1 && !etapa1DestinoElegido) ||
+              (mission.etapa_actual === 4 && !etapa4TrayectoriaElegida)
+            "
             @click="advanceStage"
           >
             {{
-              mission.etapa_actual < 9
-                ? `Avanzar a Etapa ${mission.etapa_actual + 1} ►`
-                : 'Ejecutar Retorno e Informe con el Gato Jefe ►'
+              mission.etapa_actual === 1 && !etapa1DestinoElegido
+                ? 'Selecciona un destino para continuar'
+                : mission.etapa_actual === 4 && !etapa4TrayectoriaElegida
+                  ? 'Selecciona una trayectoria para continuar'
+                  : mission.etapa_actual < 9
+                    ? `Avanzar a Etapa ${mission.etapa_actual + 1} ►`
+                    : 'Ejecutar Retorno e Informe con el Gato Jefe ►'
             }}
           </button>
         </footer>
@@ -1236,6 +1241,13 @@ onMounted(async () => {
         </div>
       </div>
     </main>
+
+    <TutorialOverlay
+      :pasos="pasosTutorial"
+      :activo="tutorialActivo"
+      @finish="tutorialActivo = false"
+      @skip="tutorialActivo = false"
+    />
   </div>
 </template>
 
@@ -1645,48 +1657,6 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--bone);
   line-height: 1.5;
-}
-
-/* BANNER DE GUÍA DE ETAPA */
-.stage-guide-banner {
-  background: rgba(79, 209, 197, 0.09);
-  border: 1px solid var(--cyan);
-  border-left: 4px solid var(--amber);
-  border-radius: 6px;
-  padding: 9px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.guide-banner-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.guide-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--amber);
-  letter-spacing: 0.05em;
-}
-
-.guide-stage-num {
-  font-size: 10px;
-  color: var(--cyan);
-  font-weight: 700;
-}
-
-.guide-objective {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--bone);
-}
-
-.guide-tip {
-  font-size: 11px;
-  color: var(--mist);
 }
 
 .design-readiness-strip {
