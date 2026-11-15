@@ -62,7 +62,9 @@ def crear_nueva_mision(req: CrearMisionRequest) -> EstadoMision:
         if req.dificultad == DificultadId.FACIL
         else (0.90 if req.dificultad == DificultadId.DIFICIL else 1.0)
     )
-    presupuesto_inicial = round(float(acuerdo["presupuesto_usd"]) * factor_presupuesto, 0)
+    presupuesto_inicial = round(
+        float(acuerdo["presupuesto_usd"]) * factor_presupuesto, 0
+    )
     masa_max_lanzador = (
         1480.0
         if req.dificultad == DificultadId.FACIL

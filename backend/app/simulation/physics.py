@@ -323,9 +323,15 @@ def recalcular_subsistemas_mision(estado: EstadoMision) -> EstadoMision:
     estado.ventanas_comm_por_dia = ventanas
     if estado.etapa_actual <= 4:
         bonus_ventanas = 3 if estado.dificultad == DificultadId.FACIL else 0
-        estado.ventanas_comm_restantes = ventanas * max(1, estado.dias_en_destino) + bonus_ventanas
+        estado.ventanas_comm_restantes = (
+            ventanas * max(1, estado.dias_en_destino) + bonus_ventanas
+        )
     estado.probabilidad_enlace_comm = round(
-        min(0.99, prob_enlace * rend_antena + (0.08 if estado.dificultad == DificultadId.FACIL else 0.0)),
+        min(
+            0.99,
+            prob_enlace * rend_antena
+            + (0.08 if estado.dificultad == DificultadId.FACIL else 0.0),
+        ),
         2,
     )
     estado.tiene_robot_autonomo = tiene_robot

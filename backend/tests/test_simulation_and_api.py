@@ -286,4 +286,3 @@ def test_modo_facil_otorga_margen_presupuesto_e_instrumento_inicial() -> None:
     assert res_tx is not None
     assert res_tx.allowed is True
     assert res_tx.mission_state.ventanas_comm_restantes == ventanas_antes
-
