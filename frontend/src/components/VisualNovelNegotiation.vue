@@ -16,7 +16,7 @@ const emit = defineEmits<{
   (e: 'finishNegotiation'): void
 }>()
 
-type EscenarioId = 'recorte_junta' | 'crisis_helios' | 'auditoria_hangar'
+type EscenarioId = 'recorte_junta' | 'crisis_helios' | 'auditoria_hangar' | 'revision_costes'
 type OradorId = 'jefe' | 'blanca' | 'negro'
 type AnimoId = 'sol' | 'nube' | 'lluvia'
 
@@ -87,7 +87,7 @@ function escenarioInicialPorMision(mission: EstadoMision): EscenarioId {
   const suma = mission.id
     .split('')
     .reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
-  const lista: EscenarioId[] = ['recorte_junta', 'crisis_helios', 'auditoria_hangar']
+  const lista: EscenarioId[] = ['recorte_junta', 'crisis_helios', 'auditoria_hangar', 'revision_costes']
   if (mission.destino === 'LUNA' && suma % 3 === 0) return 'crisis_helios'
   return lista[suma % lista.length]
 }
@@ -635,6 +635,185 @@ const scenarios = computed<Record<EscenarioId, EscenarioNegociacion>>(() => {
         },
       ],
     },
+
+    revision_costes: {
+      id: 'revision_costes',
+      tituloCorto: 'Revisión de Costes y Redundancias',
+      subtituloEscena: 'SALA DE AUDITORÍA DE COSTES · CADA PARTIDA A EXAMEN',
+      fondoSrc: '/sprites/escenas/negociacion_auditoria_hangar.jpg',
+      rondas: [
+        {
+          numero: 1,
+          tituloRonda: 'RONDA 1 DE 3 · REDUNDANCIA O SOBRECAPACIDAD',
+          orador: 'blanca',
+          nombreOrador: 'AUDITORA BLANCA · FINANZAS',
+          iconoOrador: ICONS.blanca,
+          dialogoInicial:
+            '«Tu presupuesto inicial ya incluye redundancias de fábrica. ¿Cuáles son realmente necesarias para llegar a ' +
+            destNombre +
+            ' y cuáles son margen que podrías devolver sin arriesgar el vuelo?»',
+          opciones: [
+            {
+              id: 'rc_r1_redundancia_total',
+              texto:
+                '«Mantendremos dos sistemas redundantes de cada subsistema crítico, aunque eso dispare la masa y el coste; preferimos la certeza operativa.»',
+              argumentoCorto: 'Redundancia total a costa de masa y presupuesto',
+              bonoUsd: -12000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«La redundancia absoluta es cara y pesada. Acepto el gasto, pero tu margen de maniobra se reduce: recorta en otro lado.»',
+            },
+            {
+              id: 'rc_r1_analisis_riesgo',
+              texto:
+                '«Clasificaremos los subsistemas por criticidad: solo los vitales para el retorno tendrán redundancia; el resto operará con monitoreo continuo.»',
+              argumentoCorto: 'Análisis de riesgo por criticidad',
+              bonoUsd: 22000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Eso es ingeniería de sistemas de verdad: redundar lo que no se puede perder y vigilar lo demás. Desbloqueo fondos.»',
+            },
+            {
+              id: 'rc_r1_cero_redundancia',
+              texto:
+                '«Eliminaremos todas las redundancias para ahorrar masa y dinero; la tripulación sabrá improvisar ante cualquier fallo.»',
+              argumentoCorto: 'Eliminación total de redundancias',
+              bonoUsd: -24000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'lluvia',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Sin redundancia en un vuelo tripulado, un solo fallo menor se convierte en emergencia. El Comité recorta tu partida de seguridad.»',
+            },
+          ],
+        },
+        {
+          numero: 2,
+          tituloRonda: 'RONDA 2 DE 3 · MARGEN DE MASA Y COSTE POR KILOGRAMO',
+          orador: 'negro',
+          nombreOrador: 'ASESOR NEGRO · TELEMETRÍA',
+          iconoOrador: ICONS.negro,
+          dialogoInicial:
+            '«Cada kilogramo que sube al lanzador cuesta dinero y Delta-v. ¿Qué harás con la masa muerta de experimentos y estructura que no aportan al objetivo Helios-9?»',
+          opciones: [
+            {
+              id: 'rc_r2_masa_viva',
+              texto:
+                '«Aplicaremos una regla de masa viva: si un componente no contribuye directamente a la ciencia o al retorno, se sustituye por uno más ligero aunque cueste más.»',
+              argumentoCorto: 'Regla de masa viva y sustitución ligera',
+              bonoUsd: 20000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Correcto: la masa muerta se paga dos veces, en el lanzador y en el Delta-v. Respaldo fondos para materiales ligeros.»',
+            },
+            {
+              id: 'rc_r2_exceso_instrumental',
+              texto:
+                '«Llevaremos todos los instrumentos disponibles para maximizar la cosecha científica, aunque la masa se acerque al límite del lanzador.»',
+              argumentoCorto: 'Máxima carga instrumental sin margen de masa',
+              bonoUsd: -16000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Si la masa supera el límite, no despega nada. Un plan de carga sin margen es un billete de ida al fracaso. Recorto la partida.»',
+            },
+            {
+              id: 'rc_r2_solo_base',
+              texto:
+                '«Nos quedaremos con los instrumentos ya instalados y no compraremos nada más; así garantizamos masa y coste mínimos.»',
+              argumentoCorto: 'Carga científica mínima',
+              bonoUsd: 8000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'nube',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'blanca',
+              respuestaNombre: 'AUDITORA BLANCA · FINANZAS',
+              respuestaIcono: ICONS.blanca,
+              respuestaTexto:
+                '«Ahorras, sí, pero también reduces la meta científica del acuerdo. Te doy un refuerzo pequeño, condicionado a resultados.»',
+            },
+          ],
+        },
+        {
+          numero: 3,
+          tituloRonda: 'RONDA 3 DE 3 · CIERRE DE EFICIENCIA',
+          orador: 'jefe',
+          nombreOrador: 'GATO JEFE · COMISIONADO VANCE',
+          iconoOrador: ICONS.jefe,
+          dialogoInicial:
+            '«Última pregunta, Capitán. Si todo sale bien y vuelves con la ciencia completa, ¿qué justifica haber gastado más de lo imprescindible en esta misión?»',
+          opciones: [
+            {
+              id: 'rc_r3_margen_legado',
+              texto:
+                '«El margen extra no es derroche: es lo que permite absorber una tormenta solar o una avería sin perder la tripulación ni los datos.»',
+              argumentoCorto: 'Margen como seguro de misión',
+              bonoUsd: 18000,
+              acuerdoSugerido: 'estandar',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Justificado. Un margen bien empleado es un activo, no un gasto. Cierro la negociación con respaldo adicional.»',
+            },
+            {
+              id: 'rc_r3_puro_ahorro',
+              texto:
+                '«No justifico nada: mi único criterio fue gastar lo mínimo posible, aunque eso estrechara todos los márgenes.»',
+              argumentoCorto: 'Ahorro como único criterio',
+              bonoUsd: -20000,
+              acuerdoSugerido: 'austero',
+              efectoAnimoJefe: 'lluvia',
+              efectoAnimoJugador: 'nube',
+              respuestaOrador: 'jefe',
+              respuestaNombre: 'GATO JEFE · COMISIONADO VANCE',
+              respuestaIcono: ICONS.jefe,
+              respuestaTexto:
+                '«Ahorrar sin criterio técnico no es eficiencia, es temeridad. El Comité te aplica una penalización y te manda al Hangar.»',
+            },
+            {
+              id: 'rc_r3_eficiencia_verde',
+              texto:
+                '«Eficiencia no es solo coste: es hacer más ciencia por kilogramo y por crédito, manteniendo reservas para lo imprevisto.»',
+              argumentoCorto: 'Eficiencia integral ciencia-masa-coste',
+              bonoUsd: 24000,
+              acuerdoSugerido: 'ambicioso',
+              efectoAnimoJefe: 'sol',
+              efectoAnimoJugador: 'sol',
+              respuestaOrador: 'negro',
+              respuestaNombre: 'ASESOR NEGRO · TELEMETRÍA',
+              respuestaIcono: ICONS.negro,
+              respuestaTexto:
+                '«Exacto: ciencia por kilogramo y por crédito. Esa es la métrica que usa la Agencia para aprobar futuras misiones.»',
+            },
+          ],
+        },
+      ],
+    },
   }
 })
 
@@ -652,8 +831,8 @@ function speakerPortraitFor(orador: OradorId): string {
 }
 
 const escenariosPermitidos = computed<EscenarioId[]>(() => {
-  if (props.mission.dificultad === 'facil') return ['recorte_junta']
-  return ['recorte_junta', 'crisis_helios', 'auditoria_hangar']
+  if (props.mission.dificultad === 'facil') return ['recorte_junta', 'revision_costes']
+  return ['recorte_junta', 'crisis_helios', 'auditoria_hangar', 'revision_costes']
 })
 
 function selectScenario(id: EscenarioId): void {
@@ -661,6 +840,13 @@ function selectScenario(id: EscenarioId): void {
   if (!escenariosPermitidos.value.includes(id)) return
   selectedScenarioId.value = id
   if (!ES_TEST_VN) dialogueReady.value = false
+}
+
+function pistaPara(opt: OpcionDialogo): string {
+  if (opt.bonoUsd >= 0) {
+    return 'Consecuencia posible: mejora la financiación, pero puede consumir margen de masa, energía o reservas.'
+  }
+  return 'Consecuencia posible: recorta fondos o reservas; verifica que no afecte el retorno ni la seguridad.'
 }
 
 function reproducirReaccion(agradable: boolean): void {
@@ -858,7 +1044,12 @@ function selectDialogueOption(opt: OpcionDialogo): void {
               @click="selectDialogueOption(opt)"
             >
               <span class="vn-choice-arrow">&gt;</span>
-              <span class="vn-choice-text">{{ opt.texto }}</span>
+              <span class="vn-choice-text">
+                {{ opt.texto }}
+                <small v-if="mission.dificultad !== 'dificil'" class="vn-choice-hint">
+                  {{ pistaPara(opt) }}
+                </small>
+              </span>
             </button>
           </div>
           <div v-else class="vn-typing-wait">
@@ -1238,6 +1429,14 @@ function selectDialogueOption(opt: OpcionDialogo): void {
 
 .vn-choice-text {
   flex: 1;
+}
+
+.vn-choice-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 9.5px;
+  color: var(--mist);
+  font-style: italic;
 }
 
 .vn-completed-actions {

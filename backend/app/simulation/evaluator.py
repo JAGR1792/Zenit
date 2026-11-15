@@ -38,6 +38,35 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
     fue_en_solitario = len(especialistas) == 0
     nombres_especialistas = ", ".join(t.nombre for t in especialistas)
 
+    # Ineficiencias de diseño (para coherencia y finales ramificados)
+    from app.repositories.seed import COMPONENTES_CATALOGO
+
+    catalogo = {c.id: c for c in COMPONENTES_CATALOGO}
+    motor_id = None
+    tiene_robot = getattr(estado, "tiene_robot_autonomo", False)
+    for cid in estado.componentes_instalados:
+        comp = catalogo.get(cid)
+        if comp and comp.categoria == "motor":
+            motor_id = cid
+    instrumentos_instalados = [
+        catalogo[cid]
+        for cid in estado.componentes_instalados
+        if catalogo.get(cid) and catalogo[cid].categoria in ("instrumento", "robot")
+    ]
+    especialidades_trip = {t.especialidad for t in estado.tripulacion}
+    instrumento_sin_especialista = any(
+        c.especialidad_requerida and c.especialidad_requerida not in especialidades_trip
+        for c in instrumentos_instalados
+    )
+    motor_excesivo = (
+        estado.destino.value == "OTB" and motor_id == "motor_crio_avanzado"
+    ) or (
+        estado.destino.value == "OTB" and motor_id == "motor_biprop_estandar"
+        and estado.delta_v_requerido_total_ms < 2200
+    )
+    robot_sin_uso = tiene_robot and estado.datos_generados_gb <= 0.2
+    ineficiente = motor_excesivo or instrumento_sin_especialista or robot_sin_uso
+
     sin_retorno = "sin_deltav_retorno" in estado.banderas_penalizacion_diferida
     fallo_temprano = estado.estado_juego in ("fallo_inmediato", "perdida_mision")
     hubo_bajas = (len(vivos) < total_crew) or sin_retorno or fallo_temprano
@@ -208,7 +237,7 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             "«Sobrevivir a un vuelo al límite enseña más que diez simulaciones en tierra. "
             "Para la próxima misión, equilibra mejor tu dotación y tus reservas de energía.»"
         )
-    elif score_ciencia >= 70.0 and score_datos >= 65.0:
+    elif score_ciencia >= 70.0 and score_datos >= 65.0 and not ineficiente:
         final_id = "exito_cientifico_pleno"
         numero_final = 1
         titulo_final = "Final 1 — Éxito Científico Pleno"
@@ -232,6 +261,43 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         frase_despedida = (
             "«Así se escribe la historia aeroespacial del Programa Zenit: leyendo cada ficha técnica y ejecutando "
             "cada ventana de transmisión con precisión quirúrgica. Enhorabuena, Director.»"
+        )
+    elif score_ciencia >= 70.0 and score_datos >= 65.0 and ineficiente:
+        final_id = "exito_ineficiente"
+        numero_final = 1
+        titulo_final = "Final 1B — Éxito con Ineficiencias"
+        subtitulo_final = (
+            "Objetivos científicos cumplidos, pero con decisiones de diseño o gestión que costaron más de lo necesario."
+        )
+        motivos = []
+        if motor_excesivo:
+            motivos.append(
+                "llevaste un motor de mayor Isp y coste del necesario para el destino (un motor más económico hubiera bastado)"
+            )
+        if instrumento_sin_especialista:
+            motivos.append(
+                "instalaste instrumentos sin contratar al especialista afín, reduciendo su rendimiento"
+            )
+        if robot_sin_uso:
+            motivos.append(
+                "compraste el robot autónomo pero no generó datos científicos"
+            )
+        detalle = "; ".join(motivos) if motivos else "hubo márgenes de diseño por encima de lo requerido"
+        if fue_en_solitario:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance sonríe con aprobación pero frunce el ceño al revisar la ficha de diseño: "
+                f"«Cumpliste la meta científica en {nombre_destino_corto} volando en solitario, Director, pero {detalle}. "
+                f"{diagnostico_ciencia_narrativo}»"
+            )
+        else:
+            dialogo_apertura = (
+                "El Comisionado Félix Vance sonríe con aprobación pero frunce el ceño al revisar la ficha de diseño: "
+                f"«Buen trabajo de equipo en {nombre_destino_corto}, pero {detalle}. "
+                f"{diagnostico_ciencia_narrativo}»"
+            )
+        frase_despedida = (
+            "«Cumplir la misión es el primer paso; optimizar masa, energía y coste es lo que distingue a un director excelente. "
+            "Revisa las fichas técnicas antes de la próxima expedición.»"
         )
     else:
         final_id = "supervivencia_mision_parcial"
@@ -384,6 +450,18 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
     # Construir trazabilidad causal y recomendaciones pedagógicas específicas
     trazabilidad: list[str] = list(estado.bitacora_decisiones[-7:])
     recomendaciones: list[str] = []
+    if motor_excesivo:
+        recomendaciones.append(
+            "El motor criogénico LH2/LOX da más Delta-v del necesario para OTB: en misiones cercanas, un motor de menor Isp y coste (MMH/MON-3 o hidracina) habría liberado presupuesto y masa."
+        )
+    if robot_sin_uso:
+        recomendaciones.append(
+            "Compraste el robot autónomo pero no generó datos científicos: si no planeas operarlo en el destino, su masa y coste no aportaron al objetivo Helios-9."
+        )
+    if instrumento_sin_especialista:
+        recomendaciones.append(
+            "Había instrumentos instalados sin el especialista afín a bordo: su rendimiento científico y de calidad quedó por debajo de lo óptimo."
+        )
     if fue_en_solitario:
         recomendaciones.append(
             "Contratar al menos 1 o 2 especialistas en la Etapa 3 (pestaña '🐶 2. Tripulación'): evitas el debuff de aislamiento en solitario y multiplicas los puntos de ciencia y reparación."
