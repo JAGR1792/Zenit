@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import type { EstadoMision } from '../services/api'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import type { EstadoMision, TripulanteEstado } from '../services/api'
 import PixelSprite, {
   obtenerSpriteTripulante,
   type AnimacionSprite,
@@ -22,11 +22,15 @@ const facingLeft = ref<boolean>(false)
 const isMoving = ref<boolean>(false)
 const isInteracting = ref<boolean>(false)
 const actionFeedback = ref<string>(
-  'Desplázate con [←/→] o [A/D] · Pulsa [E] frente a compuertas o consolas.',
+  'Desplázate con [←/→] o [A/D] · Pulsa [E] frente a compuertas, tripulantes o consolas.',
 )
 
-// Posiciones fijas (estáticas) para los tripulantes en la sala
-const POSICIONES_ESTATICAS_TRIPULACION = [32, 68, 24]
+// Estado de la zona RPG / Novela Visual dentro de la nave
+const activeDialogueMember = ref<TripulanteEstado | null>(null)
+const dialogueMode = ref<'saludo' | 'diagnostico'>('saludo')
+
+// Posiciones fijas (estáticas) para los tripulantes en la sala, separadas de puertas y consola
+const POSICIONES_ESTATICAS_TRIPULACION = [26, 74, 19]
 
 const keysHeld = new Set<string>()
 let rafId: number | null = null
@@ -55,12 +59,12 @@ interface FondoHabitacion {
 }
 const FONDOS_HABITACION: Record<string, FondoHabitacion> = {
   cabina_mando: { src: '/sprites/escenarios/nave/cabina_mando.jpg', ar: 1364 / 768, piso: 12 },
-  laboratorio: { src: '/sprites/escenarios/nave/laboratorio.jpg', ar: 1326 / 544, piso: 5 },
-  soporte_vital: { src: '/sprites/escenarios/nave/sala_soporte_vital.jpg', ar: 1227 / 544, piso: 5 },
+  laboratorio: { src: '/sprites/escenarios/nave/laboratorio.jpg', ar: 1326 / 544, piso: 1 },
+  soporte_vital: { src: '/sprites/escenarios/nave/sala_soporte_vital.jpg', ar: 1227 / 544, piso: 1 },
   sala_sistemas: {
     src: '/sprites/escenarios/nave/cabina_v2.png',
     ar: 752 / 544,
-    piso: 6,
+    piso: 2,
     ventana: true,
   },
 }
@@ -76,9 +80,9 @@ const vistaExterior = computed(() => {
   return `/sprites/escenarios/vistas/${cuerpo}_orbita_${orbita}.png`
 })
 
-const nearLeftDoor = computed(() => playerX.value <= 20 && !!currentRoom.value?.puerta_izquierda)
-const nearRightDoor = computed(() => playerX.value >= 80 && !!currentRoom.value?.puerta_derecha)
-const nearCenterStation = computed(() => playerX.value >= 33 && playerX.value <= 67)
+const nearLeftDoor = computed(() => playerX.value <= 16 && !!currentRoom.value?.puerta_izquierda)
+const nearRightDoor = computed(() => playerX.value >= 84 && !!currentRoom.value?.puerta_derecha)
+const nearCenterStation = computed(() => playerX.value >= 37 && playerX.value <= 63)
 
 const directorMood = computed(() => {
   const dir = props.mission.tripulacion.find((t) => t.es_jugador)
@@ -91,6 +95,105 @@ const roomCrewMembers = computed(() => {
     (t) => !t.es_jugador && t.vivo && t.habitacion_actual === currentRoom.value?.id,
   )
 })
+
+const nearNpcMember = computed(() => {
+  if (nearLeftDoor.value || nearRightDoor.value || nearCenterStation.value) return null
+  for (let idx = 0; idx < roomCrewMembers.value.length; idx++) {
+    const pos = POSICIONES_ESTATICAS_TRIPULACION[idx % POSICIONES_ESTATICAS_TRIPULACION.length]
+    if (Math.abs(playerX.value - pos) <= 10) {
+      return roomCrewMembers.value[idx]
+    }
+  }
+  return null
+})
+
+watch(
+  () => currentRoom.value?.id,
+  () => {
+    activeDialogueMember.value = null
+  },
+)
+
+function buildCrewRpgText(member: TripulanteEstado, mode: 'saludo' | 'diagnostico'): string {
+  const roomId = currentRoom.value?.id ?? 'cabina_mando'
+  const isLuna = props.mission.destino === 'LUNA'
+  const moodTag =
+    member.estado_animo === 'lluvia'
+      ? 'Tengo la moral bajo mínimos (Lluvia); un descanso en Módulo de Vida vendría bien. '
+      : member.estado_animo === 'nube'
+        ? 'Algo fatigado, pero operativo. '
+        : ''
+
+  if (member.es_jugador) {
+    if (mode === 'diagnostico') {
+      return `Bitácora de Mando — Etapa ${props.mission.etapa_actual}/10 · Batería: ${props.mission.bateria_actual_wh} Wh · Delta-v: ${props.mission.delta_v_disponible_ms} m/s · Ciencia TX: ${props.mission.datos_transmitidos_gb}/${props.mission.datos_generados_gb} GB.`
+    }
+    return isLuna
+      ? '«Viajamos rumbo al Cráter Shackleton en busca de la señal Helios-9. Cada maniobra cuenta.»'
+      : '«Operando en Órbita Terrestre Baja (400 km). La prioridad es recolectar ciencia y enviarla a Tierra.»'
+  }
+
+  if (mode === 'diagnostico') {
+    if (roomId === 'laboratorio') {
+      return `${moodTag}En el Laboratorio llevamos ${props.mission.datos_generados_gb} GB y ${props.mission.puntos_ciencia_generados} pts (calidad ${props.mission.calidad_datos_promedio}%). ${
+        props.mission.etapa_actual < 7
+          ? 'Los sensores se activan al entrar en órbita del destino (Etapa 7).'
+          : pendingDataGb.value > 0
+            ? `Quedan ${pendingDataGb.value} GB en memoria listos para transmitir en Sala de Sistemas.`
+            : 'Podemos capturar más muestras espectrales con [E] en la consola.'
+      }`
+    }
+    if (roomId === 'soporte_vital') {
+      return `${moodTag}Soporte vital marca ${props.mission.o2_dias_disponibles} días de O₂ y ${props.mission.comida_dias_disponibles} días de raciones. Mi salud es ${Math.round(member.salud)}% y mi moral ${Math.round(member.salud_mental)}%.`
+    }
+    if (roomId === 'sala_sistemas') {
+      return `${moodTag}Balance eléctrico: ${props.mission.balance_potencia_w >= 0 ? '+' : ''}${props.mission.balance_potencia_w} W · Ventanas de enlace restantes: ${props.mission.ventanas_comm_restantes} (${Math.round(props.mission.probabilidad_enlace_comm * 100)}% señal).`
+    }
+    return `${moodTag}Propulsión con ${props.mission.delta_v_disponible_ms} m/s frente a ${props.mission.delta_v_requerido_total_ms} m/s requeridos para completar la ruta.`
+  }
+
+  if (roomId === 'laboratorio') {
+    if (props.mission.etapa_actual >= 7 && props.mission.datos_generados_gb === 0) {
+      return `${moodTag}«¡Capitán! Ya estamos sobre ${isLuna ? 'la Luna' : 'el objetivo'}. Acércate a la consola central del Laboratorio y pulsa [E] para registrar las lecturas de Helios-9.»`
+    }
+    return `${moodTag}«Los bancos ópticos están calibrados, Capitán. Revisa los espectros cuando gustes.»`
+  }
+  if (roomId === 'soporte_vital') {
+    return `${moodTag}«Controlo las válvulas de reciclaje de oxígeno y la moral de la tripulación. Si alguien entra en Nube o Lluvia, estabiliza el ánimo aquí.»`
+  }
+  if (roomId === 'sala_sistemas') {
+    if (pendingDataGb.value > 0) {
+      return `${moodTag}«Capitán, tenemos ${pendingDataGb.value} GB sin enviar en disco. ¡Usa la antena de esta sala para transmitirlos a Tierra!»`
+    }
+    return `${moodTag}«Los buses de potencia y la antena direccional están en espera de paquetes científicos.»`
+  }
+  return `${moodTag}«Todo supervisado en mi estación, Capitán Perro. A la espera de tus órdenes.»`
+}
+
+const activeDialogueText = computed(() => {
+  if (!activeDialogueMember.value) return ''
+  return buildCrewRpgText(activeDialogueMember.value, dialogueMode.value)
+})
+
+function openCrewDialogue(member: TripulanteEstado): void {
+  if (activeDialogueMember.value?.id === member.id) {
+    activeDialogueMember.value = null
+    return
+  }
+  activeDialogueMember.value = member
+  dialogueMode.value = 'saludo'
+  actionFeedback.value = `💬 Conversando con ${member.nombre} (${member.rol}).`
+}
+
+function openSoloLogDialogue(): void {
+  const director = props.mission.tripulacion.find((t) => t.es_jugador)
+  if (!director) return
+  openCrewDialogue(director)
+}
+
+function closeDialogue(): void {
+  activeDialogueMember.value = null
+}
 
 const pendingDataGb = computed(() => {
   return Math.max(
@@ -127,6 +230,9 @@ function handleKeyDown(ev: KeyboardEvent): void {
   } else if (ev.key === 'e' || ev.key === 'E') {
     ev.preventDefault()
     triggerInteractionE()
+  } else if (ev.key === 'Escape' && activeDialogueMember.value) {
+    ev.preventDefault()
+    closeDialogue()
   }
 }
 
@@ -189,7 +295,12 @@ function triggerInteractionE(): void {
     return
   }
 
-  actionFeedback.value = 'Camina hasta una compuerta lateral o la consola central antes de pulsar [E].'
+  if (nearNpcMember.value) {
+    openCrewDialogue(nearNpcMember.value)
+    return
+  }
+
+  actionFeedback.value = 'Camina hasta una compuerta, tripulante o consola central antes de pulsar [E].'
 }
 
 function stepWalk(delta: number): void {
@@ -389,13 +500,19 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Perros Especialistas de la tripulación en la sala (ESTÁTICOS en su puesto) -->
+        <!-- Perros Especialistas de la tripulación en la sala (ESTÁTICOS en su puesto, clicables para diálogo RPG) -->
         <div
           v-for="(member, idx) in roomCrewMembers"
           :key="member.id"
           class="character-actor npc-actor"
+          :class="{ 'npc-near': nearNpcMember?.id === member.id, 'npc-talking': activeDialogueMember?.id === member.id }"
           :style="{ left: `${POSICIONES_ESTATICAS_TRIPULACION[idx % POSICIONES_ESTATICAS_TRIPULACION.length]}%` }"
+          :title="`Conversar con ${member.nombre}`"
+          @click="openCrewDialogue(member)"
         >
+          <div v-if="nearNpcMember?.id === member.id" class="key-e-floating npc-talk-pill">
+            [E] 💬 HABLAR
+          </div>
           <PixelSprite
             :animacion="obtenerSpriteTripulante(member.especialidad, false)"
             :flip-x="idx % 2 === 1"
@@ -419,6 +536,74 @@ onUnmounted(() => {
             etiqueta="DIRECTOR [TÚ]"
           />
         </div>
+
+        <!-- Cuadro de Diálogo RPG / Novela Visual con la Tripulación Canina -->
+        <div v-if="activeDialogueMember" class="rpg-dialogue-overlay">
+          <div class="rpg-dialogue-box">
+            <div class="rpg-portrait-col">
+              <PixelSprite
+                :animacion="obtenerSpriteTripulante(activeDialogueMember.especialidad, activeDialogueMember.es_jugador)"
+                :width="56"
+                :height="68"
+                :animar="false"
+                :animo="activeDialogueMember.estado_animo"
+              />
+              <span class="rpg-stats-chip">
+                Salud {{ Math.round(activeDialogueMember.salud) }}% · Moral {{ Math.round(activeDialogueMember.salud_mental) }}%
+              </span>
+            </div>
+
+            <div class="rpg-copy-col">
+              <div class="rpg-header-row">
+                <div>
+                  <strong class="rpg-speaker-name">{{ activeDialogueMember.nombre.toUpperCase() }}</strong>
+                  <span class="rpg-speaker-role">{{ activeDialogueMember.rol }} · Exp {{ activeDialogueMember.experiencia }}/5</span>
+                </div>
+                <button class="rpg-close-btn" title="Cerrar diálogo [Esc]" @click="closeDialogue">✕ [Esc]</button>
+              </div>
+              <p class="serif-narrative rpg-dialogue-copy">{{ activeDialogueText }}</p>
+              <div class="rpg-choices-row">
+                <button
+                  class="rpg-choice-btn"
+                  :class="{ active: dialogueMode === 'diagnostico' }"
+                  @click="dialogueMode = dialogueMode === 'diagnostico' ? 'saludo' : 'diagnostico'"
+                >
+                  &gt; {{ dialogueMode === 'diagnostico' ? 'Volver al saludo' : 'Pedir diagnóstico de esta sala' }}
+                </button>
+                <button
+                  v-if="currentRoom.id === 'laboratorio' && mission.etapa_actual >= 7"
+                  class="rpg-choice-btn accent"
+                  @click="emit('runScience'); closeDialogue()"
+                >
+                  &gt; 🔬 Recolectar datos ahora
+                </button>
+                <button
+                  v-else-if="currentRoom.id === 'soporte_vital'"
+                  class="rpg-choice-btn accent"
+                  @click="emit('runCrewTask', 'estabilizar_animo'); closeDialogue()"
+                >
+                  &gt; ☀ Estabilizar ánimo de la dotación
+                </button>
+                <button
+                  v-else-if="currentRoom.id === 'sala_sistemas' && mission.etapa_actual >= 7 && pendingDataGb > 0"
+                  class="rpg-choice-btn accent"
+                  @click="emit('useCommWindow'); closeDialogue()"
+                >
+                  &gt; 📡 Transmitir {{ pendingDataGb }} GB a Tierra
+                </button>
+              </div>
+            </div>
+
+            <div class="rpg-captain-badge">
+              <img
+                src="/sprites/iconos/icono_captain_dog_casco.png"
+                alt="Capitán Perro"
+                class="rpg-captain-img"
+              />
+              <span>CAPITÁN [TÚ]</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       </div>
@@ -431,6 +616,21 @@ onUnmounted(() => {
             [E] Interactuar / Abrir Compuerta
           </button>
           <button @click="stepWalk(7)">Derecha [D] ►</button>
+          <button
+            v-for="member in roomCrewMembers"
+            :key="`talk-${member.id}`"
+            class="btn-cyan"
+            @click="openCrewDialogue(member)"
+          >
+            💬 {{ member.nombre.split(' ')[1] || member.nombre }}
+          </button>
+          <button
+            v-if="roomCrewMembers.length === 0"
+            class="btn-cyan"
+            @click="openSoloLogDialogue"
+          >
+            💬 Bitácora de Mando
+          </button>
         </div>
         <div class="feedback-line">{{ actionFeedback }}</div>
       </div>
@@ -1048,8 +1248,154 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
+.npc-actor {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: filter 0.14s ease;
+}
+
+.npc-actor:hover,
+.npc-actor.npc-near,
+.npc-actor.npc-talking {
+  filter: drop-shadow(0 0 8px rgba(79, 209, 197, 0.75));
+}
+
+.npc-talk-pill {
+  background: var(--cyan);
+  color: var(--void);
+}
+
 .player-actor {
   z-index: 5;
+}
+
+/* CUADRO DE DIÁLOGO RPG / NOVELA VISUAL DENTRO DE LA NAVE */
+.rpg-dialogue-overlay {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  z-index: 8;
+}
+
+.rpg-dialogue-box {
+  background: rgba(8, 11, 20, 0.96);
+  border: 2px solid #d6c59a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.85);
+}
+
+.rpg-portrait-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: rgba(20, 27, 45, 0.9);
+  border: 1px solid var(--steel);
+  border-radius: 4px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+
+.rpg-stats-chip {
+  font-size: 8px;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.rpg-copy-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rpg-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.rpg-speaker-name {
+  font-size: 11px;
+  color: var(--gold);
+  margin-right: 6px;
+}
+
+.rpg-speaker-role {
+  font-size: 9px;
+  color: var(--cyan);
+}
+
+.rpg-close-btn {
+  padding: 2px 6px;
+  font-size: 9px;
+  background: var(--void);
+  border: 1px solid var(--steel);
+  color: var(--mist);
+}
+
+.rpg-dialogue-copy {
+  font-size: 13px;
+  color: var(--bone);
+  line-height: 1.45;
+}
+
+.rpg-choices-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rpg-choice-btn {
+  padding: 4px 8px;
+  font-size: 10px;
+  background: rgba(27, 35, 64, 0.78);
+  border: 1px solid var(--steel);
+  color: var(--bone);
+}
+
+.rpg-choice-btn.active,
+.rpg-choice-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.rpg-choice-btn.accent {
+  border-color: var(--amber);
+  color: var(--gold);
+}
+
+.rpg-captain-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(20, 27, 45, 0.95);
+  border: 2px solid #d6c59a;
+  border-radius: 4px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.rpg-captain-img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border-radius: 3px;
+}
+
+.rpg-captain-badge span {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-top: 2px;
 }
 
 .stage-control-strip {
@@ -1064,6 +1410,7 @@ onUnmounted(() => {
 
 .dpad-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 

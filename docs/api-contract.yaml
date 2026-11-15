@@ -1,0 +1,449 @@
+openapi: 3.0.3
+info:
+  title: API de Zenit — Simulador narrativo de misiones espaciales
+  version: 1.0.0
+  description: >
+    Contrato REST del backend FastAPI para gestionar el catálogo de misión,
+    la ejecución de decisiones por etapa, los eventos operativos y el informe final.
+
+servers:
+  - url: http://127.0.0.1:8010/api/v1
+    description: Servidor local de desarrollo
+
+paths:
+  /catalog:
+    get:
+      summary: Obtener catálogo completo de la misión
+      description: >
+        Retorna destinos, acuerdos de financiación, componentes de la nave,
+        candidatos a tripulación, nombres de las 10 etapas y masa máxima de lanzamiento.
+      responses:
+        '200':
+          description: Catálogo completo disponible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogoCompleto'
+
+  /missions:
+    post:
+      summary: Crear una nueva misión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearMisionRequest'
+      responses:
+        '201':
+          description: Misión inicializada en Etapa 1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstadoMision'
+        '422':
+          description: Error de validación en los parámetros de creación.
+
+  /missions/{mission_id}:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    get:
+      summary: Consultar estado actual de una misión
+      responses:
+        '200':
+          description: Estado completo de la misión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstadoMision'
+        '404':
+          description: Misión no encontrada.
+
+  /missions/{mission_id}/decisions:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    post:
+      summary: Ejecutar una decisión en la etapa actual
+      description: >
+        Valida reglas físicas, bloqueos previos al lanzamiento (etapas 1-5) y límites
+        de negociación (máximo 3 rondas de `negociar_presupuesto`), y aplica consecuencias.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '200':
+          description: Resultado de validación y estado actualizado de la misión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResponse'
+        '404':
+          description: Misión no encontrada.
+        '422':
+          description: Cuerpo de petición inválido.
+
+  /missions/{mission_id}/advance:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    post:
+      summary: Avanzar a la siguiente etapa de la misión
+      responses:
+        '200':
+          description: Transición de etapa evaluada con cambios de variables.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResponse'
+        '404':
+          description: Misión no encontrada.
+
+  /missions/{mission_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    get:
+      summary: Listar eventos activos de la misión
+      responses:
+        '200':
+          description: Lista de eventos activos pendientes de resolución.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventoMision'
+        '404':
+          description: Misión no encontrada.
+
+  /missions/{mission_id}/events/{event_id}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+      - name: event_id
+        in: path
+        required: true
+        description: Identificador único del evento activo.
+        schema:
+          type: string
+    post:
+      summary: Resolver un evento activo seleccionando una opción
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolverEventoRequest'
+      responses:
+        '200':
+          description: Resultado de la resolución del evento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResponse'
+        '404':
+          description: Misión o evento no encontrado.
+
+  /missions/{mission_id}/report:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    get:
+      summary: Generar informe final de evaluación (Tribunal de los 3 Gatos)
+      responses:
+        '200':
+          description: Informe final multidimensional con veredicto y trazabilidad causal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InformeFinal'
+        '404':
+          description: Misión no encontrada.
+
+components:
+  parameters:
+    MissionId:
+      name: mission_id
+      in: path
+      required: true
+      description: Identificador único de la misión.
+      schema:
+        type: string
+
+  schemas:
+    CrearMisionRequest:
+      type: object
+      properties:
+        nombre_mision:
+          type: string
+          default: Expedición Zenit-1
+        destino:
+          type: string
+          enum: [OTB, LUNA]
+          default: OTB
+        dificultad:
+          type: string
+          enum: [facil, normal, dificil]
+          default: normal
+        acuerdo_financiacion_id:
+          type: string
+          default: estandar
+        especialidad_director:
+          type: string
+          enum: [ingenieria, geologia, astrobiologia, medicina, comando]
+          default: comando
+
+    DecisionRequest:
+      type: object
+      required: [stage, decision]
+      properties:
+        stage:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Etapa de la misión (1 a 10).
+        decision:
+          type: string
+          enum:
+            - seleccionar_destino
+            - seleccionar_financiacion
+            - negociar_presupuesto
+            - instalar_componente
+            - remover_componente
+            - contratar_tripulante
+            - remover_tripulante
+            - configurar_trayectoria
+            - mover_habitacion
+            - operacion_cientifica
+            - tarea_tripulacion
+            - usar_ventana_comm
+          description: Tipo de decisión a ejecutar.
+        params:
+          type: object
+          additionalProperties: true
+          description: >
+            Parámetros específicos de la decisión. Para `negociar_presupuesto`:
+            `bono_usd` (-50000 a 90000), `argumento` (string) y `acuerdo_id` opcional;
+            limitado a 3 rondas por misión.
+
+    ResolverEventoRequest:
+      type: object
+      required: [option_id]
+      properties:
+        option_id:
+          type: string
+        crew_id:
+          type: string
+          nullable: true
+
+    CambioVariable:
+      type: object
+      required: [variable, etiqueta, valor_anterior, valor_nuevo, delta, unidad]
+      properties:
+        variable:
+          type: string
+        etiqueta:
+          type: string
+        valor_anterior:
+          type: number
+        valor_nuevo:
+          type: number
+        delta:
+          type: number
+        unidad:
+          type: string
+
+    DecisionResponse:
+      type: object
+      required: [allowed, status, policy_triggered, message, mission_state]
+      properties:
+        allowed:
+          type: boolean
+        status:
+          type: string
+          enum: [allowed, warning, fail]
+        policy_triggered:
+          type: string
+          enum: [fallo_inmediato, degradacion_progresiva, penalizacion_diferida, nominal]
+        message:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        affected_variables:
+          type: array
+          items:
+            $ref: '#/components/schemas/CambioVariable'
+        new_state_summary:
+          type: object
+          additionalProperties: true
+        mission_state:
+          $ref: '#/components/schemas/EstadoMision'
+
+    EventoMision:
+      type: object
+      properties:
+        id:
+          type: string
+        titulo:
+          type: string
+        descripcion:
+          type: string
+        opciones:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    EstadoMision:
+      type: object
+      required: [id, nombre_mision, destino, dificultad, etapa_actual]
+      properties:
+        id:
+          type: string
+        nombre_mision:
+          type: string
+        destino:
+          type: string
+          enum: [OTB, LUNA]
+        dificultad:
+          type: string
+          enum: [facil, normal, dificil]
+        etapa_actual:
+          type: integer
+        presupuesto_restante_usd:
+          type: number
+        masa_total_kg:
+          type: number
+        masa_lanzamiento_max_kg:
+          type: number
+        delta_v_disponible_ms:
+          type: number
+        delta_v_requerido_total_ms:
+          type: number
+        bateria_actual_wh:
+          type: number
+        bateria_capacidad_wh:
+          type: number
+        tripulacion:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        habitacion_jugador:
+          type: string
+        eventos_activos:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventoMision'
+        bitacora_decisiones:
+          type: array
+          items:
+            type: string
+
+    DimensionEvaluacion:
+      type: object
+      required: [id, nombre, puntuacion, estado_etiqueta, comentario_jefe, explicacion_tecnica]
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        puntuacion:
+          type: number
+        estado_etiqueta:
+          type: string
+        comentario_jefe:
+          type: string
+        explicacion_tecnica:
+          type: string
+
+    InformeFinal:
+      type: object
+      required:
+        - mission_id
+        - final_id
+        - numero_final
+        - titulo_final
+        - subtitulo_final
+        - puntuacion_global
+        - hubo_muertes_tripulacion
+        - dialogo_jefe_apertura
+        - dimensiones
+      properties:
+        mission_id:
+          type: string
+        final_id:
+          type: string
+          enum:
+            - exito_cientifico_pleno
+            - supervivencia_mision_parcial
+            - retorno_emergencia
+            - perdida_tripulacion_datos_recuperados
+            - fallo_total
+        numero_final:
+          type: integer
+          minimum: 1
+          maximum: 5
+        titulo_final:
+          type: string
+        subtitulo_final:
+          type: string
+        puntuacion_global:
+          type: number
+        hubo_muertes_tripulacion:
+          type: boolean
+        silencio_previo_segundos:
+          type: integer
+        dialogo_jefe_apertura:
+          type: string
+        monologo_cuarta_pared:
+          type: string
+          nullable: true
+        dimensiones:
+          type: array
+          items:
+            $ref: '#/components/schemas/DimensionEvaluacion'
+        trazabilidad_causal:
+          type: array
+          items:
+            type: string
+        recomendaciones_ingenieria:
+          type: array
+          items:
+            type: string
+        frase_despedida:
+          type: string
+        resumen_tecnico_datos:
+          type: object
+          additionalProperties: true
+
+    CatalogoCompleto:
+      type: object
+      properties:
+        destinos:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        acuerdos_financiacion:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        componentes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        candidatos_tripulacion:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        etapas:
+          type: object
+          additionalProperties:
+            type: string
+        masa_lanzamiento_max_kg:
+          type: number

@@ -1092,11 +1092,52 @@ export function sendDecisionLocal(
     resumen = `Acuerdo '${acuerdo.nombre}' firmado. Presupuesto global ajustado: ${nuevoInicial.toLocaleString()} USD.`
     estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'negociar_presupuesto') {
-    const bono = Math.max(0, Math.min(50000, Math.round(Number(params.bono_usd) || 0)))
-    estado.presupuesto_inicial_usd = round(estado.presupuesto_inicial_usd + bono, 2)
-    estado.presupuesto_restante_usd = round(estado.presupuesto_restante_usd + bono, 2)
+    const rondasPrevias = estado.bitacora_decisiones.filter((b) =>
+      b.startsWith('Negociación con el Gato Jefe'),
+    ).length
+    if (rondasPrevias >= 3) {
+      return {
+        allowed: false,
+        status: 'warning',
+        policy_triggered: 'Nominal',
+        message: 'El Comité de los 3 Gatos ya cerró las 3 rondas de negociación para esta misión.',
+        warnings: [],
+        affected_variables: [],
+        new_state_summary: {},
+        mission_state: estado,
+      }
+    }
+    const bonoBase = Number(params.bono_usd) || 0
+    if (bonoBase < -50000 || bonoBase > 90000) {
+      return {
+        allowed: false,
+        status: 'fail',
+        policy_triggered: 'Fallo Inmediato',
+        message: 'Ajuste de negociación fuera de rango permitido.',
+        warnings: [],
+        affected_variables: [],
+        new_state_summary: {},
+        mission_state: estado,
+      }
+    }
+    const argumento = String(params.argumento || 'Argumento ante el comité')
+    const acuerdoReq = String(params.acuerdo_id || estado.acuerdo_financiacion_id)
+    if (ACUERDOS_LOCAL.some((a) => a.id === acuerdoReq)) {
+      estado.acuerdo_financiacion_id = acuerdoReq
+    }
+    const factorDif =
+      estado.dificultad === 'facil' ? 1.2 : estado.dificultad === 'dificil' ? 0.9 : 1.0
+    const incrementoReal = Math.round(bonoBase * factorDif)
+    estado.presupuesto_inicial_usd = Math.round(
+      Math.max(75000, estado.presupuesto_inicial_usd + incrementoReal),
+    )
+    estado.presupuesto_restante_usd = round(
+      Math.max(0, estado.presupuesto_restante_usd + incrementoReal),
+      2,
+    )
     recalcularSubsistemasLocal(estado)
-    resumen = `Negociación con el comité de gatos: +${bono.toLocaleString()} USD al presupuesto.`
+    const signo = incrementoReal >= 0 ? '+' : ''
+    resumen = `Negociación con el Gato Jefe (${argumento}): ${signo}${incrementoReal.toLocaleString()} USD (Presupuesto total aprobado: ${estado.presupuesto_inicial_usd.toLocaleString()} USD).`
     estado.bitacora_decisiones.push(resumen)
   } else if (decision === 'instalar_componente') {
     const compId = String(params.componente_id || '')

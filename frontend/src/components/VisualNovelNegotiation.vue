@@ -215,9 +215,13 @@ const moodImageSrc = computed(() => {
   return '/sprites/elementos/Lluvia.png'
 })
 
+const roundsTaken = ref<number>(0)
+
 function selectDialogueOption(opt: OpcionDialogo): void {
+  if (negotiationCompleted.value) return
   bossMood.value = opt.efectoAnimoJefe
   totalSubidoUsd.value += opt.bonoUsd
+  roundsTaken.value += 1
   lastReply.value = {
     speakerName: opt.respuestaNombre,
     speakerIcon: opt.respuestaIcono,
@@ -236,12 +240,6 @@ function selectDialogueOption(opt: OpcionDialogo): void {
   } else {
     negotiationCompleted.value = true
   }
-}
-
-function resetNegotiation(): void {
-  currentRoundIndex.value = 0
-  negotiationCompleted.value = false
-  lastReply.value = null
 }
 </script>
 
@@ -395,11 +393,11 @@ function resetNegotiation(): void {
         <template v-else>
           <div class="vn-completed-actions">
             <button class="btn-primary vn-finish-btn" @click="emit('finishNegotiation')">
-              ✓ FIRMAR PRESUPUESTO (${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD) Y AVANZAR A ETAPA 3 ►
+              ✓ FIRMAR PRESUPUESTO (${{ mission.presupuesto_inicial_usd.toLocaleString() }} USD · PLAN {{ mission.acuerdo_financiacion_id.toUpperCase() }}) Y AVANZAR A ETAPA 3 ►
             </button>
-            <button class="vn-retry-btn" @click="resetNegotiation">
-              Seguir argumentando en otra ronda
-            </button>
+            <span class="vn-closed-deal-pill">
+              Acuerdo sellado tras {{ roundsTaken }}/3 rondas ante el Comité
+            </span>
           </div>
         </template>
       </div>
@@ -424,12 +422,12 @@ function resetNegotiation(): void {
 .vn-stage-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  height: 100%;
+  gap: 6px;
+  min-height: 100%;
   background: var(--void-deep);
   border: 1px solid var(--steel);
   border-radius: 6px;
-  padding: 10px;
+  padding: 8px;
 }
 
 .vn-top-bar {
@@ -441,7 +439,7 @@ function resetNegotiation(): void {
   background: var(--cabin);
   border: 1px solid var(--steel);
   border-radius: 5px;
-  padding: 6px 12px;
+  padding: 5px 10px;
 }
 
 .vn-eyebrow {
@@ -487,14 +485,14 @@ function resetNegotiation(): void {
 .vn-backdrop-frame {
   position: relative;
   flex: 1;
-  min-height: 250px;
+  min-height: 215px;
   border: 2px solid var(--steel);
   border-radius: 6px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px;
+  padding: 10px;
 }
 
 .vn-bg-image {
@@ -546,8 +544,8 @@ function resetNegotiation(): void {
 }
 
 .vn-actor-portrait {
-  width: 58px;
-  height: 58px;
+  width: 50px;
+  height: 50px;
   image-rendering: pixelated;
   border: 2px solid var(--steel);
   border-radius: 4px;
@@ -561,8 +559,8 @@ function resetNegotiation(): void {
 }
 
 .boss-portrait {
-  width: 72px;
-  height: 72px;
+  width: 62px;
+  height: 62px;
 }
 
 .vn-boss-mood-float {
@@ -753,10 +751,14 @@ function resetNegotiation(): void {
   font-size: 12px;
 }
 
-.vn-retry-btn {
-  padding: 8px 12px;
-  font-size: 11px;
-  background: var(--void);
+.vn-closed-deal-pill {
+  font-size: 10px;
+  color: var(--green);
+  border: 1px solid var(--green);
+  background: rgba(123, 216, 143, 0.12);
+  padding: 6px 10px;
+  border-radius: 4px;
+  align-self: center;
 }
 
 .vn-captain-portrait-card {

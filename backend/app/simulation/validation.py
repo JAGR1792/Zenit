@@ -107,6 +107,17 @@ def validar_decision(
         )
 
     if decision == "negociar_presupuesto":
+        rondas_previas = sum(
+            1
+            for entrada in estado.bitacora_decisiones
+            if entrada.startswith("Negociación con el Gato Jefe")
+        )
+        if rondas_previas >= 3:
+            return ResultadoValidacion(
+                allowed=False,
+                status="warning",
+                message="El Comité de los 3 Gatos ya cerró las 3 rondas de negociación para esta misión.",
+            )
         bono = float(params.get("bono_usd", 0.0))
         if bono < -50000.0 or bono > 90000.0:
             return ResultadoValidacion(
