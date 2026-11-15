@@ -237,6 +237,29 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
             "«Sobrevivir a un vuelo al límite enseña más que diez simulaciones en tierra. "
             "Para la próxima misión, equilibra mejor tu dotación y tus reservas de energía.»"
         )
+    elif (
+        not ineficiente
+        and fue_en_solitario
+        and score_ciencia >= 70.0
+        and score_datos >= 65.0
+        and puntuacion_global >= 88.0
+    ):
+        final_id = "exito_heroico_solitario"
+        numero_final = 1
+        titulo_final = "Final 1A — Héroe en Solitario"
+        subtitulo_final = (
+            "Misión científica cumplida y retorno íntegro operando la nave en solitario."
+        )
+        dialogo_apertura = (
+            "El Comisionado Félix Vance se pone de pie, aplaude y alza el informe con orgullo: "
+            f"«Nunca habíamos visto algo así, Director. Vuelo en solitario a {nombre_destino_corto}, "
+            "Laboratorio y Antena operados por una sola persona, ciencia completa y nave intacta. "
+            f"{diagnostico_ciencia_narrativo}»"
+        )
+        frase_despedida = (
+            "«Tu expediente pasará a la historia del Programa Zenit. Descansa: has ganado la confianza "
+            "de todo el Comité.»"
+        )
     elif score_ciencia >= 70.0 and score_datos >= 65.0 and not ineficiente:
         final_id = "exito_cientifico_pleno"
         numero_final = 1
@@ -298,6 +321,28 @@ def generar_informe_final(estado: EstadoMision) -> InformeFinal:
         frase_despedida = (
             "«Cumplir la misión es el primer paso; optimizar masa, energía y coste es lo que distingue a un director excelente. "
             "Revisa las fichas técnicas antes de la próxima expedición.»"
+        )
+    elif (
+        score_ciencia >= 70.0
+        and score_datos >= 65.0
+        and not ineficiente
+        and estado.presupuesto_restante_usd / max(1.0, estado.presupuesto_inicial_usd) < 0.05
+    ):
+        final_id = "exito_al_limite"
+        numero_final = 2
+        titulo_final = "Final 2B — Éxito al Límite"
+        subtitulo_final = (
+            "Objetivos cumplidos y retorno logrado, pero con el presupuesto al borde del colapso."
+        )
+        dialogo_apertura = (
+            "El Comisionado Félix Vance revisa el balance final y silba: "
+            f"«Lo lograste, Director, pero nos dejaste con {estado.presupuesto_restante_usd:,.0f} CZ de "
+            f"{estado.presupuesto_inicial_usd:,.0f} CZ. La ciencia llegó, sí, pero la próxima vez guarda "
+            "reserva para imprevistos.»"
+        )
+        frase_despedida = (
+            "«Un vuelo al límite demuestra talento, pero también imprudencia financiera. La Agencia "
+            "necesita directores que combinen ciencia y margen.»"
         )
     else:
         final_id = "supervivencia_mision_parcial"
