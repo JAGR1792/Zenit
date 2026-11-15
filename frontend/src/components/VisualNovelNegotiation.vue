@@ -646,6 +646,10 @@ function speakerPortraitFor(orador: OradorId): string {
 
 function selectScenario(id: EscenarioId): void {
   if (roundsTaken.value > 0 || negotiationCompleted.value) return
+
+  // Si ya está seleccionado, no reiniciar el estado del diálogo.
+  if (selectedScenarioId.value === id) return
+
   selectedScenarioId.value = id
   dialogueReady.value = false
 }

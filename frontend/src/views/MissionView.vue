@@ -163,8 +163,8 @@ const currentStoryBeat = computed(() => {
       speaker: 'ASESOR NEGRO (RIESGO Y ASTRODINÁMICA)',
       speakerIcon: '/sprites/iconos/icono_gato_asistente_negro.png',
       quote: isLuna
-        ? `La Luna se alinea sobre el plano orbital. La inyección translunar exige al menos ${mission.value.delta_v_requerido_total_ms} m/s totales; tu propulsor cuenta con ${mission.value.delta_v_disponible_ms} m/s.`
-        : `Ventana de inserción hacia la termosfera (400 km) calculada. Se requieren ${mission.value.delta_v_requerido_total_ms} m/s para completar ascenso, órbita y reentrada.`,
+  ? `El lanzador externo realiza la inyección translunar. Tu nave necesita ${mission.value.delta_v_requerido_total_ms} m/s para las maniobras propias de la misión (inserción orbital lunar y retorno); tu propulsor cuenta con ${mission.value.delta_v_disponible_ms} m/s.`
+  : `El lanzador externo entrega la nave en órbita terrestre baja (400 km). Tu nave requiere ${mission.value.delta_v_requerido_total_ms} m/s para ajustes orbitales y retorno.`,
     }
   }
   if (st === 5) {

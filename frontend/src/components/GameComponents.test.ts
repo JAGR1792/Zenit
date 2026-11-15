@@ -109,18 +109,18 @@ describe('Componentes principales del simulador Zenit', () => {
   expect(opciones.text()).not.toMatch(/\$\s?[\d,.]+/)
 
   // Primera ronda: elegir la primera opción (bono negativo)
-await saltarDialogo(wrapper)
-await wrapper.findAll('.vn-choice-line')[0].trigger('click')
+  await saltarDialogo(wrapper)
+  await wrapper.findAll('.vn-choice-line')[0].trigger('click')
 
-// Segunda ronda: elegir la primera opción (bono positivo)
-await saltarDialogo(wrapper)
-await wrapper.findAll('.vn-choice-line')[0].trigger('click')
+  // Segunda ronda: elegir la primera opción (bono positivo)
+  await saltarDialogo(wrapper)
+  await wrapper.findAll('.vn-choice-line')[0].trigger('click')
 
-// Tercera ronda: elegir la última opción (bono positivo)
-await saltarDialogo(wrapper)
-const opcionesTerceraRonda = wrapper.findAll('.vn-choice-line')
-await opcionesTerceraRonda[opcionesTerceraRonda.length - 1].trigger('click')
-  // Verificar los eventos emitidos
+  // Tercera ronda: elegir la última opción (bono positivo)
+  await saltarDialogo(wrapper)
+  const opcionesTerceraRonda = wrapper.findAll('.vn-choice-line')
+  await opcionesTerceraRonda[opcionesTerceraRonda.length - 1].trigger('click')
+    // Verificar los eventos emitidos
   const emisiones = wrapper.emitted('negotiate')
 
 expect(emisiones).toBeTruthy()
