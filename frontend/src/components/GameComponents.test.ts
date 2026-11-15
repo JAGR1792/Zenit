@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import BossReportScene from './BossReportScene.vue'
 import DestinationRooms2D from './DestinationRooms2D.vue'
+import GameMainMenu from './GameMainMenu.vue'
 import ShipSchematic from './ShipSchematic.vue'
 import VisualNovelNegotiation from './VisualNovelNegotiation.vue'
 import type { InformeFinal, TripulanteEstado } from '../services/api'
@@ -304,5 +305,68 @@ describe('Componentes principales del simulador Zenit', () => {
     })
     expect(cuartaRonda.allowed).toBe(false)
     expect(cuartaRonda.status).toBe('warning')
+  })
+
+  it('GameMainMenu muestra portada limpia de videojuego y navega a Nueva Expedición y subvistas', async () => {
+    const wrapper = mount(GameMainMenu, {
+      props: {
+        hasActiveMission: true,
+        difficultyOptions: [
+          {
+            id: 'facil',
+            title: 'Modo Cadete (Fácil · Recomendado)',
+            badge: '+FÁCIL',
+            desc: 'Ideal para aprender sistemas.',
+            perks: ['+35% de presupuesto (168.750 CZ)'],
+          },
+          {
+            id: 'normal',
+            title: 'Modo Director (Estándar)',
+            badge: 'EQUILIBRADO',
+            desc: 'Experiencia clásica.',
+            perks: ['Presupuesto nominal (125.000 CZ)'],
+          },
+        ],
+      },
+    })
+
+    // En la portada inicial debe verse el fondo oficial, logotipo ZENIT y botones principales centrados
+    expect(wrapper.find('.menu-bg-art').attributes('src')).toBe(
+      '/sprites/escenas/menu_principal_bg.jpg',
+    )
+    expect(wrapper.find('.zenit-wordmark').text()).toContain('Z')
+    expect(wrapper.text()).toContain('Nueva Expedición')
+    expect(wrapper.text()).toContain('Cómo Jugar')
+    expect(wrapper.text()).toContain('Tripulación y Comité')
+    expect(wrapper.text()).toContain('Créditos y Fuentes')
+
+    // Navegar a Cómo Jugar y volver
+    const btnHowto = wrapper.findAll('button').find((b) => b.text().includes('Cómo Jugar'))
+    expect(btnHowto).toBeTruthy()
+    await btnHowto!.trigger('click')
+    expect(wrapper.text()).toContain('MANUAL DE VUELO')
+
+    const btnVolver = wrapper.findAll('button').find((b) => b.text().includes('Volver'))
+    expect(btnVolver).toBeTruthy()
+    await btnVolver!.trigger('click')
+    expect(wrapper.text()).toContain('MENÚ PRINCIPAL')
+
+    // Abrir Nueva Expedición, elegir Luna y emitir start
+    const btnNueva = wrapper.findAll('button').find((b) => b.text().includes('Nueva Expedición'))
+    expect(btnNueva).toBeTruthy()
+    await btnNueva!.trigger('click')
+
+    const btnLuna = wrapper.findAll('button').find((b) => b.text().includes('Luna'))
+    expect(btnLuna).toBeTruthy()
+    await btnLuna!.trigger('click')
+
+    const btnDespegar = wrapper.find('.arcade-btn-launch')
+    await btnDespegar.trigger('click')
+
+    const startEmitted = wrapper.emitted('start') as
+      | Array<[{ nombre_mision: string; destino: string; dificultad: string }]>
+      | undefined
+    expect(startEmitted).toBeTruthy()
+    expect(startEmitted![0][0].destino).toBe('LUNA')
   })
 })

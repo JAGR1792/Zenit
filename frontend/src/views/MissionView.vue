@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import TypewriterText from '../components/TypewriterText.vue'
 import BossReportScene from '../components/BossReportScene.vue'
 import DestinationRooms2D from '../components/DestinationRooms2D.vue'
+import GameMainMenu from '../components/GameMainMenu.vue'
 import PixelSprite, { obtenerSpriteTripulante } from '../components/PixelSprite.vue'
 import ShipSchematic from '../components/ShipSchematic.vue'
 import VisualNovelNegotiation from '../components/VisualNovelNegotiation.vue'
@@ -296,6 +297,17 @@ async function loadCatalogOnly(): Promise<void> {
   }
 }
 
+async function handleMenuStart(payload: {
+  nombre_mision: string
+  destino: DestinoId
+  dificultad: DificultadId
+}): Promise<void> {
+  customMissionName.value = payload.nombre_mision
+  selectedInitialDest.value = payload.destino
+  selectedDifficulty.value = payload.dificultad
+  await startNewMission(true)
+}
+
 async function startNewMission(fromMenu = false): Promise<void> {
   loading.value = true
   finalReport.value = null
@@ -392,250 +404,20 @@ onMounted(async () => {
 <template>
   <div class="cockpit-layout">
     <!-- ======================================================================= -->
-    <!-- MENÚ DE INICIO, DIFICULTAD Y GUÍA RÁPIDA DE ORGANIZACIÓN                -->
+    <!-- MENÚ PRINCIPAL ESTILO VIDEOJUEGO PIXEL ART                              -->
     <!-- ======================================================================= -->
-    <div v-if="showMainMenu" class="main-menu-overlay">
-      <div class="menu-container">
-        <!-- Encabezado con el Gato Jefe y la Tripulación de Perros -->
-        <div class="menu-hero-banner">
-          <div class="menu-title-block">
-            <span class="menu-eyebrow">SIMULADOR NARRATIVO DE INGENIERÍA ESPACIAL</span>
-            <h1 class="menu-main-title">PROYECTO ZENIT</h1>
-            <p class="serif-narrative menu-subtitle">
-              Planifica, diseña, lanza y opera una expedición científica tripulada. Tú y tu equipo
-              de perros astronautas operan la nave; el Gato Director General evalúa cada decisión.
-            </p>
-          </div>
-
-          <!-- Escaparate de Sprites Oficiales: Perros = Tripulación | Gato = Jefe -->
-          <div class="cast-showcase">
-            <div class="cast-group">
-              <span class="cast-group-label">TRIPULACIÓN CANINA (A BORDO)</span>
-              <div class="cast-row">
-                <PixelSprite
-                  animacion="perro_idle"
-                  :width="56"
-                  :height="72"
-                  :animar="false"
-                  animo="sol"
-                  etiqueta="DIRECTOR"
-                />
-                <PixelSprite
-                  animacion="perro_cientifico"
-                  :width="56"
-                  :height="72"
-                  :animar="false"
-                  animo="sol"
-                  etiqueta="CIENTÍFICO"
-                />
-                <PixelSprite
-                  animacion="perro_ingeniero"
-                  :width="56"
-                  :height="72"
-                  :animar="false"
-                  animo="sol"
-                  etiqueta="INGENIERO"
-                />
-                <PixelSprite
-                  animacion="perro_medico"
-                  :width="56"
-                  :height="72"
-                  :animar="false"
-                  animo="nube"
-                  etiqueta="MÉDICO"
-                />
-                <PixelSprite
-                  animacion="perro_comunicaciones"
-                  :width="56"
-                  :height="72"
-                  :animar="false"
-                  animo="lluvia"
-                  etiqueta="COMMS"
-                />
-              </div>
-            </div>
-
-            <div class="cast-divider"></div>
-
-            <div class="cast-group boss-cast">
-              <span class="cast-group-label" style="color: var(--amber)">
-                COMITÉ DE LA AGENCIA (GATO JEFE + 2 AYUDANTES)
-              </span>
-              <div class="cast-row">
-                <div class="cat-icon-showcase">
-                  <img
-                    src="/sprites/iconos/icono_gato_jefe.png"
-                    alt="Gato Jefe"
-                    class="menu-cat-icon"
-                  />
-                  <span>GATO JEFE</span>
-                </div>
-                <div class="cat-icon-showcase">
-                  <img
-                    src="/sprites/iconos/icono_gato_asistente_blanco.png"
-                    alt="Ayudante Finanzas"
-                    class="menu-cat-icon"
-                  />
-                  <span>FINANZAS</span>
-                </div>
-                <div class="cat-icon-showcase">
-                  <img
-                    src="/sprites/iconos/icono_gato_asistente_negro.png"
-                    alt="Ayudante Riesgo"
-                    class="menu-cat-icon"
-                  />
-                  <span>RIESGO</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Cuerpo del Menú en 2 Columnas: Configuración + Cómo Jugar -->
-        <div class="menu-grid">
-          <!-- Columna 1: Elegir Dificultad y Destino -->
-          <div class="menu-card">
-            <div class="menu-section-title">1. CONFIGURA TU EXPEDICIÓN Y DIFICULTAD</div>
-
-            <div class="menu-form-row">
-              <label class="menu-label">
-                Nombre de la Misión:
-                <input
-                  v-model="customMissionName"
-                  type="text"
-                  class="menu-input"
-                  placeholder="Expedición Zenit-1"
-                />
-              </label>
-
-              <div class="menu-label">
-                Destino Inicial:
-                <div class="dest-toggle-row">
-                  <button
-                    class="dest-toggle-btn"
-                    :class="{ active: selectedInitialDest === 'OTB' }"
-                    @click="selectedInitialDest = 'OTB'"
-                  >
-                    🌍 Órbita Terrestre Baja (Más accesible)
-                  </button>
-                  <button
-                    class="dest-toggle-btn"
-                    :class="{ active: selectedInitialDest === 'LUNA' }"
-                    @click="selectedInitialDest = 'LUNA'"
-                  >
-                    🌕 Cráter Lunar Shackleton (Reto mayor)
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="difficulty-cards">
-              <div
-                v-for="diff in difficultyOptions"
-                :key="diff.id"
-                class="diff-card"
-                :class="{ selected: selectedDifficulty === diff.id }"
-                @click="selectedDifficulty = diff.id"
-              >
-                <div class="diff-head">
-                  <span class="diff-title">{{ diff.title }}</span>
-                  <span class="badge" style="color: var(--amber)">{{ diff.badge }}</span>
-                </div>
-                <p class="diff-desc">{{ diff.desc }}</p>
-                <ul class="diff-perks">
-                  <li v-for="(perk, i) in diff.perks" :key="i">{{ perk }}</li>
-                </ul>
-              </div>
-            </div>
-
-            <button
-              class="btn-primary start-mission-btn"
-              :disabled="loading"
-              @click="startNewMission(true)"
-            >
-              {{ loading ? '⏳ INICIANDO CONSOLA...' : `🚀 EMPEZAR EXPEDICIÓN (${selectedDifficulty.toUpperCase()})` }}
-            </button>
-          </div>
-
-          <!-- Columna 2: Guía Clara de 4 Pasos (Cómo Jugar y Transmitir Datos) -->
-          <div class="menu-card guide-card">
-            <div class="menu-section-title">2. GUÍA RÁPIDA: ¿CÓMO FUNCIONA EL JUEGO?</div>
-
-            <div class="howto-steps">
-              <div class="howto-step">
-                <div class="step-num">1</div>
-                <div>
-                  <strong>Diseña sin pasarte de Masa ni Presupuesto (Etapas 1 a 4)</strong>
-                  <p>
-                    Elige componentes y contrata perros especialistas. Cuida que la
-                    <strong>Masa Total</strong> no supere el límite del lanzador y que tu
-                    <strong>Delta-v</strong> alcance para el destino.
-                  </p>
-                </div>
-              </div>
-
-              <div class="howto-step">
-                <div class="step-num">2</div>
-                <div>
-                  <strong>Despega y Resuelve Anomalías en Tránsito (Etapas 5 y 6)</strong>
-                  <p>
-                    Durante el viaje ocurrirán eventos sin cuantificar. Decide si repararlos con tu
-                    tripulación, gastar energía de baterías (Wh) o pagar soporte desde Tierra ($).
-                  </p>
-                </div>
-              </div>
-
-              <div class="howto-step highlight-step">
-                <div class="step-num">3</div>
-                <div>
-                  <strong>🔬 Paso Clave A: Recolectar Datos en el Laboratorio (Etapa 7)</strong>
-                  <p>
-                    Al llegar al destino, primero debes <strong>generar los datos</strong>. Camina
-                    con <code>A</code>/<code>D</code> hasta el <strong>Laboratorio Científico</strong>
-                    y pulsa <code>E</code> (o haz clic en el botón
-                    <em>"1º Recolectar Datos en Laboratorio"</em>).
-                  </p>
-                </div>
-              </div>
-
-              <div class="howto-step highlight-step">
-                <div class="step-num">4</div>
-                <div>
-                  <strong>📡 Paso Clave B: Transmitir la Info a Tierra (Etapas 7 a 9)</strong>
-                  <p>
-                    Una vez tengas GB de datos en memoria, ve a la
-                    <strong>Sala de Sistemas (Antena)</strong> y pulsa <code>E</code> (o haz clic en
-                    <em>"2º Transmitir Datos a Tierra"</em>) para enviarlos usando tus ventanas de
-                    comunicación antes de volver al despacho del <strong>Gato Jefe</strong>.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="lastStatusType === 'fail'" class="menu-error-banner">
-              ⚠ {{ statusMessage }}
-            </div>
-
-            <div class="menu-cta-row">
-              <button
-                class="btn-primary start-mission-btn"
-                :disabled="loading"
-                @click="startNewMission(true)"
-              >
-                {{ loading ? '⏳ CONECTANDO CON CONTROL DE MISIÓN...' : `🚀 EMPEZAR EXPEDICIÓN (${selectedDifficulty.toUpperCase()})` }}
-              </button>
-              <button
-                v-if="mission"
-                class="resume-btn"
-                @click="showMainMenu = false"
-              >
-                Continuar partida en curso ►
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <GameMainMenu
+      v-if="showMainMenu"
+      :loading="loading"
+      :has-active-mission="Boolean(mission)"
+      :error-message="lastStatusType === 'fail' ? statusMessage : null"
+      :initial-mission-name="customMissionName"
+      :initial-destination="selectedInitialDest"
+      :initial-difficulty="selectedDifficulty"
+      :difficulty-options="difficultyOptions"
+      @start="handleMenuStart"
+      @resume="showMainMenu = false"
+    />
 
     <!-- ======================================================================= -->
     <!-- 1. CINTA SUPERIOR DE TELEMETRÍA Y PROGRESO DE ETAPAS (FIJA Y COMPACTA)  -->
@@ -899,7 +681,7 @@ onMounted(async () => {
       <aside v-if="!isFullStageVn" class="right-command-column">
         <div class="command-scroll-area">
           <!-- CRÓNICA NARRATIVA DE LA TRAMA (solo cuando no estorba al visor 2D RPG) -->
-          <div v-if="currentStoryBeat && activeViewportTab !== 'rooms2d'" class="story-chapter-box">
+          <div v-if="!showMainMenu && currentStoryBeat && activeViewportTab !== 'rooms2d'" class="story-chapter-box">
             <div class="story-head">
               <span class="story-chapter-tag">{{ currentStoryBeat.chapter }}</span>
               <span class="story-speaker">{{ currentStoryBeat.speaker }}</span>
@@ -1471,296 +1253,6 @@ onMounted(async () => {
   position: relative;
 }
 
-/* ========================================================================= */
-/* MENÚ DE INICIO Y SELECCIÓN DE DIFICULTAD                                  */
-/* ========================================================================= */
-.main-menu-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: radial-gradient(circle at 50% 15%, #1b2340 0%, #070a14 85%);
-  overflow-y: auto;
-  padding: 20px 20px 32px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-}
-
-.menu-container {
-  max-width: 1180px;
-  width: 100%;
-  margin: auto 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.menu-hero-banner {
-  background: rgba(27, 35, 64, 0.85);
-  border: 1px solid var(--amber);
-  border-radius: 8px;
-  padding: 18px 22px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
-}
-
-.menu-title-block {
-  max-width: 520px;
-}
-
-.menu-eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--cyan);
-  letter-spacing: 0.08em;
-}
-
-.menu-main-title {
-  font-size: 28px;
-  color: var(--gold);
-  letter-spacing: 0.05em;
-  margin: 4px 0 6px;
-}
-
-.menu-subtitle {
-  font-size: 15px;
-  color: var(--bone);
-  line-height: 1.5;
-}
-
-.cast-showcase {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--void-deep);
-  border: 1px solid var(--steel);
-  border-radius: 8px;
-  padding: 12px 16px;
-  flex-wrap: wrap;
-}
-
-.cast-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.cast-group-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--cyan);
-  letter-spacing: 0.06em;
-}
-
-.cast-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.cast-divider {
-  width: 1px;
-  height: 78px;
-  background: var(--steel);
-}
-
-.menu-grid {
-  display: grid;
-  grid-template-columns: 1.08fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 980px) {
-  .menu-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.menu-card {
-  background: var(--cabin);
-  border: 1px solid var(--steel);
-  border-radius: 8px;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.menu-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--amber);
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--steel);
-  padding-bottom: 6px;
-}
-
-.menu-form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.menu-label {
-  font-size: 11px;
-  color: var(--mist);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.menu-input {
-  background: var(--void);
-  border: 1px solid var(--steel);
-  border-radius: 4px;
-  padding: 7px 10px;
-  color: var(--bone);
-  font-family: inherit;
-  font-size: 12px;
-}
-
-.dest-toggle-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.dest-toggle-btn {
-  padding: 8px 10px;
-  font-size: 11px;
-  background: var(--void);
-  border: 1px solid var(--steel);
-  color: var(--mist);
-}
-
-.dest-toggle-btn.active {
-  border-color: var(--cyan);
-  background: rgba(79, 209, 197, 0.14);
-  color: var(--bone);
-  font-weight: 700;
-}
-
-.difficulty-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.diff-card {
-  background: var(--void);
-  border: 1px solid var(--steel);
-  border-radius: 6px;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s;
-}
-
-.diff-card:hover {
-  border-color: var(--cyan);
-}
-
-.diff-card.selected {
-  border-color: var(--amber);
-  background: rgba(255, 176, 0, 0.11);
-}
-
-.diff-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.diff-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--gold);
-}
-
-.diff-desc {
-  font-size: 11px;
-  color: var(--bone);
-  margin-bottom: 6px;
-}
-
-.diff-perks {
-  padding-left: 16px;
-  font-size: 10px;
-  color: var(--cyan);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.howto-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-}
-
-.howto-step {
-  display: flex;
-  gap: 10px;
-  background: var(--void);
-  border: 1px solid var(--steel);
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-size: 11px;
-  color: var(--mist);
-}
-
-.howto-step strong {
-  color: var(--bone);
-  display: block;
-  margin-bottom: 2px;
-}
-
-.howto-step.highlight-step {
-  border-color: var(--cyan);
-  background: rgba(79, 209, 197, 0.07);
-}
-
-.step-num {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--amber);
-  color: var(--void);
-  font-weight: 700;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.menu-cta-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: auto;
-}
-
-.start-mission-btn {
-  padding: 12px 16px;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-}
-
-.resume-btn {
-  padding: 8px 12px;
-  font-size: 11px;
-  background: var(--void);
-  color: var(--cyan);
-  border-color: var(--cyan);
-}
-
 /* 1. CINTA SUPERIOR */
 .top-ribbon {
   height: 58px;
@@ -2057,15 +1549,6 @@ onMounted(async () => {
 
 .delta-chip strong {
   color: var(--bone);
-}
-
-.menu-error-banner {
-  background: rgba(229, 72, 77, 0.16);
-  border: 1px solid var(--red);
-  color: var(--bone);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 11px;
 }
 
 .fallback-workstation {
@@ -2624,14 +2107,6 @@ onMounted(async () => {
   font-size: 9px;
   font-weight: 700;
   color: var(--gold);
-}
-
-.menu-cat-icon {
-  width: 58px;
-  height: 58px;
-  object-fit: contain;
-  image-rendering: pixelated;
-  border-radius: 4px;
 }
 
 .story-bubble-row {
