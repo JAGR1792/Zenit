@@ -84,6 +84,7 @@ function handleStart(): void {
       <main
         class="arcade-menu-frame"
         :class="{ 'is-wide': activeView !== 'main' }"
+        data-tutorial="menu"
         aria-label="Menú principal de Zenit"
       >
         <!-- Remaches metálicos en las 4 esquinas -->

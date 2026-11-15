@@ -25,80 +25,92 @@ const statusMessage = ref<string>('Inicializando consola de misión Zenit...')
 const lastStatusType = ref<'allowed' | 'warning' | 'fail'>('allowed')
 const loading = ref<boolean>(false)
 
+function leerPreferenciaTutorial(): boolean {
+  try {
+    return localStorage.getItem('zenit_tutorial_activo') !== '0'
+  } catch {
+    return true
+  }
+}
+
 // Menú de Inicio y control de decisiones explícitas sin preselecciones visibles
 const showMainMenu = ref<boolean>(true)
-const tutorialActivo = ref<boolean>(localStorage.getItem('zenit_tutorial_activo') === '1')
-const tutorialVisible = ref<boolean>(tutorialActivo.value)
+const tutorialActivo = ref<boolean>(leerPreferenciaTutorial())
+const tutorialVisible = ref<boolean>(false)
 const tutorialPaso = ref<number>(0)
 
 const hitosTutorial: PasoTutorial[] = [
   {
-    selector: '[data-tutorial="menu"]',
-    titulo: 'Bienvenido a Zenit',
-    descripcion:
-      'Configura tu expedición: nombre, destino (OTB más accesible, Luna más exigente) y dificultad. Luego pulsa “Despegar”.',
-  },
-  {
-    selector: '[data-tutorial="timeline"]',
+    selector: '[data-tutorial="command"], [data-tutorial="timeline"]',
+    posicion: 'left',
     titulo: 'Etapa 1 · Elige destino',
     descripcion:
-      'Selecciona el destino científico. El Delta-v requerido y los días de tránsito cambian según el destino.',
+      'Selecciona el destino científico en el panel derecho (OTB es más accesible; Luna exige mayor Delta-v y días de tránsito).',
   },
   {
     selector: '[data-tutorial="telemetry"]',
+    posicion: 'bottom',
     titulo: 'Etapa 2 · Negocia presupuesto',
     descripcion:
-      'Vigila CZ, masa y Delta-v. En la Oficina argumenta ante el Comité; un buen argumento técnico puede subir el presupuesto.',
+      'Vigila Créditos Zenit (CZ), masa y Delta-v arriba. En la Oficina de Planificación argumenta ante el Comité de 3 Gatos para ajustar tu presupuesto.',
   },
   {
     selector: '[data-tutorial="viewport"]',
+    posicion: 'bottom',
     titulo: 'Etapa 3 · Diseña la nave',
     descripcion:
-      'Instala componentes y contrata tripulación. Lee la ficha técnica: masa, consumo W, Isp. Equilibra masa (≤1.300 kg) y energía.',
+      'Alterna vistas en el visor izquierdo, instala componentes y contrata tripulación. Lee la ficha técnica y equilibra masa (≤ 1.300 kg) y energía.',
   },
   {
-    selector: '[data-tutorial="telemetry"]',
+    selector: '[data-tutorial="command"], [data-tutorial="telemetry"]',
+    posicion: 'left',
     titulo: 'Etapa 4 · Planifica trayectoria',
     descripcion:
-      'Elige perfil de trayectoria y ventana. El Delta-v requerido aumenta con trayectoria rápida o ventana secundaria.',
+      'Elige perfil de trayectoria y ventana de lanzamiento. Una trayectoria rápida o ventana secundaria aumenta el Delta-v requerido.',
   },
   {
     selector: '[data-tutorial="timeline"]',
+    posicion: 'bottom',
     titulo: 'Etapa 5 · Lanzamiento',
     descripcion:
-      'Si la masa supera el límite, la misión falla. Si el Delta-v es insuficiente, no alcanzas la órbita.',
+      'Comprueba tu progreso antes de encender motores: si la masa supera el límite o falta Delta-v, la misión puede fracasar en el despegue.',
   },
   {
     selector: '[data-tutorial="viewport"]',
+    posicion: 'bottom',
     titulo: 'Etapa 6 · Tránsito',
     descripcion:
-      'Resuelve alertas de subsistemas. Usa tripulación, batería o dinero. No dejes alertas sin atender.',
+      'Resuelve alertas de subsistemas usando tripulación, batería o CZ. No dejes alertas críticas sin atender durante el viaje.',
   },
   {
     selector: '[data-tutorial="viewport"]',
+    posicion: 'bottom',
     titulo: 'Etapa 7 · Recolecta datos',
     descripcion:
-      'Ve al Laboratorio Científico y pulsa E para recolectar. Primero datos, luego transmisión.',
+      'En la Cubierta 2D muévete al Laboratorio Científico y pulsa E junto a la consola para recolectar datos. Primero datos, luego transmisión.',
   },
   {
     selector: '[data-tutorial="viewport"]',
+    posicion: 'bottom',
     titulo: 'Etapa 8 · Tripulación',
     descripcion:
-      'Estabiliza el ánimo en el Módulo de Vida. Una tripulación en “Sol” rinde más.',
+      'Estabiliza el ánimo de tu equipo en el Módulo de Vida. Una tripulación descansada (“Sol”) rinde mejor en ciencia y emergencias.',
   },
   {
     selector: '[data-tutorial="viewport"]',
+    posicion: 'bottom',
     titulo: 'Etapa 9 · Transmite',
     descripcion:
-      'En Sala de Sistemas usa la antena para enviar datos a Tierra. Sin transmisión, el informe final será pobre.',
+      'En Sala de Sistemas usa la antena con E para transmitir datos a la Tierra antes de cerrar operaciones. Sin transmisión el veredicto cae.',
   },
   {
-    selector: '[data-tutorial="deltabar"]',
+    selector: '[data-tutorial="final"], [data-tutorial="deltabar"]',
+    posicion: 'top',
     titulo: 'Etapa 10 · Veredicto',
     descripcion:
-      'El Comité evalúa ciencia, finanzas y supervivencia. Un buen Delta-v, masa controlada y datos transmitidos dan un final exitoso.',
-    },
-  ]
+      'El Comité evalúa ciencia transmitida, finanzas en CZ y supervivencia. Revisa las respuestas del Gato Jefe y sus dos ayudantes.',
+  },
+]
 const selectedDifficulty = ref<DificultadId>('facil')
 const selectedInitialDest = ref<DestinoId>('OTB')
 const customMissionName = ref<string>('Expedición Zenit-1')
@@ -340,26 +352,35 @@ async function handleMenuStart(payload: {
 
 function iniciarTutorial(): void {
   tutorialActivo.value = true
-  tutorialVisible.value = true
-  localStorage.setItem('zenit_tutorial_activo', '1')
+  try {
+    localStorage.setItem('zenit_tutorial_activo', '1')
+  } catch {
+    // Ignorar entornos sin localStorage.
+  }
   sincronizarTutorial()
 }
 
 function sincronizarTutorial(): void {
-  if (!tutorialActivo.value) return
-  if (showMainMenu.value) {
-    tutorialPaso.value = 0
-  } else if (mission.value) {
-    tutorialPaso.value = Math.min(mission.value.etapa_actual, hitosTutorial.length - 1)
+  if (!tutorialActivo.value || showMainMenu.value) {
+    tutorialVisible.value = false
+    return
   }
-  tutorialVisible.value = true
+  if (finalReport.value) {
+    tutorialPaso.value = hitosTutorial.length - 1
+    tutorialVisible.value = true
+    return
+  }
+  if (mission.value) {
+    tutorialPaso.value = Math.max(0, Math.min(mission.value.etapa_actual - 1, hitosTutorial.length - 1))
+    tutorialVisible.value = true
+  }
 }
 
 function desactivarTutorial(): void {
   tutorialActivo.value = false
   tutorialVisible.value = false
   try {
-    localStorage.removeItem('zenit_tutorial_activo')
+    localStorage.setItem('zenit_tutorial_activo', '0')
   } catch {
     // Ignorar entornos sin localStorage.
   }
@@ -367,6 +388,7 @@ function desactivarTutorial(): void {
 
 watch(showMainMenu, () => sincronizarTutorial())
 watch(() => mission.value?.etapa_actual, () => sincronizarTutorial(), { immediate: true })
+watch(() => Boolean(finalReport.value), () => sincronizarTutorial())
 
 async function startNewMission(fromMenu = false): Promise<void> {
   loading.value = true
@@ -470,7 +492,6 @@ onMounted(async () => {
     <!-- ======================================================================= -->
     <GameMainMenu
       v-if="showMainMenu"
-      data-tutorial="menu"
       :loading="loading"
       :has-active-mission="Boolean(mission)"
       :error-message="lastStatusType === 'fail' ? statusMessage : null"
@@ -559,7 +580,7 @@ onMounted(async () => {
     <!-- ======================================================================= -->
     <!-- ESCENA FINAL (ETAPA 10 O FALLO DE MISIÓN): DESPACHO DEL GATO JEFE       -->
     <!-- ======================================================================= -->
-    <main v-if="finalReport" class="final-report-viewport">
+    <main v-if="finalReport" class="final-report-viewport" data-tutorial="final">
       <BossReportScene :report="finalReport" @restart="showMainMenu = true" />
     </main>
 
@@ -572,7 +593,7 @@ onMounted(async () => {
       :class="{ 'full-vn-focus': isFullStageVn }"
     >
       <!-- PANEL IZQUIERDO (58%): VISOR INTERACTIVO MULTIMODO + CHIPS DE IMPACTO -->
-      <section class="left-viewport-column" data-tutorial="viewport">
+      <section class="left-viewport-column">
         <!-- Conmutador de Vista Principal -->
         <div class="viewport-switcher" data-tutorial="viewport">
           <button
@@ -745,7 +766,7 @@ onMounted(async () => {
       </section>
 
       <!-- PANEL DERECHO (42%): CONSOLA DE DECISIONES DE ETAPA (oculta durante novela visual enfocada) -->
-      <aside v-if="!isFullStageVn" class="right-command-column">
+      <aside v-if="!isFullStageVn" class="right-command-column" data-tutorial="command">
         <div class="command-scroll-area">
           <!-- CRÓNICA NARRATIVA DE LA TRAMA (solo cuando no estorba al visor 2D RPG) -->
           <div v-if="!showMainMenu && currentStoryBeat && activeViewportTab !== 'rooms2d'" class="story-chapter-box" data-tutorial="story">
@@ -1308,7 +1329,8 @@ onMounted(async () => {
     </main>
 
     <TutorialOverlay
-      :pasos="[hitosTutorial[tutorialPaso]]"
+      v-model:paso-inicial="tutorialPaso"
+      :pasos="hitosTutorial"
       :activo="tutorialVisible"
       @finish="tutorialVisible = false"
       @skip="desactivarTutorial()"

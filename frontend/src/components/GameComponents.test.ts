@@ -1,9 +1,11 @@
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import BossReportScene from './BossReportScene.vue'
 import DestinationRooms2D from './DestinationRooms2D.vue'
 import GameMainMenu from './GameMainMenu.vue'
 import ShipSchematic from './ShipSchematic.vue'
+import TutorialOverlay from './TutorialOverlay.vue'
 import VisualNovelNegotiation from './VisualNovelNegotiation.vue'
 import type { InformeFinal, TripulanteEstado } from '../services/api'
 import { createMissionLocal, sendDecisionLocal } from '../services/localSimulationFallback'
@@ -374,5 +376,72 @@ describe('Componentes principales del simulador Zenit', () => {
       | undefined
     expect(startEmitted).toBeTruthy()
     expect(startEmitted![0][0].dificultad).toBe('normal')
+  })
+
+  it('TutorialOverlay actualiza pasos reactivamente, reinicia al reabrir y respeta límites de pantalla', async () => {
+    const objetivo = document.createElement('div')
+    objetivo.setAttribute('data-tutorial', 'test-target')
+    objetivo.getBoundingClientRect = () =>
+      ({
+        top: 640,
+        left: 100,
+        right: 360,
+        bottom: 690,
+        width: 260,
+        height: 50,
+        x: 100,
+        y: 640,
+        toJSON: () => ({}),
+      }) as DOMRect
+    document.body.appendChild(objetivo)
+
+    const pasos = [
+      {
+        selector: '[data-tutorial="test-target"]',
+        titulo: 'Paso Uno',
+        descripcion: 'Primer hito reactivo.',
+      },
+      {
+        selector: '[data-tutorial="inexistente"]',
+        titulo: 'Paso Dos',
+        descripcion: 'Respaldo centrado cuando no existe el selector.',
+      },
+    ]
+
+    const wrapper = mount(TutorialOverlay, {
+      props: {
+        pasos,
+        activo: true,
+        pasoInicial: 0,
+      },
+    })
+
+    await nextTick()
+    expect(wrapper.text()).toContain('PASO 1 DE 2')
+    expect(wrapper.text()).toContain('Paso Uno')
+    const tooltip = wrapper.find('.tutorial-tooltip')
+    expect(tooltip.exists()).toBe(true)
+
+    // Avanza al paso 2 mediante cambio reactivo de pasoInicial (simulando avance de etapa)
+    await wrapper.setProps({ pasoInicial: 1 })
+    await nextTick()
+    expect(wrapper.text()).toContain('PASO 2 DE 2')
+    expect(wrapper.text()).toContain('Paso Dos')
+
+    // Cierra con X (finish) y al reabrir con pasoInicial: 0 vuelve al paso 1
+    await wrapper.find('.tutorial-close-x').trigger('click')
+    expect(wrapper.emitted('finish')).toBeTruthy()
+    await wrapper.setProps({ activo: false })
+    await wrapper.setProps({ activo: true, pasoInicial: 0 })
+    await nextTick()
+    expect(wrapper.text()).toContain('PASO 1 DE 2')
+    expect(wrapper.text()).toContain('Paso Uno')
+
+    // Botón No mostrar más emite skip
+    await wrapper.find('.tutorial-btn-skip').trigger('click')
+    expect(wrapper.emitted('skip')).toBeTruthy()
+
+    objetivo.remove()
+    wrapper.unmount()
   })
 })
